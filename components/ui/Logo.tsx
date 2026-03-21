@@ -1,46 +1,33 @@
+
 import React from 'react';
 import { RiSignalTowerFill } from 'react-icons/ri';
 
-interface LogoProps {
-  size?: 'sm' | 'md' | 'lg';
-}
+interface LogoProps { size?: 'sm' | 'md' | 'lg'; }
 
 const sizes = {
-  sm: { icon: 18, text: '1rem', gap: 8 },
-  md: { icon: 22, text: '1.2rem', gap: 10 },
-  lg: { icon: 32, text: '1.75rem', gap: 12 },
+  sm: { icon: 14, box: 28, radius: 8, text: '0.85rem' },
+  md: { icon: 18, box: 36, radius: 10, text: '1rem' },
+  lg: { icon: 24, box: 48, radius: 12, text: '1.2rem' },
 };
 
 export default function Logo({ size = 'md' }: LogoProps) {
   const s = sizes[size];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: s.gap, textDecoration: 'none' }}>
-      <div
-        style={{
-          width: s.icon * 1.8,
-          height: s.icon * 1.8,
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, var(--color-primary), #0EA5E9)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          boxShadow: '0 0 16px var(--color-primary-glow)',
-        }}
-      >
-        <RiSignalTowerFill size={s.icon} color="#000" />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{
+        width: s.box, height: s.box, borderRadius: s.radius,
+        background: 'linear-gradient(135deg, #1A73E8, #7C3AED)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 4px 12px rgba(26,115,232,0.25)',
+        flexShrink: 0,
+      }}>
+        <RiSignalTowerFill size={s.icon} color="#fff" />
       </div>
-      <span
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontWeight: 800,
-          fontSize: s.text,
-          letterSpacing: '-0.03em',
-          color: 'var(--color-text)',
-          lineHeight: 1,
-        }}
-      >
-        bamzy<span style={{ color: 'var(--color-primary)' }}>SMS</span>
+      <span style={{
+        fontFamily: 'Poppins, sans-serif', fontWeight: 800,
+        fontSize: s.text, color: '#111827', letterSpacing: '-0.02em',
+      }}>
+        bamzy<span style={{ color: '#1A73E8' }}>SMS</span>
       </span>
     </div>
   );
