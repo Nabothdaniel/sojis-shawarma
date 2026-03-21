@@ -13,173 +13,75 @@ export default function CTASection() {
   };
 
   return (
-    <section
-      style={{
-        padding: '96px 24px',
-        position: 'relative',
-        overflow: 'hidden',
-        background: 'var(--color-bg-2)',
-        borderTop: '1px solid var(--color-border)',
-      }}
-    >
-      {/* Gradient mesh background */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(0,229,255,0.08) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background:
-            'radial-gradient(ellipse 60% 50% at 20% 0%, rgba(124,58,237,0.07) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
+    <section style={{
+      padding: 'clamp(60px, 8vw, 96px) clamp(16px, 4vw, 24px)',
+      background: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Soft bg gradient */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(26,115,232,0.05) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
 
-      {/* Decorative ring */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 600,
-          height: 600,
-          borderRadius: '50%',
-          border: '1px solid rgba(0,229,255,0.05)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 400,
-          height: 400,
-          borderRadius: '50%',
-          border: '1px solid rgba(0,229,255,0.07)',
-          pointerEvents: 'none',
-        }}
-      />
+      <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        <span className="badge badge-primary" style={{ marginBottom: 20 }}>Get Started Today</span>
 
-      <div
-        style={{
-          maxWidth: 680,
-          margin: '0 auto',
-          textAlign: 'center',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <span className="badge badge-primary" style={{ marginBottom: 24 }}>
-          Get Started Today
-        </span>
-
-        <h2
-          style={{
-            fontSize: 'clamp(2rem, 4.5vw, 3.2rem)',
-            fontWeight: 800,
-            marginBottom: 20,
-            lineHeight: 1.1,
-          }}
-        >
+        <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', fontWeight: 800, marginBottom: 16, lineHeight: 1.15 }}>
           Start using our{' '}
           <span className="gradient-text">services now.</span>
         </h2>
 
-        <p
-          style={{
-            color: 'var(--color-text-muted)',
-            fontSize: '1rem',
-            lineHeight: 1.7,
-            marginBottom: 48,
-            maxWidth: 480,
-            margin: '0 auto 48px',
-          }}
-        >
+        <p style={{
+          color: 'var(--color-text-muted)', fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+          lineHeight: 1.7, marginBottom: 40, maxWidth: 460, margin: '0 auto 40px',
+        }}>
           Join thousands of Nigerians who protect their identity daily with BamzySMS virtual numbers.
-          Sign up free — no credit card required.
         </p>
 
-        {/* Auth buttons */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 14,
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginBottom: 40,
-          }}
-        >
+        {/* Buttons */}
+        <div className="cta-btns" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
           <a href="/login" style={{ textDecoration: 'none' }}>
-            <button className="btn-ghost" style={{ padding: '14px 28px', fontSize: '0.95rem' }}>
-              <RiLoginBoxLine size={18} />
-              Log In
+            <button className="btn-ghost" style={{ padding: '13px 26px', fontSize: '0.95rem' }}>
+              <RiLoginBoxLine size={18} /> Log In
             </button>
           </a>
           <a href="/register" style={{ textDecoration: 'none' }}>
-            <button className="btn-primary" style={{ padding: '14px 28px', fontSize: '0.95rem' }}>
-              <RiUserAddLine size={18} />
-              Create Account
-              <RiArrowRightLine size={16} />
+            <button className="btn-primary" style={{ padding: '13px 26px', fontSize: '0.95rem' }}>
+              <RiUserAddLine size={18} /> Create Account <RiArrowRightLine size={16} />
             </button>
           </a>
         </div>
 
-        {/* Divider */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            marginBottom: 32,
-            maxWidth: 440,
-            margin: '0 auto 32px',
-          }}
-        >
+        {/* OR divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28, maxWidth: 400, margin: '0 auto 28px' }}>
           <div className="divider" style={{ flex: 1 }} />
-          <span style={{ color: 'var(--color-text-faint)', fontSize: '0.78rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            or join the waitlist
-          </span>
+          <span style={{ color: 'var(--color-text-faint)', fontSize: '0.75rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>or join the waitlist</span>
           <div className="divider" style={{ flex: 1 }} />
         </div>
 
-        {/* Email CTA */}
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            display: 'flex',
-            gap: 12,
-            maxWidth: 440,
-            margin: '0 auto',
-            flexWrap: 'wrap',
-          }}
-        >
-          <input
-            type="email"
-            className="input-field"
-            placeholder="your@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ flex: 1, minWidth: 200 }}
-          />
-          <button
-            type="submit"
-            className="btn-primary"
-            style={{ padding: '14px 22px', fontSize: '0.875rem', whiteSpace: 'nowrap' }}
-          >
+        {/* Waitlist form */}
+        <form onSubmit={handleSubmit} className="cta-form"
+          style={{ display: 'flex', gap: 10, maxWidth: 420, margin: '0 auto', flexWrap: 'wrap' }}>
+          <input type="email" className="input-field" placeholder="your@email.com"
+            value={email} onChange={(e) => setEmail(e.target.value)}
+            style={{ flex: 1, minWidth: 200 }} />
+          <button type="submit" className="btn-primary"
+            style={{ padding: '13px 20px', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
             Notify Me
           </button>
         </form>
       </div>
+
+      <style>{`
+        @media (max-width: 480px) {
+          .cta-btns { flex-direction: column; align-items: stretch; }
+          .cta-btns a { width: 100%; }
+          .cta-btns button { width: 100%; }
+          .cta-form { flex-direction: column; }
+          .cta-form input, .cta-form button { width: 100%; }
+        }
+      `}</style>
     </section>
   );
 }
