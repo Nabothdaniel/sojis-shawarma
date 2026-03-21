@@ -52,7 +52,7 @@ export default function Topbar({ title }: { title?: string }) {
             background: 'linear-gradient(135deg, var(--color-primary), #0EA5E9)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <RiSignalTowerFill size={14} color="#000" />
+            <RiSignalTowerFill size={14} color="#fff" />
           </div>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.95rem' }}>
             bamzy<span style={{ color: 'var(--color-primary)' }}>SMS</span>
