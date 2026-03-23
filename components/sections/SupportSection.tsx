@@ -6,8 +6,8 @@ import { useAppStore } from '@/store/appStore';
 
 const SUPPORT_CHANNELS = [
   { icon: <RiWhatsappLine size={24} />, title: 'WhatsApp Chat', desc: 'Instant responses via our WhatsApp channel. Join and get help from our team in real time.', action: 'Join Channel', href: '#', color: '#25D366' },
-  { icon: <RiMailSendLine size={24} />, title: 'Email Support', desc: 'Reach our support team at support@bamzysms.com. We respond to every query within hours.', action: 'Send Email', href: 'mailto:support@bamzysms.com', color: '#1A73E8' },
-  { icon: <RiTimeLine size={24} />, title: '24/7 Availability', desc: 'Our platform runs around the clock. Automated number delivery works even when our team is offline.', action: 'Learn More', href: '#', color: '#F59E0B' },
+  { icon: <RiMailSendLine size={24} />, title: 'Email Support', desc: 'Reach our support team at support@bamzysms.com. We respond to every query within hours.', action: 'Send Email', href: 'mailto:support@bamzysms.com', color: 'var(--color-primary)' },
+  { icon: <RiTimeLine size={24} />, title: '24/7 Availability', desc: 'Our platform runs around the clock. Automated number delivery works even when our team is offline.', action: 'Learn More', href: '#', color: 'var(--color-primary)' },
 ];
 
 export default function SupportSection() {
@@ -33,8 +33,8 @@ export default function SupportSection() {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
             <div style={{
               width: 60, height: 60, borderRadius: 16,
-              background: 'rgba(26,115,232,0.08)', border: '1px solid rgba(26,115,232,0.15)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1A73E8',
+              background: 'var(--color-primary-dim)', border: '1px solid var(--color-primary-glow)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)',
             }}>
               <RiCustomerService2Line size={28} />
             </div>
@@ -42,7 +42,7 @@ export default function SupportSection() {
           <span className="badge badge-primary" style={{ marginBottom: 16 }}>Support</span>
           <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.8rem)', fontWeight: 800, marginBottom: 14 }}>
             We provide{' '}
-            <span className="gradient-text">24×7 support.</span>
+            <span style={{ color: 'var(--color-primary)' }}>24×7 support.</span>
           </h2>
           <p style={{ color: 'var(--color-text-muted)', maxWidth: 440, margin: '0 auto', lineHeight: 1.6, fontSize: 'clamp(0.875rem, 2vw, 1rem)' }}>
             Our team is always ready to solve your problems and answer every query, anytime.

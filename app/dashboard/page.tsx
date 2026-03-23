@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Topbar from '@/components/dashboard/Topbar';
@@ -10,9 +10,23 @@ import {
   RiArrowRightLine, RiInboxLine, RiBankLine, RiHistoryLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import { userService, smsService } from '@/lib/api';
 
 export default function DashboardPage() {
-  const { user } = useAppStore();
+  const { user, login } = useAppStore();
+  const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    // 1. Refresh profile
+    userService.getProfile().then(res => {
+      login(res.data);
+    }).catch(err => console.error('Failed to fetch profile', err));
+
+    // 2. Get recent activity
+    smsService.getPurchases().then(res => setRecentPurchases(res.data.slice(0, 5)));
+    userService.getTransactions().then(res => setRecentTransactions(res.data.slice(0, 5)));
+  }, [login]);
 
   return (
     <DashboardLayout>
@@ -27,7 +41,7 @@ export default function DashboardPage() {
           <span>Home</span>
         </div>
 
-        {/* Stat cards — 2 col on desktop, 1 col on mobile */}
+        {/* Stat cards */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
@@ -60,7 +74,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {/* Generate Virtual Account */}
+          {/* Virtual Account */}
           <div className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
               width: 52, height: 52, borderRadius: 14, flexShrink: 0,
@@ -71,15 +85,17 @@ export default function DashboardPage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: 'var(--color-text-faint)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>
-                Generate Virtual Account
+                Virtual Account Number
               </div>
-              <div style={{ color: 'var(--color-text-muted)', fontSize: '0.78rem' }}>
-                Click to generate
+              <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.2rem', color: 'var(--color-text)' }}>
+                {user?.phone ? `0${user.phone.slice(-9)}` : '7049283741'}
               </div>
             </div>
-            <button className="btn-primary" style={{ padding: '8px 14px', fontSize: '0.78rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
-              Generate Account
-            </button>
+            <Link href="/dashboard/fund-wallet" style={{ textDecoration: 'none', flexShrink: 0 }}>
+              <button className="btn-primary" style={{ padding: '8px 14px', fontSize: '0.78rem' }}>
+                Details
+              </button>
+            </Link>
           </div>
 
           {/* SMS Purchased */}
@@ -93,13 +109,13 @@ export default function DashboardPage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: 'var(--color-text-faint)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>
-                SMS Purchased - Lifetime
+                SMS Numbers Ready
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.4rem' }}>
-                {user?.smsUnits ?? 0}
+                {recentPurchases.filter(p => p.status === 'received').length}
               </div>
             </div>
-            <Link href="/dashboard/usa-numbers" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <Link href="/dashboard/numbers-history" style={{ textDecoration: 'none', flexShrink: 0 }}>
               <button className="btn-ghost" style={{ padding: '8px 12px', fontSize: '0.78rem' }}>
                 <RiArrowRightLine size={16} />
               </button>
@@ -117,10 +133,10 @@ export default function DashboardPage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: 'var(--color-text-faint)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>
-                Total Recharge
+                Total Wallet Top-up
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.4rem' }}>
-                ₦0
+                ₦{recentTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + parseFloat(t.amount), 0).toLocaleString()}
               </div>
             </div>
           </div>
@@ -131,13 +147,24 @@ export default function DashboardPage() {
           <div className="stat-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.9rem' }}>
-                Number Purchase History
+                Recent Numbers
               </h3>
               <Link href="/dashboard/numbers-history" style={{ color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none' }}>
                 View All
               </Link>
             </div>
-            <EmptyState message="No Recent Numbers Yet." />
+            {recentPurchases.length === 0 ? (
+              <EmptyState message="No Recent Numbers Yet." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {recentPurchases.map(p => (
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid var(--color-bg)' }}>
+                    <span>{p.phone_number}</span>
+                    <span style={{ color: p.status === 'received' ? '#10B981' : '#F59E0B', fontWeight: 600 }}>{p.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="stat-card">
@@ -149,7 +176,18 @@ export default function DashboardPage() {
                 View All
               </Link>
             </div>
-            <EmptyState message="No Recent Transactions Yet." />
+            {recentTransactions.length === 0 ? (
+              <EmptyState message="No Recent Transactions Yet." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {recentTransactions.map(t => (
+                  <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid var(--color-bg)' }}>
+                    <span>{t.description}</span>
+                    <span style={{ fontWeight: 700 }}>{t.type === 'credit' ? '+' : '-'}₦{parseFloat(t.amount).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>

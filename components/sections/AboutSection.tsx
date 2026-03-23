@@ -34,7 +34,7 @@ export default function AboutSection() {
           <span className="badge badge-primary" style={{ marginBottom: 16 }}>About BamzySMS</span>
           <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.8rem)', fontWeight: 800, marginBottom: 16, lineHeight: 1.15 }}>
             The smarter way to verify{' '}
-            <span className="gradient-text">without risk.</span>
+            <span style={{ color: 'var(--color-primary)' }}>without risk.</span>
           </h2>
           <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.75, fontSize: 'clamp(0.875rem, 2vw, 1rem)' }}>
             BamzySMS gives you access to virtual phone numbers for instant SMS verification
@@ -52,9 +52,9 @@ export default function AboutSection() {
             <div key={f.title} className="stat-card">
               <div style={{
                 width: 46, height: 46, borderRadius: 12,
-                background: 'rgba(26,115,232,0.08)', border: '1px solid rgba(26,115,232,0.15)',
+                background: 'var(--color-primary-dim)', border: '1px solid var(--color-primary-glow)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#1A73E8', marginBottom: 16,
+                color: 'var(--color-primary)', marginBottom: 16,
               }}>
                 {f.icon}
               </div>

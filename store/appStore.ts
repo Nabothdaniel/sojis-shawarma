@@ -23,7 +23,10 @@ export const useAppStore = create<AppState>()(
       user: null,
       isAuthenticated: false,
       login: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: () => {
+        localStorage.removeItem('bamzysms-token');
+        set({ user: null, isAuthenticated: false });
+      },
 
       // Email
       email: '',

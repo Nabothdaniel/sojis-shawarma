@@ -16,9 +16,9 @@ export default function Logo({ size = 'md' }: LogoProps) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{
         width: s.box, height: s.box, borderRadius: s.radius,
-        background: 'linear-gradient(135deg, #1A73E8, #7C3AED)',
+        background: 'var(--color-primary)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 12px rgba(26,115,232,0.25)',
+        boxShadow: '0 4px 12px var(--color-primary-glow)',
         flexShrink: 0,
       }}>
         <RiSignalTowerFill size={s.icon} color="#fff" />
@@ -27,7 +27,7 @@ export default function Logo({ size = 'md' }: LogoProps) {
         fontFamily: 'Poppins, sans-serif', fontWeight: 800,
         fontSize: s.text, color: '#111827', letterSpacing: '-0.02em',
       }}>
-        bamzy<span style={{ color: '#1A73E8' }}>SMS</span>
+        bamzy<span style={{ color: 'var(--color-primary)' }}>SMS</span>
       </span>
     </div>
   );

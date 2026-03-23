@@ -7,10 +7,10 @@ import { useAppStore } from '@/store/appStore';
 import { RiMenu3Line, RiCloseLine } from 'react-icons/ri';
 
 const NAV_LINKS = [
-  { label: 'Home', href: '#home' },
-  { label: 'About', href: '#about' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Support', href: '#support' },
+  { label: 'Home', href: '/' },
+  { label: 'About', href: '/about' },
+  { label: 'How It Works', href: '/how-it-works' },
+  { label: 'Support', href: '/support' },
 ];
 
 export default function Navbar() {
@@ -30,9 +30,11 @@ export default function Navbar() {
   }, [setMobileMenuOpen]);
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    e.preventDefault();
-    const target = document.querySelector(href);
-    if (target) target.scrollIntoView({ behavior: 'smooth' });
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      const target = document.querySelector(href);
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    }
     setMobileMenuOpen(false);
   };
 
@@ -56,16 +58,12 @@ export default function Navbar() {
 
           {/* Desktop nav */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 36 }} className="desk-nav">
-            {NAV_LINKS.map((link) => {
-              const sectionId = link.href.replace('#', '');
-              return (
-                <a key={link.href} href={link.href}
-                  onClick={(e) => handleNavClick(e, link.href)}
-                  className={`nav-link ${activeSection === sectionId ? 'active' : ''}`}>
-                  {link.label}
-                </a>
-              );
-            })}
+            {NAV_LINKS.map((link) => (
+              <Link key={link.href} href={link.href}
+                className={`nav-link ${activeSection === link.href.replace('/', '') ? 'active' : ''}`}>
+                {link.label}
+              </Link>
+            ))}
           </div>
 
           {/* Desktop CTA */}
@@ -99,15 +97,15 @@ export default function Navbar() {
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {NAV_LINKS.map((link) => (
-                <a key={link.href} href={link.href}
-                  onClick={(e) => handleNavClick(e, link.href)}
+                <Link key={link.href} href={link.href}
+                  onClick={(e) => handleNavClick(e as any, link.href)}
                   style={{
                     display: 'block', padding: '12px 14px', borderRadius: 10,
                     color: 'var(--color-text-muted)', fontWeight: 500,
                     fontSize: '0.95rem', textDecoration: 'none', transition: 'all 0.2s',
                   }}>
                   {link.label}
-                </a>
+                </Link>
               ))}
               <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <Link href="/login" style={{ textDecoration: 'none' }} onClick={() => setMobileMenuOpen(false)}>

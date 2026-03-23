@@ -42,15 +42,15 @@ export default function PlatformsSection() {
                 border: '1px solid var(--color-border)', background: '#fff',
                 cursor: 'default', transition: 'all 0.2s ease',
               }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = `${p.color}40`;
-                (e.currentTarget as HTMLElement).style.background = `${p.color}08`;
-                (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+              onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
+                e.currentTarget.style.borderColor = `var(--color-primary-glow)`;
+                e.currentTarget.style.background = `var(--color-primary-dim)`;
+                e.currentTarget.style.transform = 'translateY(-1px)';
               }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)';
-                (e.currentTarget as HTMLElement).style.background = '#fff';
-                (e.currentTarget as HTMLElement).style.transform = 'none';
+              onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.background = '#fff';
+                e.currentTarget.style.transform = 'none';
               }}>
               <span style={{ color: p.color, display: 'flex' }}>{p.icon}</span>
               <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>

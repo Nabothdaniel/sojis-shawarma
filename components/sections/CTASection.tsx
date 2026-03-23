@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { RiArrowRightLine, RiLoginBoxLine, RiUserAddLine } from 'react-icons/ri';
+import Link from 'next/link';
 import { useAppStore } from '@/store/appStore';
 
 export default function CTASection() {
@@ -17,10 +18,10 @@ export default function CTASection() {
       padding: 'clamp(60px, 8vw, 96px) clamp(16px, 4vw, 24px)',
       background: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', position: 'relative', overflow: 'hidden',
     }}>
-      {/* Soft bg gradient */}
+      {/* Soft bg radial gradient */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'radial-gradient(ellipse 80% 60% at 50% 100%, rgba(26,115,232,0.05) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 80% 60% at 50% 100%, var(--color-primary-dim) 0%, transparent 70%)',
         pointerEvents: 'none',
       }} />
 
@@ -29,7 +30,7 @@ export default function CTASection() {
 
         <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 3rem)', fontWeight: 800, marginBottom: 16, lineHeight: 1.15 }}>
           Start using our{' '}
-          <span className="gradient-text">services now.</span>
+          <span style={{ color: 'var(--color-primary)' }}>services now.</span>
         </h2>
 
         <p style={{
@@ -41,16 +42,16 @@ export default function CTASection() {
 
         {/* Buttons */}
         <div className="cta-btns" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
-          <a href="/login" style={{ textDecoration: 'none' }}>
+          <Link href="/login" style={{ textDecoration: 'none' }}>
             <button className="btn-ghost" style={{ padding: '13px 26px', fontSize: '0.95rem' }}>
               <RiLoginBoxLine size={18} /> Log In
             </button>
-          </a>
-          <a href="/register" style={{ textDecoration: 'none' }}>
+          </Link>
+          <Link href="/register" style={{ textDecoration: 'none' }}>
             <button className="btn-primary" style={{ padding: '13px 26px', fontSize: '0.95rem' }}>
               <RiUserAddLine size={18} /> Create Account <RiArrowRightLine size={16} />
             </button>
-          </a>
+          </Link>
         </div>
 
         {/* OR divider */}

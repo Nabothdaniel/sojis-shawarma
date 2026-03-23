@@ -5,10 +5,10 @@ import { RiShoppingCart2Line, RiFileList3Line, RiSmartphoneLine, RiBankCard2Line
 import { useAppStore } from '@/store/appStore';
 
 const STEPS = [
-  { number: '01', icon: <RiFileList3Line size={26} />, title: 'Select a Service', desc: 'Browse our catalog and pick the platform you need — Telegram, WhatsApp, Instagram, and hundreds more.', color: '#1A73E8' },
-  { number: '02', icon: <RiShoppingCart2Line size={26} />, title: 'Place Your Order', desc: 'Choose your number, confirm in our dashboard, and proceed to checkout in seconds.', color: '#7C3AED' },
-  { number: '03', icon: <RiSmartphoneLine size={26} />, title: 'Receive Your OTP', desc: 'The OTP is delivered to your dashboard in seconds. Use it to complete verification instantly.', color: '#10B981' },
-  { number: '04', icon: <RiBankCard2Line size={26} />, title: 'Easy Recharge', desc: 'Top up your wallet anytime using fast, secure Nigerian payment methods.', color: '#F59E0B' },
+  { number: '01', icon: <RiFileList3Line size={26} />, title: 'Select a Service', desc: 'Browse our catalog and pick the platform you need — Telegram, WhatsApp, Instagram, and hundreds more.', color: 'var(--color-primary)' },
+  { number: '02', icon: <RiShoppingCart2Line size={26} />, title: 'Place Your Order', desc: 'Choose your number, confirm in our dashboard, and proceed to checkout in seconds.', color: 'var(--color-primary)' },
+  { number: '03', icon: <RiSmartphoneLine size={26} />, title: 'Receive Your OTP', desc: 'The OTP is delivered to your dashboard in seconds. Use it to complete verification instantly.', color: 'var(--color-primary)' },
+  { number: '04', icon: <RiBankCard2Line size={26} />, title: 'Easy Recharge', desc: 'Top up your wallet anytime using fast, secure Nigerian payment methods.', color: 'var(--color-primary)' },
 ];
 
 export default function HowItWorksSection() {
@@ -45,7 +45,7 @@ export default function HowItWorksSection() {
           <span className="badge badge-primary" style={{ marginBottom: 16 }}>How It Works</span>
           <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.8rem)', fontWeight: 800, marginBottom: 14 }}>
             Four simple steps to{' '}
-            <span className="gradient-text">get started.</span>
+            <span style={{ color: 'var(--color-primary)' }}>get started.</span>
           </h2>
           <p style={{ color: 'var(--color-text-muted)', maxWidth: 460, margin: '0 auto', lineHeight: 1.6, fontSize: 'clamp(0.875rem, 2vw, 1rem)' }}>
             Our streamlined process gets you a working virtual number in under two minutes.
@@ -62,12 +62,12 @@ export default function HowItWorksSection() {
             <div key={step.number}
               onClick={() => setActiveStep(i)}
               style={{
-                background: '#fff', border: `1px solid ${activeStep === i ? step.color + '40' : 'var(--color-border)'}`,
+                background: '#fff', border: `1px solid ${activeStep === i ? 'var(--color-primary)' : 'var(--color-border)'}`,
                 borderRadius: 'var(--radius-lg)', padding: 'clamp(18px, 3vw, 26px)',
                 cursor: 'pointer', position: 'relative', overflow: 'hidden',
                 transition: 'all 0.25s ease',
                 transform: activeStep === i ? 'translateY(-3px)' : 'none',
-                boxShadow: activeStep === i ? `0 8px 28px ${step.color}20` : '0 1px 4px rgba(0,0,0,0.05)',
+                boxShadow: activeStep === i ? `0 8px 28px rgba(37,99,235,0.1)` : '0 1px 4px rgba(0,0,0,0.05)',
               }}>
 
               {/* Step number watermark */}
@@ -100,7 +100,7 @@ export default function HowItWorksSection() {
               {activeStep === i && (
                 <div style={{
                   position: 'absolute', bottom: 0, left: 0, right: 0, height: 3,
-                  background: `linear-gradient(90deg, transparent, ${step.color}, transparent)`,
+                  background: 'var(--color-primary)',
                   borderRadius: '0 0 14px 14px',
                 }} />
               )}

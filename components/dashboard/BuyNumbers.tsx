@@ -1,76 +1,59 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RiShoppingCartLine, RiSearchLine, RiArrowDownSLine, RiInformationLine } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import { smsService, userService } from '@/lib/api';
 
-interface Service { name: string; price: number; }
+interface Service { id: number; name: string; price: number; }
 interface Country { name: string; flag: string; services: Service[]; }
-
-const COUNTRIES: Country[] = [
-  {
-    name: 'USA', flag: '🇺🇸',
-    services: [
-      { name: 'Telegram', price: 120 }, { name: 'WhatsApp', price: 150 },
-      { name: 'Rappi', price: 234 }, { name: 'Coca-Cola', price: 200 },
-      { name: 'Taptap Send', price: 180 }, { name: 'Foodora', price: 190 },
-      { name: 'Instagram', price: 250 }, { name: 'Facebook', price: 200 },
-      { name: 'Google', price: 300 }, { name: 'Twitter/X', price: 220 },
-    ],
-  },
-  {
-    name: 'UK', flag: '🇬🇧',
-    services: [
-      { name: 'Telegram', price: 180 }, { name: 'WhatsApp', price: 200 },
-      { name: 'Instagram', price: 320 }, { name: 'Facebook', price: 270 },
-    ],
-  },
-  {
-    name: 'Canada', flag: '🇨🇦',
-    services: [
-      { name: 'Telegram', price: 160 }, { name: 'WhatsApp', price: 190 },
-      { name: 'Instagram', price: 280 },
-    ],
-  },
-  {
-    name: 'Nigeria', flag: '🇳🇬',
-    services: [
-      { name: 'Telegram', price: 90 }, { name: 'WhatsApp', price: 100 },
-      { name: 'Instagram', price: 150 }, { name: 'Facebook', price: 120 },
-    ],
-  },
-  {
-    name: 'India', flag: '🇮🇳',
-    services: [
-      { name: 'Telegram', price: 80 }, { name: 'WhatsApp', price: 95 },
-      { name: 'Instagram', price: 130 },
-    ],
-  },
-];
 
 interface Props { defaultCountry?: string; }
 
 export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
-  const { addToast, user } = useAppStore();
+  const { addToast, user, login } = useAppStore();
+  const [countries, setCountries] = useState<Country[]>([]);
   const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
   const [selectedService, setSelectedService] = useState('');
   const [search, setSearch] = useState('');
   const [dropOpen, setDropOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [accordionOpen, setAccordionOpen] = useState<string | null>(null);
 
-  const country = COUNTRIES.find((c) => c.name === selectedCountry) ?? COUNTRIES[0];
-  const filtered = country.services.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()));
-  const chosen = country.services.find((s) => s.name === selectedService);
+  useEffect(() => {
+    smsService.getServices('number').then(res => {
+      setCountries(res.data);
+      setFetching(false);
+    }).catch(err => {
+      addToast('Failed to load services', 'error');
+      setFetching(false);
+    });
+  }, [addToast]);
+
+  const country = countries.find((c) => c.name === selectedCountry) ?? countries[0];
+  const filtered = country?.services.filter((s) => s.name.toLowerCase().includes(search.toLowerCase())) ?? [];
+  const chosen = country?.services.find((s) => s.name === selectedService);
 
   const handleBuy = async () => {
-    if (!selectedService) { addToast('Please select a service first.', 'error'); return; }
-    if (!user || user.balance < (chosen?.price ?? 0)) { addToast('Insufficient wallet balance. Please fund your wallet.', 'error'); return; }
+    if (!selectedService || !chosen) { addToast('Please select a service first.', 'error'); return; }
+    if (!user || user.balance < chosen.price) { addToast('Insufficient wallet balance. Please fund your wallet.', 'error'); return; }
+    
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setLoading(false);
-    addToast(`${selectedService} number purchased successfully!`, 'success');
-    setSelectedService('');
+    try {
+      await smsService.buyNumber(chosen.id);
+      
+      addToast(`${selectedService} number purchased successfully!`, 'success');
+      setSelectedService('');
+      
+      // Refresh user data (balance, etc.)
+      const profileRes = await userService.getProfile();
+      login(profileRes.data);
+    } catch (error: any) {
+      addToast(error.message || 'Purchase failed', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const FAQ_SECTIONS = [
@@ -85,6 +68,8 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
       content: 'Numbers are one-time use only. Once you receive an OTP, the number expires. Prices vary per service and country. Ensure you have sufficient balance before purchasing. No refunds after a number is assigned.',
     },
   ];
+
+  if (fetching) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-faint)' }}>Loading services...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -106,7 +91,7 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
                 value={selectedCountry}
                 onChange={(e) => { setSelectedCountry(e.target.value); setSelectedService(''); }}
               >
-                {COUNTRIES.map((c) => (
+                {countries.map((c) => (
                   <option key={c.name} value={c.name} style={{ background: '#111827' }}>
                     {c.flag} {c.name}
                   </option>
@@ -128,7 +113,7 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '13px 16px', borderRadius: 'var(--radius-md)',
-                  background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg)', border: '1px solid var(--color-border)',
                   color: selectedService ? 'var(--color-text)' : 'var(--color-text-faint)',
                   cursor: 'pointer', fontSize: '0.9rem', fontFamily: 'var(--font-body)',
                   transition: 'all 0.2s',

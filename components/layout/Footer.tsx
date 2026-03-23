@@ -1,19 +1,20 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import Logo from '@/components/ui/Logo';
 import { RiMailLine, RiWhatsappLine, RiTwitterXLine, RiInstagramLine } from 'react-icons/ri';
 
 const FOOTER_LINKS = {
   Company: [
-    { label: 'About Us', href: '#about' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Contact', href: '#support' },
+    { label: 'About Us', href: '/about' },
+    { label: 'How It Works', href: '/how-it-works' },
+    { label: 'Support', href: '/support' },
   ],
   Legal: [
-    { label: 'Privacy Policy', href: '#' },
-    { label: 'Terms of Service', href: '#' },
-    { label: 'Refund Policy', href: '#' },
+    { label: 'Privacy Policy', href: '/privacy' },
+    { label: 'Terms of Service', href: '/terms' },
+    { label: 'Refund Policy', href: '/refund' },
   ],
   Support: [
     { label: 'FAQ', href: '/dashboard/faqs' },
@@ -90,14 +91,14 @@ export default function Footer() {
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {links.map((link) => (
                   <li key={link.label}>
-                    <a href={link.href} style={{
+                    <Link href={link.href} style={{
                       color: 'var(--color-text-muted)', fontSize: '0.875rem',
                       textDecoration: 'none', transition: 'color 0.2s',
                     }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = '#1A73E8')}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)')}>
+                      onMouseEnter={(e: React.MouseEvent<HTMLElement>) => (e.currentTarget.style.color = 'var(--color-primary)')}
+                      onMouseLeave={(e: React.MouseEvent<HTMLElement>) => (e.currentTarget.style.color = 'var(--color-text-muted)')}>
                       {link.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

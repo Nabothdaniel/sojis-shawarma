@@ -48,7 +48,7 @@ export default function HeroSection() {
       <div style={{
         position: 'absolute', bottom: '10%', right: '5%',
         width: 350, height: 350, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 70%)',
         pointerEvents: 'none',
       }} />
 
@@ -65,7 +65,7 @@ export default function HeroSection() {
           lineHeight: 1.1, marginBottom: 20, color: 'var(--color-text)',
         }}>
           Protect Your{' '}
-          <span className="gradient-text">Identity.</span>
+          <span style={{ color: 'var(--color-primary)' }}>Identity.</span>
           <br />Verify Instantly.
         </h1>
 
