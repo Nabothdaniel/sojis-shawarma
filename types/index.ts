@@ -11,6 +11,7 @@ export interface User {
   balance: number;
   smsUnits: number;
   referralCode: string;
+  role: 'user' | 'admin';
 }
 
 export interface AppState {
@@ -48,4 +49,8 @@ export interface AppState {
   // Welcome modal
   welcomeModalSeen: boolean;
   setWelcomeModalSeen: () => void;
+
+  // Hydration
+  hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
 }

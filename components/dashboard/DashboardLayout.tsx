@@ -7,13 +7,15 @@ import SupportFAB from '@/components/ui/SupportFAB';
 import { useAppStore } from '@/store/appStore';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, sidebarOpen, setSidebarOpen } = useAppStore();
+  const { isAuthenticated, sidebarOpen, setSidebarOpen, hasHydrated } = useAppStore();
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace('/login');
-  }, [isAuthenticated, router]);
+    if (hasHydrated && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, hasHydrated, router]);
 
   // Close on mobile
   useEffect(() => {

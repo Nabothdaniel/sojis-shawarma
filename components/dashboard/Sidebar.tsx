@@ -7,7 +7,8 @@ import {
   RiDashboardLine, RiWalletLine, RiShoppingBag3Line,
   RiPhoneLine, RiGlobalLine, RiUserSharedLine,
   RiQuestionLine, RiHistoryLine, RiExchangeLine,
-  RiLogoutBoxLine, RiSignalTowerFill,
+  RiLogoutBoxLine, RiSignalTowerFill, RiShieldStarLine,
+  RiUserSettingsLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 
@@ -103,6 +104,16 @@ export default function Sidebar() {
               </div>
             </Link>
           ))}
+          
+          {/* Admin only */}
+          {user?.role === 'admin' && (
+            <Link href="/admin" style={{ textDecoration: 'none' }} onClick={handleNavClick}>
+              <div className={`sidebar-item ${pathname === '/admin' ? 'active' : ''}`} style={{ color: 'var(--color-primary)' }}>
+                <RiShieldStarLine size={18} />
+                Admin Dashboard
+              </div>
+            </Link>
+          )}
         </div>
 
         <div className="sidebar-group-label">History</div>

@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import ToastContainer from '@/components/ui/Toast';
+import AuthProvider from '@/components/auth/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'BamzySMS — Virtual Phone Numbers for OTP Verification',
@@ -23,8 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body suppressHydrationWarning>
-        {children}
-        <ToastContainer />
+        <AuthProvider>
+          {children}
+          <ToastContainer />
+        </AuthProvider>
       </body>
     </html>
   );

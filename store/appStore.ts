@@ -60,6 +60,10 @@ export const useAppStore = create<AppState>()(
       // Welcome modal
       welcomeModalSeen: false,
       setWelcomeModalSeen: () => set({ welcomeModalSeen: true }),
+
+      // Hydration
+      hasHydrated: false,
+      setHasHydrated: (state: boolean) => set({ hasHydrated: state }),
     }),
     {
       name: 'bamzysms-storage',
@@ -69,6 +73,9 @@ export const useAppStore = create<AppState>()(
         isAuthenticated: state.isAuthenticated,
         welcomeModalSeen: state.welcomeModalSeen,
       }),
+      onRehydrateStorage: (state) => {
+        return () => state.setHasHydrated(true);
+      },
     }
   )
 );

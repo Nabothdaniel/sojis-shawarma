@@ -86,6 +86,24 @@ body {
   .auth-image-side { display: flex; }
 }
 
+@media (max-width: 899px) {
+  /* No changes to the split for now, keeping it original as per user request */
+}
+
+/* ── Dashboard Content ─────────────────────────── */
+main {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+  .stat-grid { grid-template-columns: 1fr !important; }
+  .history-grid { grid-template-columns: 1fr !important; }
+  main { padding: 16px 12px !important; }
+}
+
+
 .auth-carousel-slide {
   position: absolute;
   inset: 0;

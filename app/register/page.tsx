@@ -188,7 +188,7 @@ export default function RegisterPage() {
                 <p style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)' }}>Resend code in {resendTimer}s</p>
               ) : (
                 <button type="button" onClick={handleSendOtp} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
-                  Didn't receive code? Resend
+                  Didn&apos;t receive code? Resend
                 </button>
               )}
             </div>

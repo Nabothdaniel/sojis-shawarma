@@ -33,10 +33,26 @@ class User {
     }
 
     public function findById($id) {
-        $sql = "SELECT id, name, email, phone, balance, sms_units as smsUnits, referral_code as referralCode FROM users WHERE id = ?";
+        $sql = "SELECT id, name, email, phone, balance, role, created_at FROM users WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$id]);
-        return $stmt->fetch();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Update a user's balance directly.
+     */
+    public function updateBalance(int $userId, float $newBalance): bool {
+        $stmt = $this->db->prepare("UPDATE users SET balance = ? WHERE id = ?");
+        return $stmt->execute([$newBalance, $userId]);
+    }
+
+    /**
+     * List all users for administrative purposes.
+     */
+    public function getAllUsers(): array {
+        $stmt = $this->db->query("SELECT id, name, email, phone, balance, role, created_at FROM users ORDER BY id DESC");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function updatePassword($email, $hashedPassword) {
@@ -50,15 +66,17 @@ class User {
     }
 
     public function updateToken($id, $token) {
+        $hashedToken = hash('sha256', $token);
         $sql = "UPDATE users SET token = ? WHERE id = ?";
         $stmt = $this->db->prepare($sql);
-        return $stmt->execute([$token, $id]);
+        return $stmt->execute([$hashedToken, $id]);
     }
 
     public function verifyToken($token) {
+        $hashedToken = hash('sha256', $token);
         $sql = "SELECT id FROM users WHERE token = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$token]);
+        $stmt->execute([$hashedToken]);
         $user = $stmt->fetch();
         return $user ? $user['id'] : null;
     }

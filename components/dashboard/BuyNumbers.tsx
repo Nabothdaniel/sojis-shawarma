@@ -1,52 +1,121 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { RiShoppingCartLine, RiSearchLine, RiArrowDownSLine, RiInformationLine } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
-import { smsService, userService } from '@/lib/api';
-
-interface Service { id: number; name: string; price: number; }
-interface Country { name: string; flag: string; services: Service[]; }
+import { smsService, userService, SmsService, SmsCountry, AvailabilityInfo } from '@/lib/api';
 
 interface Props { defaultCountry?: string; }
 
-export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
+export default function BuyNumbers({ defaultCountry = 'Russia' }: Props) {
+  const router = useRouter();
   const { addToast, user, login } = useAppStore();
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState(defaultCountry);
-  const [selectedService, setSelectedService] = useState('');
+  
+  // Data lists
+  const [countries, setCountries] = useState<SmsCountry[]>([]);
+  const [services, setServices] = useState<SmsService[]>([]);
+  
+  // Selections
+  const [selectedCountryId, setSelectedCountryId] = useState<number | null>(null);
+  const [selectedServiceCode, setSelectedServiceCode] = useState<string>('');
+  const [priceInfo, setPriceInfo] = useState<AvailabilityInfo | null>(null);
+  
+  // UI states
   const [search, setSearch] = useState('');
   const [dropOpen, setDropOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [checkingPrice, setCheckingPrice] = useState(false);
   const [accordionOpen, setAccordionOpen] = useState<string | null>(null);
 
+  // 1. Initial fetch: Countries and Services
   useEffect(() => {
-    smsService.getServices('number').then(res => {
-      setCountries(res.data);
-      setFetching(false);
-    }).catch(err => {
-      addToast('Failed to load services', 'error');
-      setFetching(false);
-    });
-  }, [addToast]);
+    const init = async () => {
+      try {
+        const [countriesRes, servicesRes] = await Promise.all([
+          smsService.getCountries(),
+          smsService.getSmsBowerServices()
+        ]);
+        
+        setCountries(countriesRes.data);
+        setServices(servicesRes.data);
+        
+        // Find default country ID (robust match)
+        const def = countriesRes.data.find(c => 
+          c.eng.toLowerCase() === defaultCountry.toLowerCase() ||
+          c.eng.toLowerCase().includes(defaultCountry.toLowerCase())
+        );
+        if (def) setSelectedCountryId(def.id);
+        else if (countriesRes.data.length > 0) setSelectedCountryId(countriesRes.data[0].id);
 
-  const country = countries.find((c) => c.name === selectedCountry) ?? countries[0];
-  const filtered = country?.services.filter((s) => s.name.toLowerCase().includes(search.toLowerCase())) ?? [];
-  const chosen = country?.services.find((s) => s.name === selectedService);
+      } catch (err: any) {
+        const msg = err.message || '';
+        let finalMsg = 'Failed to load services: ' + msg;
+        if (msg.toLowerCase().includes('no access') || msg.toLowerCase().includes('401') || msg.toLowerCase().includes('not whitelisted')) {
+          finalMsg += '. Please ensure your server IP is whitelisted in your SMSBower API settings. You can find your IP at /api/utils/server-ip';
+        }
+        addToast(finalMsg, 'error');
+      } finally {
+        setFetching(false);
+      }
+    };
+    init();
+  }, [addToast, defaultCountry]);
+
+  // 2. Fetch price/availability when both selections are made
+  useEffect(() => {
+    if (selectedCountryId !== null && selectedServiceCode) {
+      setCheckingPrice(true);
+      smsService.getAvailability(selectedServiceCode, selectedCountryId)
+        .then(res => setPriceInfo(res.data))
+        .catch(() => {
+          setPriceInfo({ available: false, price: null, count: 0 });
+          addToast('Could not fetch price for this selection.', 'error');
+        })
+        .finally(() => setCheckingPrice(false));
+    } else {
+      setPriceInfo(null);
+    }
+  }, [selectedCountryId, selectedServiceCode, addToast]);
+
+  const country = countries.find(c => c.id === selectedCountryId);
+  const filteredServices = services.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+  const chosenService = services.find(s => s.code === selectedServiceCode);
 
   const handleBuy = async () => {
-    if (!selectedService || !chosen) { addToast('Please select a service first.', 'error'); return; }
-    if (!user || user.balance < chosen.price) { addToast('Insufficient wallet balance. Please fund your wallet.', 'error'); return; }
+    if (!selectedServiceCode || !selectedCountryId || !country || !chosenService) { 
+      addToast('Please select a country and service first.', 'error'); 
+      return; 
+    }
+    
+    if (!priceInfo?.available || priceInfo.price === null) {
+      addToast('This service is currently unavailable for ' + country.eng, 'error');
+      return;
+    }
+
+    // In a real app, priceInfo.price might be in a different currency or scale.
+    // Let's assume the backend handles the conversion and returns the final price in Naira (₦)
+    // based on the logic in SMSController and Database.
+    if (!user || user.balance < priceInfo.price) { 
+      addToast(`Insufficient balance. This costs ₦${priceInfo.price}, you have ₦${user?.balance?.toLocaleString() ?? '0'}.`, 'error'); 
+      return; 
+    }
     
     setLoading(true);
     try {
-      await smsService.buyNumber(chosen.id);
+      await smsService.buyNumber({
+        serviceCode: selectedServiceCode,
+        serviceName: chosenService.name,
+        countryId: selectedCountryId,
+        countryName: country.eng,
+        maxPrice: priceInfo.price
+      });
       
-      addToast(`${selectedService} number purchased successfully!`, 'success');
-      setSelectedService('');
+      addToast(`${chosenService.name} number purchased successfully!`, 'success');
+      setSelectedServiceCode('');
       
-      // Refresh user data (balance, etc.)
+      // Refresh user data
       const profileRes = await userService.getProfile();
       login(profileRes.data);
     } catch (error: any) {
@@ -76,7 +145,7 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
       {/* Main buy card */}
       <div className="stat-card">
         <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', marginBottom: 20 }}>
-          Buy {selectedCountry} Number
+          Buy {country?.eng || 'SMS'} Number
         </h2>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -88,12 +157,12 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
             <div style={{ position: 'relative' }}>
               <select
                 className="select-field"
-                value={selectedCountry}
-                onChange={(e) => { setSelectedCountry(e.target.value); setSelectedService(''); }}
+                value={selectedCountryId ?? ''}
+                onChange={(e) => { setSelectedCountryId(Number(e.target.value)); setSelectedServiceCode(''); }}
               >
                 {countries.map((c) => (
-                  <option key={c.name} value={c.name} style={{ background: '#111827' }}>
-                    {c.flag} {c.name}
+                  <option key={c.id} value={c.id} style={{ background: '#111827' }}>
+                    {c.flag} {c.eng}
                   </option>
                 ))}
               </select>
@@ -114,12 +183,12 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '13px 16px', borderRadius: 'var(--radius-md)',
                   background: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                  color: selectedService ? 'var(--color-text)' : 'var(--color-text-faint)',
+                  color: selectedServiceCode ? 'var(--color-text)' : 'var(--color-text-faint)',
                   cursor: 'pointer', fontSize: '0.9rem', fontFamily: 'var(--font-body)',
                   transition: 'all 0.2s',
                 }}
               >
-                {selectedService || 'Select Service'}
+                {chosenService?.name || 'Select Service'}
                 <RiArrowDownSLine size={16} style={{ transform: dropOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
 
@@ -145,30 +214,30 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
                   {/* Options */}
                   <div style={{ maxHeight: 220, overflowY: 'auto' }}>
                     <button
-                      onClick={() => { setSelectedService(''); setDropOpen(false); }}
+                      onClick={() => { setSelectedServiceCode(''); setDropOpen(false); }}
                       style={{ width: '100%', padding: '11px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-faint)', fontSize: '0.875rem', textAlign: 'left', borderLeft: '3px solid transparent' }}
                     >
                       Select Service
                     </button>
-                    {filtered.map((s) => (
-                      <button
-                        key={s.name}
-                        onClick={() => { setSelectedService(s.name); setDropOpen(false); setSearch(''); }}
-                        style={{
-                          width: '100%', padding: '11px 16px', background: selectedService === s.name ? 'var(--color-primary-dim)' : 'none',
-                          border: 'none', cursor: 'pointer',
-                          color: selectedService === s.name ? 'var(--color-primary)' : 'var(--color-text)',
-                          fontSize: '0.875rem', textAlign: 'left',
-                          borderLeft: `3px solid ${selectedService === s.name ? 'var(--color-primary)' : 'transparent'}`,
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <span style={{ fontWeight: selectedService === s.name ? 600 : 400 }}>{s.name}</span>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)' }}>₦{s.price}</span>
-                      </button>
+                    {filteredServices.map((s) => (
+                       <button
+                       key={s.code}
+                       onClick={() => { setSelectedServiceCode(s.code); setDropOpen(false); setSearch(''); }}
+                       style={{
+                         width: '100%', padding: '11px 16px', background: selectedServiceCode === s.code ? 'var(--color-primary-dim)' : 'none',
+                         border: 'none', cursor: 'pointer',
+                         color: selectedServiceCode === s.code ? 'var(--color-primary)' : 'var(--color-text)',
+                         fontSize: '0.875rem', textAlign: 'left',
+                         borderLeft: `3px solid ${selectedServiceCode === s.code ? 'var(--color-primary)' : 'transparent'}`,
+                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                         transition: 'all 0.15s',
+                       }}
+                     >
+                       <span style={{ fontWeight: selectedServiceCode === s.code ? 600 : 400 }}>{s.name}</span>
+                       <span style={{ fontSize: '0.78rem', color: 'var(--color-text-faint)' }}>{s.code}</span>
+                     </button>
                     ))}
-                    {filtered.length === 0 && (
+                    {filteredServices.length === 0 && (
                       <div style={{ padding: '16px', textAlign: 'center', color: 'var(--color-text-faint)', fontSize: '0.875rem' }}>
                         No services found
                       </div>
@@ -179,27 +248,37 @@ export default function BuyNumbers({ defaultCountry = 'USA' }: Props) {
             </div>
           </div>
 
-          {/* Price display */}
-          {chosen && (
+          {/* Availability & Price Display */}
+          {selectedServiceCode && selectedCountryId !== null && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '10px 14px', borderRadius: 10,
               background: 'var(--color-primary-dim)', border: '1px solid rgba(0,229,255,0.15)',
+              minHeight: '42px',
             }}>
-              <RiInformationLine size={15} color="var(--color-primary)" />
-              <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                The price of <strong style={{ color: 'var(--color-text)' }}>{chosen.name}</strong> is{' '}
-                <strong style={{ color: 'var(--color-primary)' }}>₦{chosen.price.toLocaleString()}.00</strong>
-              </span>
+              {checkingPrice ? (
+                <span style={{ fontSize: '0.875rem', color: 'var(--color-text-faint)' }}>Checking availability...</span>
+              ) : priceInfo?.available ? (
+                <>
+                  <RiInformationLine size={15} color="var(--color-primary)" />
+                  <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
+                    Price for <strong style={{ color: 'var(--color-text)' }}>{chosenService?.name}</strong>: 
+                    <strong style={{ color: 'var(--color-primary)', marginLeft: 4 }}>₦{priceInfo.price?.toLocaleString()}</strong>
+                    <span style={{ marginLeft: 8, fontSize: '0.75rem', opacity: 0.6 }}>({priceInfo.count} available)</span>
+                  </span>
+                </>
+              ) : (
+                <span style={{ fontSize: '0.875rem', color: '#EF4444' }}>This service is currently out of stock for this country.</span>
+              )}
             </div>
           )}
 
           {/* Buy button */}
           <button
             onClick={handleBuy}
-            disabled={loading || !selectedService}
+            disabled={loading || !selectedServiceCode || checkingPrice || !priceInfo?.available}
             className="btn-primary"
-            style={{ padding: '14px', width: '100%', fontSize: '0.95rem', opacity: !selectedService ? 0.5 : 1, gap: 8, marginTop: 4 }}
+            style={{ padding: '14px', width: '100%', fontSize: '0.95rem', opacity: (!selectedServiceCode || checkingPrice || !priceInfo?.available) ? 0.5 : 1, gap: 8, marginTop: 4 }}
           >
             {loading ? 'Processing...' : <><RiShoppingCartLine size={18} /> Buy Number</>}
           </button>
