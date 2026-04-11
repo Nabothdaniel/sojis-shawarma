@@ -28,7 +28,13 @@ export default function LoginPage() {
       localStorage.setItem('bamzysms-token', response.data.token);
       login(response.data.user);
       addToast('Welcome back!', 'success');
-      router.push('/dashboard');
+      
+      // Direct redirect based on role
+      if (response.data.user.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       addToast(error.message || 'Login failed', 'error');
     } finally {

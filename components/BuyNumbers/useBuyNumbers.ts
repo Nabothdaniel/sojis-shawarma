@@ -1,0 +1,150 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAppStore } from '@/store/appStore';
+import { smsService, userService, SmsCountry, SmsService, AvailabilityInfo } from '@/lib/api';
+
+export function useBuyNumbers(defaultCountry: string) {
+  const router = useRouter();
+  const { addToast, user, login } = useAppStore();
+  
+  // Data lists
+  const [countries, setCountries] = useState<SmsCountry[]>([]);
+  const [services, setServices] = useState<SmsService[]>([]);
+  
+  // Selections
+  const [selectedCountryId, setSelectedCountryId] = useState<number | null>(null);
+  const [selectedServiceCode, setSelectedServiceCode] = useState<string>('');
+  const [priceInfo, setPriceInfo] = useState<AvailabilityInfo | null>(null);
+  
+  // UI states
+  const [search, setSearch] = useState('');
+  const [dropOpen, setDropOpen] = useState(false);
+  const [countryDropOpen, setCountryDropOpen] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [checkingPrice, setCheckingPrice] = useState(false);
+  const [accordionOpen, setAccordionOpen] = useState<string | null>(null);
+  
+  // PIN states
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+
+  // 1. Initial fetch: Countries and Services
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const [countriesRes, servicesRes] = await Promise.all([
+          smsService.getCountries(),
+          smsService.getSmsBowerServices()
+        ]);
+        
+        setCountries(countriesRes.data);
+        setServices(servicesRes.data);
+        
+        // Find default country ID (robust match)
+        const def = countriesRes.data.find(c => 
+          c.eng.toLowerCase() === defaultCountry.toLowerCase() ||
+          c.eng.toLowerCase().includes(defaultCountry.toLowerCase()) ||
+          (defaultCountry === 'USA' && c.eng.toLowerCase().includes('united states'))
+        );
+        if (def) setSelectedCountryId(def.id);
+        else if (countriesRes.data.length > 0) setSelectedCountryId(countriesRes.data[0].id);
+
+      } catch (err: any) {
+        addToast(err.message || 'Failed to load services', 'error');
+      } finally {
+        setFetching(false);
+      }
+    };
+    init();
+  }, [addToast, defaultCountry]);
+
+  // 2. Fetch price/availability when both selections are made
+  useEffect(() => {
+    if (selectedCountryId !== null && selectedServiceCode) {
+      setCheckingPrice(true);
+      smsService.getAvailability(selectedServiceCode, selectedCountryId)
+        .then(res => setPriceInfo(res.data))
+        .catch(() => {
+          setPriceInfo({ available: false, price: null, count: 0 });
+          addToast('Could not fetch price for this selection.', 'error');
+        })
+        .finally(() => setCheckingPrice(false));
+    } else {
+      setPriceInfo(null);
+    }
+  }, [selectedCountryId, selectedServiceCode, addToast]);
+
+  const country = countries.find(c => c.id === selectedCountryId);
+  const filteredServices = services.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+  const chosenService = services.find(s => s.code === selectedServiceCode);
+
+  const handleBuy = () => {
+    if (!selectedServiceCode || !selectedCountryId || !country || !chosenService) { 
+      addToast('Please select a country and service first.', 'error'); 
+      return; 
+    }
+    
+    if (!priceInfo?.available || priceInfo.price === null) {
+      addToast('This service is currently unavailable for ' + country.eng, 'error');
+      return;
+    }
+
+    if (!user || user.balance < priceInfo.price) { 
+      addToast(`Insufficient balance. This costs ₦${priceInfo.price}, you have ₦${user?.balance?.toLocaleString() ?? '0'}.`, 'error'); 
+      return; 
+    }
+
+    setPinModalOpen(true);
+  };
+
+  const handlePinSuccess = async (pin: string) => {
+    setPinLoading(true);
+    try {
+      await smsService.buyNumber({
+        serviceCode: selectedServiceCode,
+        serviceName: chosenService!.name,
+        countryId: selectedCountryId!,
+        countryName: country!.eng,
+        maxPrice: priceInfo!.price!,
+        pin
+      });
+      
+      setSelectedServiceCode('');
+      setPurchaseError(null);
+      setPinModalOpen(false);
+      
+      const profileRes = await userService.getProfile();
+      login(profileRes.data);
+
+      addToast(`${chosenService!.name} number purchased successfully!`, 'success');
+      router.push('/dashboard/numbers-history');
+    } catch (error: any) {
+      setPurchaseError(error.message || 'Purchase failed');
+      addToast(error.message || 'Purchase failed', 'error');
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  return {
+    // Data
+    countries, services, filteredServices, country, chosenService, priceInfo,
+    // State
+    search, setSearch,
+    dropOpen, setDropOpen,
+    countryDropOpen, setCountryDropOpen,
+    purchaseError, setPurchaseError,
+    loading, fetching, checkingPrice,
+    accordionOpen, setAccordionOpen,
+    pinModalOpen, setPinModalOpen,
+    pinLoading,
+    selectedCountryId, setSelectedCountryId,
+    selectedServiceCode, setSelectedServiceCode,
+    // Actions
+    handleBuy, handlePinSuccess
+  };
+}

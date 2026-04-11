@@ -6,20 +6,20 @@ import { useAppStore } from '@/store/appStore';
 import type { ToastMessage } from '@/types';
 
 const icons = {
-  success: <RiCheckLine size={16} color="var(--color-primary)" />,
-  error: <RiErrorWarningLine size={16} color="#EF4444" />,
-  info: <RiInformationLine size={16} color="#F59E0B" />,
+  success: <RiCheckLine size={18} color="#10B981" />, // Explicit Green
+  error: <RiErrorWarningLine size={18} color="#EF4444" />, // Explicit Red
+  info: <RiInformationLine size={18} color="#F59E0B" />, // Explicit Amber
 };
 
 function Toast({ toast }: { toast: ToastMessage }) {
   const removeToast = useAppStore((s) => s.removeToast);
   return (
-    <div className={`toast toast-${toast.type}`} role="alert">
-      {icons[toast.type]}
-      <span style={{ flex: 1, lineHeight: 1.4 }}>{toast.message}</span>
+    <div className={`toast ${toast.type}`} role="alert">
+      {icons[toast.type as keyof typeof icons]}
+      <span style={{ flex: 1, lineHeight: 1.4, color: '#fff' }}>{toast.message}</span>
       <button
         onClick={() => removeToast(toast.id)}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: 2 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: 2 }}
         aria-label="Dismiss"
       >
         <RiCloseLine size={15} />

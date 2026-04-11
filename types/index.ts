@@ -12,6 +12,7 @@ export interface User {
   smsUnits: number;
   referralCode: string;
   role: 'user' | 'admin';
+  hasPin: boolean;
 }
 
 export interface AppState {

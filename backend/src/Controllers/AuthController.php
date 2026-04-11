@@ -4,6 +4,7 @@ namespace BamzySMS\Controllers;
 
 use BamzySMS\Core\Controller;
 use BamzySMS\Models\User;
+use BamzySMS\Core\EncryptionHelper;
 
 class AuthController extends Controller {
     private $userModel;

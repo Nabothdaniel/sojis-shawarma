@@ -1,48 +1,79 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Topbar from '@/components/dashboard/Topbar';
 import EmptyHistory from '@/components/dashboard/EmptyHistory';
 import PageLoader from '@/components/ui/PageLoader';
 import { smsService } from '@/lib/api';
-import { 
-  RiHashtag, RiMessage2Line, RiTimeLine, 
-  RiFileCopyLine, RiCloseCircleLine, RiRefreshLine 
-} from 'react-icons/ri';
+import { RiRefreshLine, RiInformationLine } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import PinModal from '@/components/ui/PinModal';
+import HistoryViewSwitcher from '@/components/dashboard/history/HistoryViewSwitcher';
+import HistorySkeleton from '@/components/dashboard/history/HistorySkeleton';
+import HistoryTable from '@/components/dashboard/history/HistoryTable';
+import HistoryGrid from '@/components/dashboard/history/HistoryGrid';
+
+const NOTIFICATION_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+const PAGE_SIZE = 12;
 
 export default function NumbersHistoryPage() {
   const { addToast } = useAppStore();
   const [loading, setLoading] = useState(true);
-  const [purchases, setPurchases] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  
+  // Pagination / Infinite Scroll States
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Reveal states
+  const [revealModalOpen, setRevealModalOpen] = useState(false);
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [revealTarget, setRevealTarget] = useState<number | null>(null);
+  const [revealedData, setRevealedData] = useState<{ [key: number]: { phone: string; otp: string } }>({});
+
   const pollingRef = useRef<{ [key: number]: NodeJS.Timeout }>({});
 
-  const fetchPurchases = React.useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const res = await smsService.getPurchases();
-      setPurchases(res.data);
-    } catch (err) {
-      console.error('Failed to fetch purchases', err);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, []);
+  const fetchHistory = useCallback(async (isLoadMore = false, newOffset = 0, silent = false) => {
+    if (!silent && !isLoadMore) setLoading(true);
+    if (isLoadMore) setIsLoadingMore(true);
 
-  const startPolling = React.useCallback((dbId: number, activationId: number) => {
+    try {
+      const res = await smsService.getPurchases(PAGE_SIZE, newOffset);
+      if (isLoadMore) {
+        setItems(prev => [...prev, ...res.data]);
+      } else {
+        setItems(res.data);
+      }
+      setTotal(res.meta.total);
+      setHasMore(res.meta.hasMore);
+      setOffset(newOffset);
+    } catch (err) {
+      console.error('Failed to fetch history', err);
+      addToast('Failed to load history', 'error');
+    } finally {
+      setLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [addToast]);
+
+  const startPolling = useCallback((dbId: number, activationId: number) => {
     const poll = async () => {
       try {
         const res = await smsService.getSmsStatus(activationId);
-        const { smsStatus, code } = res.data;
+        const { smsStatus } = res.data;
 
         if (smsStatus === 'OK' || smsStatus === 'CANCEL' || smsStatus === 'WAIT_RETRY') {
-          // Refresh list if status changed significantly
-          fetchPurchases(true);
+          // Refresh list if status changed
+          fetchHistory(false, 0, true);
           
           if (smsStatus === 'OK') {
             addToast(`OTP Received!`, 'success');
+            new Audio(NOTIFICATION_SOUND).play().catch(() => {});
             delete pollingRef.current[dbId];
             return;
           }
@@ -51,198 +82,180 @@ export default function NumbersHistoryPage() {
             return;
           }
         }
-        
-        // Re-schedule poll
         pollingRef.current[dbId] = setTimeout(poll, 10000);
       } catch (err) {
-        console.error('Polling error', err);
         pollingRef.current[dbId] = setTimeout(poll, 15000);
       }
     };
-    
     pollingRef.current[dbId] = setTimeout(poll, 5000);
-  }, [addToast, fetchPurchases]);
+  }, [addToast, fetchHistory]);
 
   useEffect(() => {
-    fetchPurchases();
-    
-    // Cleanup polling on unmount
+    fetchHistory();
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      const currentPolling = pollingRef.current;
-      Object.values(currentPolling).forEach(clearTimeout);
+      Object.values(pollingRef.current).forEach(clearTimeout);
     };
-  }, [fetchPurchases]);
+  }, [fetchHistory]);
 
-  // Poll for status updates for any pending purchase
+  // Handle active status polling
   useEffect(() => {
-    purchases.forEach(p => {
+    items.forEach(p => {
       if (p.status === 'pending' && !pollingRef.current[p.id]) {
         startPolling(p.id, p.activation_id);
       }
     });
-  }, [purchases, startPolling]);
+  }, [items, startPolling]);
+
+  const handleRevealClick = (dbId: number) => {
+    setRevealTarget(dbId);
+    setRevealModalOpen(true);
+  };
+
+  const handleRevealSuccess = async (pin: string) => {
+    if (!revealTarget) return;
+    setRevealLoading(true);
+    try {
+      const res = await smsService.revealPlainNumber(revealTarget, pin);
+      setRevealedData(prev => ({
+        ...prev,
+        [revealTarget]: { phone: res.data.phoneNumber, otp: res.data.otpCode }
+      }));
+      setRevealModalOpen(false);
+      addToast('Information revealed', 'success');
+    } catch (err: any) {
+      addToast(err.message || 'Verification failed', 'error');
+    } finally {
+      setRevealLoading(false);
+      setRevealTarget(null);
+    }
+  };
+
+  const handleHide = async (id: number) => {
+    if (!confirm('Hide this from your history?')) return;
+    try {
+      await smsService.hidePurchase(id);
+      setItems(prev => prev.filter(item => item.id !== id));
+      addToast('Removed from history', 'success');
+    } catch (err) {
+      addToast('Failed to hide', 'error');
+    }
+  };
 
   const handleCancel = async (activationId: number) => {
-    if (!confirm('Are you sure you want to cancel this activation?')) return;
-    
+    if (!confirm('Cancel this activation?')) return;
     try {
       await smsService.setActivationStatus(activationId, 8);
-      addToast('Activation cancelled.', 'success');
-      fetchPurchases(true);
+      fetchHistory(false, 0, true);
+      addToast('Cancelled', 'success');
     } catch (err: any) {
-      addToast(err.message || 'Failed to cancel', 'error');
+      addToast(err.message || 'Failed', 'error');
     }
   };
 
   const handleConfirm = async (activationId: number) => {
     try {
       await smsService.setActivationStatus(activationId, 6);
-      addToast('Activation completed! Number confirmed.', 'success');
-      fetchPurchases(true);
+      fetchHistory(false, 0, true);
+      addToast('Confirmed', 'success');
     } catch (err: any) {
-      addToast(err.message || 'Failed to confirm', 'error');
+      addToast(err.message || 'Failed', 'error');
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
-    addToast('Copied to clipboard!', 'success');
+    addToast('Copied!', 'success');
   };
 
   return (
     <DashboardLayout>
       <Topbar title="Number History" />
-      <main style={{ padding: '24px', maxWidth: 1100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <main style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
           <div className="breadcrumb" style={{ marginBottom: 0 }}>
             <Link href="/dashboard">Dashboard</Link>
             <span>/</span>
             <span>Number History</span>
           </div>
-          <button 
-            className="btn-ghost" 
-            onClick={() => fetchPurchases()}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
-          >
-            <RiRefreshLine size={16} /> Refresh
-          </button>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <HistoryViewSwitcher view={viewMode} onChange={(v) => {
+              setViewMode(v);
+              fetchHistory(false, 0); // Reset to page 1 on view change
+            }} />
+            <button className="btn-ghost" onClick={() => fetchHistory(false, 0)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}>
+              <RiRefreshLine size={16} /> Refresh
+            </button>
+          </div>
         </div>
 
+        {/* Info Guide */}
+        <div style={{ background: 'rgba(0, 229, 255, 0.05)', border: '1px dashed rgba(0, 229, 255, 0.2)', borderRadius: 16, padding: '16px 20px', marginBottom: 32, display: 'flex', gap: 16, alignItems: 'center' }}>
+          <RiInformationLine size={24} color="var(--color-primary)" />
+          <p style={{ fontSize: '0.85rem', margin: 0, color: 'var(--color-text-faint)' }}>
+            <strong>Privacy Note:</strong> Phone numbers and OTP codes are masked by default. Click the <strong>Reveal (eye)</strong> icon and enter your PIN to view the full details.
+          </p>
+        </div>
+        
+        <PinModal
+          isOpen={revealModalOpen}
+          onClose={() => setRevealModalOpen(false)}
+          onSuccess={handleRevealSuccess}
+          isLoading={revealLoading}
+          title="Verify Identity"
+          description="Enter your 4-digit PIN to reveal the full number and OTP."
+        />
+
         {loading ? (
-          <PageLoader />
-        ) : purchases.length === 0 ? (
-          <EmptyHistory message="No numbers purchased yet" />
+          <HistorySkeleton view={viewMode} />
+        ) : items.length === 0 ? (
+          <EmptyHistory message="No history found" />
+        ) : viewMode === 'table' ? (
+          <HistoryTable 
+            items={items} 
+            onReveal={handleRevealClick} 
+            onHide={handleHide} 
+            onCopy={handleCopy}
+            revealedData={revealedData}
+            pagination={{
+              total,
+              limit: PAGE_SIZE,
+              offset,
+              onPageChange: (newOffset) => fetchHistory(false, newOffset)
+            }}
+          />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 20 }}>
-            {purchases.map((item) => (
-              <div key={item.id} className="stat-card" style={{ 
-                position: 'relative', 
-                border: item.status === 'pending' ? '1px solid var(--color-primary-dim)' : '1px solid var(--color-border)',
-                transition: 'all 0.3s'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--color-primary-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                      {item.status === 'pending' ? (
-                        <div className="spinner-small" style={{ width: 18, height: 18, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                      ) : (
-                        <RiHashtag size={22} />
-                      )}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '1rem' }}>{item.service_name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 600 }}>{item.country_name}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                    <span style={{ 
-                      padding: '4px 10px', borderRadius: 20, fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
-                      background: item.status === 'received' || item.status === 'completed' ? 'rgba(16,185,129,0.1)' : (item.status === 'pending' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)'),
-                      color: item.status === 'received' || item.status === 'completed' ? '#10B981' : (item.status === 'pending' ? '#F59E0B' : '#EF4444')
-                    }}>
-                      {item.status}
-                    </span>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-faint)' }}>
-                      ID: {item.activation_id}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ 
-                  background: 'var(--color-bg)', padding: '14px 16px', borderRadius: 12, marginBottom: 16,
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-faint)', marginBottom: 4, textTransform: 'uppercase' }}>Phone Number</div>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', letterSpacing: '0.05em', color: 'var(--color-text)' }}>
-                      {item.phone_number}
-                    </div>
-                  </div>
-                  <button 
-                    className="btn-ghost" 
-                    onClick={() => copyToClipboard(item.phone_number)}
-                    style={{ padding: 8, minWidth: 'auto' }}
-                    title="Copy Phone Number"
-                  >
-                    <RiFileCopyLine size={18} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '44px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-text-faint)', fontSize: '0.8rem', fontWeight: 500 }}>
-                    <RiTimeLine size={15} /> {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-
-                  {item.otp_code ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ 
-                        background: 'rgba(16,185,129,0.1)', color: '#10B981', padding: '6px 12px', borderRadius: 8,
-                        display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: '1.1rem', fontFamily: 'monospace'
-                      }}>
-                        <RiMessage2Line size={18} /> {item.otp_code}
-                      </div>
-                      <button 
-                        className="btn-ghost" 
-                        onClick={() => copyToClipboard(item.otp_code)}
-                        style={{ padding: 8, minWidth: 'auto', color: '#10B981' }}
-                        title="Copy OTP"
-                      >
-                        <RiFileCopyLine size={18} />
-                      </button>
-                    </div>
-                  ) : item.status === 'pending' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button 
-                        className="btn-primary" 
-                        onClick={() => handleConfirm(item.activation_id)}
-                        style={{ padding: '6px 10px', fontSize: '0.8rem', gap: 4, background: '#10B981', borderColor: '#10B981', minWidth: 'auto' }}
-                      >
-                        Confirm
-                      </button>
-                      <button 
-                        className="btn-ghost" 
-                        onClick={() => handleCancel(item.activation_id)}
-                        style={{ color: '#EF4444', padding: '6px 10px', fontSize: '0.8rem', gap: 4, minWidth: 'auto' }}
-                      >
-                        <RiCloseCircleLine size={16} /> Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ color: 'var(--color-text-faint)', fontSize: '0.82rem' }}>No code received</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          <HistoryGrid 
+            items={items} 
+            onReveal={handleRevealClick} 
+            onHide={handleHide} 
+            onCopy={handleCopy}
+            onConfirm={handleConfirm}
+            onCancel={handleCancel}
+            revealedData={revealedData}
+            hasMore={hasMore}
+            onLoadMore={() => fetchHistory(true, offset + PAGE_SIZE)}
+            isLoadingMore={isLoadingMore}
+          />
         )}
       </main>
 
       <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .pulse-border { animation: pulseBorder 2s infinite; }
+        @keyframes pulseBorder { 
+          0% { border-color: var(--color-primary); } 
+          50% { border-color: rgba(0, 229, 255, 0.4); } 
+          100% { border-color: var(--color-primary); } 
         }
+        .skeleton-line {
+          background: linear-gradient(90deg, var(--color-bg-2) 25%, var(--color-border) 50%, var(--color-bg-2) 75%);
+          background-size: 200% 100%;
+          animation: skeleton-loading 1.5s infinite;
+          border-radius: 4px;
+        }
+        @keyframes skeleton-loading { from { background-position: 200% 0; } to { background-position: -200% 0; } }
       `}</style>
     </DashboardLayout>
   );

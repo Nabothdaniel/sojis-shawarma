@@ -104,16 +104,6 @@ export default function Sidebar() {
               </div>
             </Link>
           ))}
-          
-          {/* Admin only */}
-          {user?.role === 'admin' && (
-            <Link href="/admin" style={{ textDecoration: 'none' }} onClick={handleNavClick}>
-              <div className={`sidebar-item ${pathname === '/admin' ? 'active' : ''}`} style={{ color: 'var(--color-primary)' }}>
-                <RiShieldStarLine size={18} />
-                Admin Dashboard
-              </div>
-            </Link>
-          )}
         </div>
 
         <div className="sidebar-group-label">History</div>

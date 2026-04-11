@@ -68,19 +68,21 @@ export default function Topbar({ title }: { title?: string }) {
 
       {/* Right — balance + notifications + avatar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {/* Balance chip — hide on very small screens */}
-        <div className="balance-chip" style={{
-          display: 'flex', alignItems: 'center', gap: 5,
-          padding: '5px 10px', borderRadius: 999,
-          background: 'rgba(0,229,255,0.08)',
-          border: '1px solid rgba(0,229,255,0.15)',
-          fontSize: '0.78rem', fontWeight: 600,
-          color: 'var(--color-primary)',
-          fontFamily: 'var(--font-display)',
-        }}>
-          <RiCoinLine size={13} />
-          ₦{user?.balance?.toLocaleString() ?? '0'}
-        </div>
+        {/* Balance chip — hide on very small screens or if user is admin */}
+        {user?.role !== 'admin' && (
+          <div className="balance-chip" style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '5px 10px', borderRadius: 999,
+            background: 'rgba(0,229,255,0.08)',
+            border: '1px solid rgba(0,229,255,0.15)',
+            fontSize: '0.78rem', fontWeight: 600,
+            color: 'var(--color-primary)',
+            fontFamily: 'var(--font-display)',
+          }}>
+            <RiCoinLine size={13} />
+            ₦{user?.balance?.toLocaleString() ?? '0'}
+          </div>
+        )}
 
         {/* Notifications */}
         <button style={{
@@ -98,7 +100,7 @@ export default function Topbar({ title }: { title?: string }) {
             onClick={() => setDropOpen(!dropOpen)}
             style={{
               width: 34, height: 34, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--color-primary), #7C3AED)',
+              background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '0.78rem', fontWeight: 700, color: '#000',
               fontFamily: 'var(--font-display)', cursor: 'pointer',
@@ -130,7 +132,7 @@ export default function Topbar({ title }: { title?: string }) {
               }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                  background: 'linear-gradient(135deg, var(--color-primary), #7C3AED)',
+                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontWeight: 700, fontSize: '0.82rem', color: '#000',
                   fontFamily: 'var(--font-display)',

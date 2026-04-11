@@ -72,4 +72,42 @@ class SMSPurchase {
         ");
         return $stmt->execute([$status, $otpCode, $id]);
     }
+
+    /**
+     * Soft-hide a purchase record.
+     */
+    public function hidePurchase(int $id, int $userId): bool {
+        $stmt = $this->db->prepare("
+            UPDATE sms_purchases
+            SET is_hidden = 1
+            WHERE id = ? AND user_id = ?
+        ");
+        return $stmt->execute([$id, $userId]);
+    }
+
+    /**
+     * Fetch paginated purchases for a user (excluding hidden ones).
+     */
+    public function getByUserPaginated(int $userId, int $limit, int $offset): array {
+        $stmt = $this->db->prepare("
+            SELECT * FROM sms_purchases
+            WHERE user_id = ? AND is_hidden = 0
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        ");
+        $stmt->execute([$userId, $limit, $offset]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get total count of non-hidden purchases for pagination meta.
+     */
+    public function countByUser(int $userId): int {
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) FROM sms_purchases
+            WHERE user_id = ? AND is_hidden = 0
+        ");
+        $stmt->execute([$userId]);
+        return (int)$stmt->fetchColumn();
+    }
 }

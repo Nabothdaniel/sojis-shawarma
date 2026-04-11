@@ -7,16 +7,20 @@ import SupportFAB from '@/components/ui/SupportFAB';
 import { useAppStore } from '@/store/appStore';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, sidebarOpen, setSidebarOpen, hasHydrated } = useAppStore();
+  const { isAuthenticated, user, sidebarOpen, setSidebarOpen, hasHydrated } = useAppStore();
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.replace('/login');
+    if (hasHydrated) {
+      if (!isAuthenticated) {
+        router.replace('/login');
+      } else if (user?.role === 'admin') {
+        // Globally redirect admins away from user dashboard pages to the admin dashboard
+        router.replace('/admin/dashboard');
+      }
     }
-  }, [isAuthenticated, hasHydrated, router]);
-
+  }, [isAuthenticated, hasHydrated, router, user]);
   // Close on mobile
   useEffect(() => {
     const check = () => {

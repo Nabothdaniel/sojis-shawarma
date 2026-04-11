@@ -72,6 +72,30 @@ class User {
         return $stmt->execute([$hashedToken, $id]);
     }
 
+    public function updatePin($id, $pin) {
+        $hashedPin = password_hash($pin, PASSWORD_DEFAULT);
+        $sql = "UPDATE users SET transaction_pin = ? WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$hashedPin, $id]);
+    }
+
+    public function verifyPin($id, $pin) {
+        $sql = "SELECT transaction_pin FROM users WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id]);
+        $user = $stmt->fetch();
+        if (!$user || !$user['transaction_pin']) return false;
+        return password_verify($pin, $user['transaction_pin']);
+    }
+
+    public function hasPin($id) {
+        $sql = "SELECT transaction_pin FROM users WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id]);
+        $user = $stmt->fetch();
+        return !empty($user['transaction_pin']);
+    }
+
     public function verifyToken($token) {
         $hashedToken = hash('sha256', $token);
         $sql = "SELECT id FROM users WHERE token = ?";

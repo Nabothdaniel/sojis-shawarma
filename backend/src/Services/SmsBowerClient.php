@@ -16,29 +16,54 @@ class SmsBowerClient {
         $this->baseUrl = $cfg['base_url'] ?? 'https://smsbower.page/stubs/handler_api.php';
     }
 
+    private function log(string $message): void {
+        $logFile = __DIR__ . '/../../storage/logs/sms_bower.log';
+        $time = date('Y-m-d H:i:s');
+        
+        // Ensure the message is valid UTF-8 to prevent binary corruption in logs
+        if (!mb_check_encoding($message, 'UTF-8')) {
+            $message = "[BINARY DATA DETECTED - COULD NOT CONVERT]";
+        }
+        
+        file_put_contents($logFile, "[$time] $message\n", FILE_APPEND);
+    }
+
     // ─── Low-level ────────────────────────────────────────────────────────────
 
     private function request(array $params): string {
         $params['api_key'] = $this->apiKey;
         $url = $this->baseUrl . '?' . http_build_query($params);
 
+        $this->log("OUTBOUND REQUEST: $url");
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_TIMEOUT        => 30, // Increased from 15
+            CURLOPT_CONNECTTIMEOUT => 10, // Max wait for initial connection
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_USERAGENT      => 'BamzySMS/1.0',
+            CURLOPT_ENCODING       => '',
         ]);
         $result = curl_exec($ch);
         $errno  = curl_errno($ch);
         curl_close($ch);
 
         if ($errno) {
+            $this->log("CURL ERROR ($errno)");
             throw new \RuntimeException("cURL error $errno connecting to SMSBower. Check your server's outbound connection.");
         }
 
-        if (str_contains($result, 'IP_NOT_ALLOWED') || str_contains($result, 'BAD_IP') || str_contains($result, 'No access')) {
-            throw new \RuntimeException("SMSBower Error: Access Denied. Your server IP might not be whitelisted. Your public IP is: " . $this->getPublicIpHelper() . ". Whitelist it in your SMSBower dashboard.");
+        $this->log("RAW RESPONSE: $result");
+
+        if (!is_string($result) || $result === '') {
+            throw new \RuntimeException('SMS provider returned an empty response.');
+        }
+
+        $providerError = $this->extractProviderError($result);
+        if ($providerError !== null) {
+            $this->log("EXTRACTED ERROR: $providerError");
+            throw new \RuntimeException($providerError);
         }
 
         return $result;
@@ -111,11 +136,21 @@ class SmsBowerClient {
         $raw  = $this->request($params);
         $data = json_decode($raw, true);
 
-        if (isset($data['activationId'])) {
+        if (is_array($data) && isset($data['activationId'])) {
             return $data;
         }
 
-        throw new \RuntimeException("getNumberV2 failed: $raw");
+        // Map known error codes from SMSBower
+        $errors = [
+            'NO_NUMBERS'      => 'Sorry, we are temporarily out of stock for this specific service. Please try again in 5-10 minutes or try another country.',
+            'NO_BALANCE'      => 'The system is temporarily undergoing maintenance. Please contact support.',
+            'BAD_KEY'         => 'Service configuration error. Please contact support.',
+            'WRONG_MAX_PRICE' => 'The price of this service has changed. Please refresh and try again.',
+        ];
+
+        $rawTrimmed = trim((string)$raw);
+        $msg = $errors[$rawTrimmed] ?? "Purchase failed ($rawTrimmed). Please try again later.";
+        throw new \RuntimeException($msg);
     }
 
     // ─── Get SMS Status ───────────────────────────────────────────────────────
@@ -176,7 +211,7 @@ class SmsBowerClient {
 
         $raw  = $this->request($params);
         $data = json_decode($raw, true);
-        if (!is_array($data)) {
+        if (!is_array($data) || $this->isProviderErrorArray($data)) {
             throw new \RuntimeException("getPrices failed: $raw");
         }
         return $data;
@@ -192,7 +227,7 @@ class SmsBowerClient {
 
         $raw  = $this->request($params);
         $data = json_decode($raw, true);
-        if (!is_array($data)) {
+        if (!is_array($data) || $this->isProviderErrorArray($data)) {
             throw new \RuntimeException("getPricesV2 failed: $raw");
         }
         return $data;
@@ -203,15 +238,17 @@ class SmsBowerClient {
     /**
      * Cache results for $ttl seconds (default 24h)
      */
-    private function _getCached(string $name, callable $fetcher, int $ttl = 86400) {
+    private function _getCached(string $name, callable $fetcher, int $ttl = 86400, ?callable $validator = null) {
         $cachePath = __DIR__ . '/../../storage/cache/' . $name . '.json';
         if (file_exists($cachePath) && (time() - filemtime($cachePath) < $ttl)) {
             $data = json_decode(file_get_contents($cachePath), true);
-            if ($data !== null) return $data;
+            if ($data !== null && ($validator === null || $validator($data) === true)) {
+                return $data;
+            }
         }
 
         $res = $fetcher();
-        if ($res) {
+        if ($res && ($validator === null || $validator($res) === true)) {
             file_put_contents($cachePath, json_encode($res));
         }
         return $res;
@@ -224,10 +261,12 @@ class SmsBowerClient {
         return $this->_getCached('services', function() {
             $raw  = $this->request(['action' => 'getServicesList']);
             $data = json_decode($raw, true);
-            if (isset($data['services'])) {
+            if (is_array($data) && isset($data['services']) && is_array($data['services'])) {
                 return $data['services'];
             }
             throw new \RuntimeException("getServicesList failed: $raw");
+        }, 86400, function ($data) {
+            return is_array($data);
         });
     }
 
@@ -238,24 +277,48 @@ class SmsBowerClient {
         return $this->_getCached('countries', function() {
             $raw  = $this->request(['action' => 'getCountries']);
             $data = json_decode($raw, true);
-            if (is_array($data)) {
-                return array_values($data);
+            if (is_array($data) && !$this->isProviderErrorArray($data)) {
+                $countries = array_values($data);
+                $countries = array_values(array_filter($countries, fn($c) => is_array($c)));
+                if (!empty($countries)) {
+                    return $countries;
+                }
             }
             throw new \RuntimeException("getCountries failed: $raw");
+        }, 86400, function ($data) {
+            return is_array($data) && !empty($data) && is_array($data[0] ?? null);
         });
     }
 
-    private function getPublicIpHelper(): string {
-        try {
-            $ch = curl_init('https://api.ipify.org');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            $ip = curl_exec($ch);
-            curl_close($ch);
-            return trim($ip) ?: ($_SERVER['SERVER_ADDR'] ?? 'Unknown');
-        } catch (\Throwable $e) {
-            return $_SERVER['SERVER_ADDR'] ?? 'Unknown';
+    private function extractProviderError(string $raw): ?string {
+        $trimmed = trim($raw);
+
+        if (
+            str_contains($trimmed, 'IP_NOT_ALLOWED') ||
+            str_contains($trimmed, 'BAD_IP') ||
+            str_contains($trimmed, 'No access') ||
+            str_contains($trimmed, 'ACCESS_DENIED')
+        ) {
+            return 'SMS provider access denied. Please verify your provider account/API permissions.';
         }
+
+        $decoded = json_decode($trimmed, true);
+        if ($this->isProviderErrorArray($decoded)) {
+            $msg = trim((string)($decoded[1] ?? ''));
+            if ($msg !== '') {
+                return "SMS provider error: $msg";
+            }
+            return 'SMS provider returned an access error.';
+        }
+
+        return null;
+    }
+
+    private function isProviderErrorArray($data): bool {
+        return is_array($data)
+            && array_is_list($data)
+            && isset($data[0], $data[1])
+            && ((string)$data[0] === '0')
+            && is_string($data[1]);
     }
 }
-

@@ -11,6 +11,7 @@ export interface SmsCountry {
   id: number;
   eng: string;
   flag: string;
+  flagUrl?: string; // New field for premium flag icons
 }
 
 export interface AvailabilityInfo {
@@ -57,8 +58,13 @@ export const smsService = {
     countryId: number;
     countryName: string;
     maxPrice?: number;
+    pin: string;
   }): Promise<{ status: string; message: string; data: BuyResult }> =>
     apiClient.post('/sms/buy', payload),
+
+  // Reveal plain-text phone number and OTP using PIN
+  revealPlainNumber: (activationId: number, pin: string): Promise<{ status: string; data: { phoneNumber: string; otpCode: string } }> =>
+    apiClient.post('/sms/reveal', { activationId, pin }),
 
   // Poll OTP status for an activation
   getSmsStatus: (activationId: number): Promise<{ status: string; data: SmsStatusResult }> =>
@@ -68,7 +74,11 @@ export const smsService = {
   setActivationStatus: (activationId: number, status: 1 | 3 | 6 | 8): Promise<{ status: string; response: string }> =>
     apiClient.post('/sms/set-status', { activationId, status }),
 
-  // User's purchase history
-  getPurchases: (): Promise<{ status: string; data: any[] }> =>
-    apiClient.get('/sms/purchases'),
+  // User's purchase history (paginated)
+  getPurchases: (limit = 20, offset = 0): Promise<{ status: string; data: any[]; meta: any }> =>
+    apiClient.get(`/sms/purchases?limit=${limit}&offset=${offset}`),
+
+  // Hide a purchase from history
+  hidePurchase: (id: number): Promise<{ status: string; message: string }> =>
+    apiClient.post('/sms/hide', { id }),
 };

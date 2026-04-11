@@ -7,7 +7,7 @@ use BamzySMS\Models\User;
 class AuthMiddleware {
     public static function handle() {
         $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
 
         if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
             $token = $matches[1];

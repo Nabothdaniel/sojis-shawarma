@@ -8,43 +8,78 @@ class UtilsController extends Controller {
     
     /**
      * GET /api/utils/server-ip
-     * Returns the server's public IP address.
-     * Useful for whitelisting on SMS provider dashboards.
+     * Returns a detailed diagnostic report for whitelisting.
      */
     public function getServerIp() {
-        // Try multiple ways to get the public IP
-        $ip = $this->getPublicIp();
+        $ipInfo = $this->getPublicIpDetailed();
         
         return $this->json([
             'status' => 'success',
             'data' => [
-                'ip' => $ip,
-                'server_time' => date('Y-m-d H:i:s'),
-                'php_version' => PHP_VERSION,
+                'public_ip' => $ipInfo['ip'],
+                'method' => $ipInfo['method'],
+                'connectivity_test' => $this->testSmsBowerConnectivity(),
+                'server_info' => [
+                    'time' => date('Y-m-d H:i:s'),
+                    'timezone' => date_default_timezone_get(),
+                    'php_version' => PHP_VERSION,
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'N/A'
+                ],
+                'instructions' => "Provide the 'public_ip' to SMSBower support if you are encountering 401 Unauthorized or Timeout errors."
             ]
         ]);
     }
 
-    private function getPublicIp() {
-        // 1. Check if we are on localhost
-        $localIps = ['127.0.0.1', '::1'];
-        $serverAddr = $_SERVER['SERVER_ADDR'] ?? 'Unknown';
-        
-        // 2. Try to fetch from an external service if possible (cURL)
-        try {
-            $ch = curl_init('https://api.ipify.org');
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            $externalIp = curl_exec($ch);
-            curl_close($ch);
-            
-            if ($externalIp && filter_var($externalIp, FILTER_VALIDATE_IP)) {
-                return $externalIp;
-            }
-        } catch (\Throwable $e) {
-            // Fallback to server addr
+    private function getPublicIpDetailed() {
+        // Try multiple services in case one is blocked
+        $services = [
+            'https://api.ipify.org' => 'ipify',
+            'https://ifconfig.me/ip' => 'ifconfig.me',
+            'https://icanhazip.com'  => 'icanhazip'
+        ];
+
+        foreach ($services as $url => $name) {
+            try {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT        => 3,
+                    CURLOPT_CONNECTTIMEOUT => 2
+                ]);
+                $ip = curl_exec($ch);
+                curl_close($ch);
+                
+                if ($ip && filter_var(trim($ip), FILTER_VALIDATE_IP)) {
+                    return ['ip' => trim($ip), 'method' => $name];
+                }
+            } catch (\Throwable $e) {}
         }
 
-        return $serverAddr;
+        return ['ip' => $_SERVER['SERVER_ADDR'] ?? 'Unknown', 'method' => 'internal_fallback'];
+    }
+
+    private function testSmsBowerConnectivity() {
+        $url = "https://smsbower.page/stubs/handler_api.php";
+        try {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_NOBODY         => true,
+                CURLOPT_TIMEOUT        => 5,
+                CURLOPT_CONNECTTIMEOUT => 5
+            ]);
+            curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err  = curl_errno($ch);
+            curl_close($ch);
+
+            return [
+                'reachable' => ($code > 0),
+                'http_code' => $code,
+                'curl_error' => $err ?: null
+            ];
+        } catch (\Throwable $e) {
+            return ['reachable' => false, 'error' => $e->getMessage()];
+        }
     }
 }

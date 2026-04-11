@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Topbar from '@/components/dashboard/Topbar';
@@ -11,11 +12,18 @@ import {
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 import { userService, smsService } from '@/lib/api';
+import PinModal from '@/components/ui/PinModal';
+import { RiShieldKeyholeLine } from 'react-icons/ri';
 
 export default function DashboardPage() {
-  const { user, login } = useAppStore();
+  const router = useRouter();
+  const { user, login, addToast } = useAppStore();
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  
+  // PIN states
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
 
   useEffect(() => {
     // 1. Refresh profile
@@ -27,6 +35,22 @@ export default function DashboardPage() {
     smsService.getPurchases().then(res => setRecentPurchases(res.data.slice(0, 5)));
     userService.getTransactions().then(res => setRecentTransactions(res.data.slice(0, 5)));
   }, [login]);
+
+  const handleSetPin = async (pin: string) => {
+    setPinLoading(true);
+    try {
+      await userService.updatePin(pin);
+      addToast('Transaction PIN set successfully!', 'success');
+      setPinModalOpen(false);
+      // Refresh profile to update hasPin status
+      const res = await userService.getProfile();
+      login(res.data);
+    } catch (err: any) {
+      addToast(err.message || 'Failed to set PIN', 'error');
+    } finally {
+      setPinLoading(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -40,6 +64,41 @@ export default function DashboardPage() {
           <span>/</span>
           <span>Home</span>
         </div>
+
+        {/* Security Banner */}
+        {!user?.hasPin && (
+          <div className="stat-card" style={{ 
+            background: 'var(--color-primary)', color: '#fff', border: 'none', 
+            marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '24px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ width: 50, height: 50, borderRadius: 12, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <RiShieldKeyholeLine size={28} />
+              </div>
+              <div>
+                <h3 style={{ color: '#fff', fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>Set your Transaction PIN</h3>
+                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem' }}>Secure your purchases and reveal hidden numbers with a 4-digit PIN.</p>
+              </div>
+            </div>
+            <button 
+              className="btn-primary" 
+              onClick={() => setPinModalOpen(true)}
+              style={{ background: '#fff', color: 'var(--color-primary)', fontWeight: 700, padding: '10px 20px' }}
+            >
+              Set PIN Now
+            </button>
+          </div>
+        )}
+
+        <PinModal 
+          isOpen={pinModalOpen}
+          onClose={() => setPinModalOpen(false)}
+          onSuccess={handleSetPin}
+          isLoading={pinLoading}
+          title="Set Transaction PIN"
+          description="Create a 4-digit PIN to authorize purchases and reveal private numbers."
+        />
 
         {/* Stat cards */}
         <div style={{

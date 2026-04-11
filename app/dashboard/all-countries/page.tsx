@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Topbar from '@/components/dashboard/Topbar';
-import BuyNumbers from '@/components/dashboard/BuyNumbers';
+import BuyNumbers from '@/components/BuyNumbers';
 
 export default function AllCountriesPage() {
   return (

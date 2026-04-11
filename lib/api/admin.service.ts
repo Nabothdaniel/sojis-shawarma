@@ -16,6 +16,14 @@ export interface AdminSettings {
   [key: string]: string;
 }
 
+export interface PricingOverride {
+  id: number;
+  service_code: string;
+  multiplier: number | null;
+  fixed_price: number | null;
+  updated_at: string;
+}
+
 export const adminService = {
   // Get all users
   getUsers: (): Promise<{ status: string; data: AdminUser[] }> =>
@@ -36,4 +44,18 @@ export const adminService = {
   // Get provider (SMSBower) balance
   getProviderBalance: (): Promise<{ status: string; balance: number }> =>
     apiClient.get('/admin/provider-balance'),
+
+  // Pricing Overrides
+  getPricingOverrides: (): Promise<{ status: string; data: PricingOverride[] }> =>
+    apiClient.get('/admin/pricing/overrides'),
+
+  updatePricingOverride: (data: { serviceCode: string; multiplier?: number; fixedPrice?: number }): Promise<{ status: string; message: string }> =>
+    apiClient.post('/admin/pricing/update', data),
+
+  deletePricingOverride: (serviceCode: string): Promise<{ status: string; message: string }> =>
+    apiClient.delete(`/admin/pricing/delete?serviceCode=${serviceCode}`),
+
+  // Audit Logs
+  getSystemLogs: (): Promise<{ status: string; data: any[] }> =>
+    apiClient.get('/admin/logs'),
 };
