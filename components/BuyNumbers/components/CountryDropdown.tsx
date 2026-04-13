@@ -2,6 +2,7 @@ import React from 'react';
 import { RiArrowDownSLine, RiInformationLine } from 'react-icons/ri';
 import { SmsCountry } from '@/lib/api';
 import Tooltip from '@/components/ui/Tooltip';
+import Image from 'next/image';
 
 interface CountryDropdownProps {
   countries: SmsCountry[];
@@ -49,7 +50,7 @@ export const CountryDropdown: React.FC<CountryDropdownProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {selectedCountry?.flagUrl ? (
-              <img src={selectedCountry.flagUrl} alt="" style={{ width: 22, height: 15, borderRadius: 2, objectFit: 'cover' }} />
+              <Image src={selectedCountry.flagUrl} alt="" width={22} height={15} style={{ borderRadius: 2, objectFit: 'cover' }} />
             ) : <span>{selectedCountry?.flag || '🌐'}</span>}
             <span>{selectedCountry?.eng || 'Select Country'}</span>
           </div>
@@ -81,7 +82,7 @@ export const CountryDropdown: React.FC<CountryDropdownProps> = ({
                  }}
                >
                  {c.flagUrl ? (
-                   <img src={c.flagUrl} alt="" style={{ width: 20, height: 14, borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }} />
+                   <Image src={c.flagUrl} alt="" width={20} height={14} style={{ borderRadius: 2, border: '1px solid rgba(255,255,255,0.1)' }} />
                  ) : <span>{c.flag}</span>}
                  <span style={{ fontWeight: selectedCountryId === c.id ? 600 : 400 }}>{c.eng}</span>
                </button>

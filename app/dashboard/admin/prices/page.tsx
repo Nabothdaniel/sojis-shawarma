@@ -173,7 +173,7 @@ export default function AdminPricePage() {
                     {services.length === 0 ? (
                       <tr>
                         <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-faint)' }}>
-                          No services found matching "{search}"
+                          No services found matching &quot;{search}&quot;
                         </td>
                       </tr>
                     ) : (

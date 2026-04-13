@@ -75,7 +75,7 @@ export default function AdminUsersPage() {
                   {filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan={5} style={{ padding: '64px', textAlign: 'center', color: 'var(--color-text-faint)' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 600 }}>No users found matching "{search}"</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 600 }}>No users found matching &quot;{search}&quot;</div>
                       </td>
                     </tr>
                   ) : (

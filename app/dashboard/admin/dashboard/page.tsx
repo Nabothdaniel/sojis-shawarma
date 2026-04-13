@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService } from '@/lib/api/admin.service';
-import { 
-  RiWalletLine, RiCpuLine, RiGlobalLine, 
+import {
+  RiWalletLine, RiCpuLine, RiGlobalLine,
   RiLineChartLine, RiUserStarLine, RiTimerFlashLine,
   RiSettings4Line
 } from 'react-icons/ri';
@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [providerStatus, setProviderStatus] = useState<{ status: string, error?: string } | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const results = await Promise.allSettled([
         adminService.getProviderBalance(),
@@ -25,48 +25,50 @@ export default function AdminDashboard() {
         adminService.getAnalytics(),
         adminService.getProviderStatus()
       ]);
-      
+
+      const [balanceRes, settingsRes, analyticsRes, statusRes] = results;
+
       // Handle Settings
-      if (results[1].status === 'fulfilled') {
-        setGlobalSettings(results[1].value.data);
+      if (settingsRes.status === 'fulfilled') {
+        setGlobalSettings(settingsRes.value.data);
       }
 
       // Handle Analytics
-      if (results[2].status === 'fulfilled') {
-        const analyticsRes = results[2].value;
+      if (analyticsRes.status === 'fulfilled') {
+        const data = analyticsRes.value.data;
         setStats((prev: any) => ({
           ...prev,
-          revenue: analyticsRes.data.totals.revenue,
-          orders: analyticsRes.data.totals.orders,
-          successRate: analyticsRes.data.totals.success_rate,
-          users: analyticsRes.data.totals.users,
-          daily: analyticsRes.data.daily
+          revenue: data.totals.revenue,
+          orders: data.totals.orders,
+          successRate: data.totals.success_rate,
+          users: data.totals.users,
+          daily: data.daily
         }));
       }
 
       // Handle Provider Balance
-      if (results[0].status === 'fulfilled') {
+      if (balanceRes.status === 'fulfilled') {
         setStats((prev: any) => ({
           ...prev,
-          providerBalance: results[0].value.balance
+          providerBalance: balanceRes.value.balance
         }));
       } else {
-        addToast('Could not fetch SMSBower balance', 'warning');
+        addToast('Could not fetch SMSBower balance', 'error');
       }
 
       // Handle Provider Status
-      if (results[3].status === 'fulfilled') {
+      if (statusRes.status === 'fulfilled') {
         setProviderStatus({
-          status: results[3].value.data.provider,
-          error: results[3].value.data.error
+          status: statusRes.value.data.provider,
+          error: statusRes.value.data.error
         });
       }
 
       // Handle conversion rate from settings if fulfilled
-      if (results[1].status === 'fulfilled') {
+      if (settingsRes.status === 'fulfilled') {
         setStats((prev: any) => ({
           ...prev,
-          conversionRate: parseFloat(results[1].value.data.usd_to_ngn_rate || '1600')
+          conversionRate: parseFloat(settingsRes.value.data.usd_to_ngn_rate || '1600')
         }));
       }
 
@@ -76,11 +78,11 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
     fetchData();
-  }, [addToast]);
+  }, [fetchData]);
 
   const maxDaily = stats?.daily?.length ? Math.max(...stats.daily.map((d: any) => parseFloat(d.daily_revenue))) : 0;
 
@@ -92,12 +94,12 @@ export default function AdminDashboard() {
             <h1 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0 0 8px', color: 'var(--color-text)' }}>Admin Overview</h1>
             <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500 }}>System health and platform statistics.</p>
           </div>
-          
+
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             {providerStatus && (
-              <div 
+              <div
                 title={providerStatus.error}
-                style={{ 
+                style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: '12px',
                   background: providerStatus.status === 'online' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                   color: providerStatus.status === 'online' ? '#10B981' : '#EF4444',
@@ -109,7 +111,7 @@ export default function AdminDashboard() {
               </div>
             )}
             <button onClick={fetchData} className="btn-secondary" style={{ padding: '8px 12px' }}>
-               <RiTimerFlashLine size={18} />
+              <RiTimerFlashLine size={18} />
             </button>
           </div>
         </div>
@@ -121,14 +123,14 @@ export default function AdminDashboard() {
         ) : (
           <>
             <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '32px' }}>
-              
+
               {/* Provider Balance */}
               <div className="stat-card" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-2)', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--color-primary-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                      <RiWalletLine size={24} />
-                   </div>
-                   <span className="badge" style={{ background: 'var(--color-primary-dim)', color: 'var(--color-primary)', fontWeight: 700 }}>Provider</span>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'var(--color-primary-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                    <RiWalletLine size={24} />
+                  </div>
+                  <span className="badge" style={{ background: 'var(--color-primary-dim)', color: 'var(--color-primary)', fontWeight: 700 }}>Provider</span>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px' }}>SMSBower Balance</div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>
@@ -139,10 +141,10 @@ export default function AdminDashboard() {
               {/* Total Revenue */}
               <div className="stat-card" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-2)', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
-                      <RiLineChartLine size={24} />
-                   </div>
-                   <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.05)', color: '#10B981', fontWeight: 700 }}>Revenue</span>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
+                    <RiLineChartLine size={24} />
+                  </div>
+                  <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.05)', color: '#10B981', fontWeight: 700 }}>Revenue</span>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px' }}>Total Sales (NGN)</div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>₦{stats?.revenue?.toLocaleString() || '0'}</div>
@@ -151,10 +153,10 @@ export default function AdminDashboard() {
               {/* Success Rate */}
               <div className="stat-card" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-2)', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
-                      <RiCpuLine size={24} />
-                   </div>
-                   <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.05)', color: '#F59E0B', fontWeight: 700 }}>Efficiency</span>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B' }}>
+                    <RiCpuLine size={24} />
+                  </div>
+                  <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.05)', color: '#F59E0B', fontWeight: 700 }}>Efficiency</span>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px' }}>Activation Success Rate</div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>{stats?.successRate || '0'}%</div>
@@ -163,10 +165,10 @@ export default function AdminDashboard() {
               {/* User Count */}
               <div className="stat-card" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-2)', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                      <RiUserStarLine size={24} />
-                   </div>
-                   <span className="badge" style={{ background: 'rgba(37, 99, 235, 0.05)', color: 'var(--color-primary)', fontWeight: 700 }}>Growth</span>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(37, 99, 235, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                    <RiUserStarLine size={24} />
+                  </div>
+                  <span className="badge" style={{ background: 'rgba(37, 99, 235, 0.05)', color: 'var(--color-primary)', fontWeight: 700 }}>Growth</span>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px' }}>Total Customers</div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>{stats?.users || '0'}</div>
@@ -175,73 +177,73 @@ export default function AdminDashboard() {
             </div>
 
             <div className="charts-section" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-               {/* Revenue Chart */}
-               <div className="stat-card" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-2)', display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                     <RiLineChartLine color="var(--color-primary)" />
-                     Revenue Trend (Last 7 Days)
-                  </h3>
-                  
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '12px', padding: '0 10px 20px', minHeight: '200px', overflowX: 'auto' }}>
-                    {!stats?.daily?.length ? (
-                      <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-faint)', fontSize: '0.9rem' }}>
-                        No sales data found for the last 7 days.
-                      </div>
-                    ) : (
-                      stats.daily.map((d: any, i: number) => {
-                        const height = maxDaily > 0 ? (parseFloat(d.daily_revenue) / maxDaily) * 100 : 0;
-                        return (
-                          <div key={i} style={{ flex: 1, minWidth: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                            <div style={{ 
-                               width: '100%', 
-                               height: `${Math.max(height, 5)}%`, 
-                               minHeight: '4px',
-                               background: 'linear-gradient(to top, var(--color-primary), var(--color-secondary))',
-                               borderRadius: '6px 6px 2px 2px',
-                               position: 'relative',
-                               transition: 'height 1s ease-out'
+              {/* Revenue Chart */}
+              <div className="stat-card" style={{ border: '1px solid var(--color-border)', background: 'var(--color-bg-2)', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <RiLineChartLine color="var(--color-primary)" />
+                  Revenue Trend (Last 7 Days)
+                </h3>
+
+                <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: '12px', padding: '0 10px 20px', minHeight: '200px', overflowX: 'auto' }}>
+                  {!stats?.daily?.length ? (
+                    <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-faint)', fontSize: '0.9rem' }}>
+                      No sales data found for the last 7 days.
+                    </div>
+                  ) : (
+                    stats.daily.map((d: any, i: number) => {
+                      const height = maxDaily > 0 ? (parseFloat(d.daily_revenue) / maxDaily) * 100 : 0;
+                      return (
+                        <div key={i} style={{ flex: 1, minWidth: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: '100%',
+                            height: `${Math.max(height, 5)}%`,
+                            minHeight: '4px',
+                            background: 'linear-gradient(to top, var(--color-primary), var(--color-secondary))',
+                            borderRadius: '6px 6px 2px 2px',
+                            position: 'relative',
+                            transition: 'height 1s ease-out'
+                          }}>
+                            <div className="chart-tooltip" style={{
+                              position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
+                              background: '#000', color: '#fff', fontSize: '0.65rem', padding: '4px 6px',
+                              borderRadius: '4px', whiteSpace: 'nowrap', opacity: 0, transition: 'opacity 0.2s',
+                              pointerEvents: 'none', fontWeight: 700
                             }}>
-                               <div className="chart-tooltip" style={{ 
-                                 position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
-                                 background: '#000', color: '#fff', fontSize: '0.65rem', padding: '4px 6px',
-                                 borderRadius: '4px', whiteSpace: 'nowrap', opacity: 0, transition: 'opacity 0.2s',
-                                 pointerEvents: 'none', fontWeight: 700
-                               }}>
-                                 ₦{parseFloat(d.daily_revenue).toLocaleString()}
-                               </div>
+                              ₦{parseFloat(d.daily_revenue).toLocaleString()}
                             </div>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--color-text-faint)', fontWeight: 700 }}>
-                               {new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}
-                            </span>
                           </div>
-                        )
-                      })
-                    )}
-                  </div>
-               </div>
-               
-               {/* Recent Activity Mini-log */}
-               <div className="stat-card" style={{ border: '1px solid var(--color-border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                     <RiTimerFlashLine color="var(--color-primary)" />
-                     Sales Distribution
-                  </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600 }}>
-                           <span>Activations</span>
-                           <span>{stats?.orders || '0'} total</span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--color-text-faint)', fontWeight: 700 }}>
+                            {new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}
+                          </span>
                         </div>
-                        <div style={{ height: 6, width: '100%', background: 'var(--color-bg-hover)', borderRadius: 3 }}>
-                           <div style={{ height: '100%', width: `${stats?.successRate || 0}%`, background: '#10B981', borderRadius: 3 }} />
-                        </div>
-                     </div>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>Global Default Rate: {Number(stats?.conversionRate || 0).toLocaleString()} NGN/USD</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>Active Multiplier: {Number(globalSettings?.price_markup_multiplier || 1.5).toFixed(2)}x (Global)</div>
-                     </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Recent Activity Mini-log */}
+              <div className="stat-card" style={{ border: '1px solid var(--color-border)' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <RiTimerFlashLine color="var(--color-primary)" />
+                  Sales Distribution
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600 }}>
+                      <span>Activations</span>
+                      <span>{stats?.orders || '0'} total</span>
+                    </div>
+                    <div style={{ height: 6, width: '100%', background: 'var(--color-bg-hover)', borderRadius: 3 }}>
+                      <div style={{ height: '100%', width: `${stats?.successRate || 0}%`, background: '#10B981', borderRadius: 3 }} />
+                    </div>
                   </div>
-               </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>Global Default Rate: {Number(stats?.conversionRate || 0).toLocaleString()} NGN/USD</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>Active Multiplier: {Number(globalSettings?.price_markup_multiplier || 1.5).toFixed(2)}x (Global)</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </>
         )}
