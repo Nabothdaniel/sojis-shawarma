@@ -13,18 +13,18 @@ import {
 import { useAppStore } from '@/store/appStore';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', icon: <RiDashboardLine size={18} />, label: 'Dashboard' },
-  { href: '/dashboard/fund-wallet', icon: <RiWalletLine size={18} />, label: 'Fund Wallet' },
-  { href: '/dashboard/buy-logs', icon: <RiShoppingBag3Line size={18} />, label: 'Buy Logs' },
-  { href: '/dashboard/usa-numbers', icon: <RiPhoneLine size={18} />, label: 'USA Numbers' },
-  { href: '/dashboard/all-countries', icon: <RiGlobalLine size={18} />, label: 'All Countries Numbers' },
-  { href: '/dashboard/refer', icon: <RiUserSharedLine size={18} />, label: 'Refer & Earn' },
-  { href: '/dashboard/faqs', icon: <RiQuestionLine size={18} />, label: 'FAQs' },
+  { href: '/dashboard/user', icon: <RiDashboardLine size={18} />, label: 'Dashboard' },
+  { href: '/dashboard/user/fund-wallet', icon: <RiWalletLine size={18} />, label: 'Fund Wallet' },
+  { href: '/dashboard/user/buy-logs', icon: <RiShoppingBag3Line size={18} />, label: 'Buy Logs' },
+  { href: '/dashboard/user/usa-numbers', icon: <RiPhoneLine size={18} />, label: 'USA Numbers' },
+  { href: '/dashboard/user/all-countries', icon: <RiGlobalLine size={18} />, label: 'All Countries Numbers' },
+  { href: '/dashboard/user/refer', icon: <RiUserSharedLine size={18} />, label: 'Refer & Earn' },
+  { href: '/dashboard/user/faqs', icon: <RiQuestionLine size={18} />, label: 'FAQs' },
 ];
 
 const HISTORY_ITEMS = [
-  { href: '/dashboard/numbers-history', icon: <RiHistoryLine size={18} />, label: 'Numbers History' },
-  { href: '/dashboard/transactions', icon: <RiExchangeLine size={18} />, label: 'Transaction History' },
+  { href: '/dashboard/user/numbers-history', icon: <RiHistoryLine size={18} />, label: 'Numbers History' },
+  { href: '/dashboard/user/transactions', icon: <RiExchangeLine size={18} />, label: 'Transaction History' },
 ];
 
 export default function Sidebar() {

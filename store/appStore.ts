@@ -22,8 +22,15 @@ export const useAppStore = create<AppState>()(
       // Auth
       user: null,
       isAuthenticated: false,
-      login: (user) => set({ user, isAuthenticated: true }),
+      login: (user, token) => {
+        if (token) {
+          sessionStorage.setItem('bamzysms-token', token);
+          localStorage.setItem('bamzysms-token', token); // Optional: redundant but keeps session on reload
+        }
+        set({ user, isAuthenticated: true });
+      },
       logout: () => {
+        sessionStorage.removeItem('bamzysms-token');
         localStorage.removeItem('bamzysms-token');
         set({ user: null, isAuthenticated: false });
       },

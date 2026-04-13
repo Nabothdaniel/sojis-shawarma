@@ -19,21 +19,20 @@ export default function LoginPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.email || !form.password) { addToast('Please fill in all fields.', 'error'); return; }
     setLoading(true);
     try {
       const response = await authService.login(form);
-      localStorage.setItem('bamzysms-token', response.data.token);
-      login(response.data.user);
+      login(response.data.user, response.data.token);
       addToast('Welcome back!', 'success');
-      
+
       // Direct redirect based on role
       if (response.data.user.role === 'admin') {
-        router.push('/admin/dashboard');
+        router.push('/dashboard/admin/dashboard');
       } else {
-        router.push('/dashboard');
+        router.push('/dashboard/user');
       }
     } catch (error: any) {
       addToast(error.message || 'Login failed', 'error');
@@ -45,7 +44,7 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       {loading && <PageLoader />}
-      
+
       <div style={{ paddingBottom: 24 }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>

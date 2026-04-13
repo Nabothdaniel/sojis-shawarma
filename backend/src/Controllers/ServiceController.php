@@ -109,7 +109,7 @@ class ServiceController extends Controller {
                 return $this->json(['status' => 'success', 'data' => ['available' => false, 'count' => 0]]);
             }
 
-            $finalPrice = PricingHelper::calculatePrice($cheapestRaw, $service);
+            $finalPrice = PricingHelper::calculatePrice($cheapestRaw, $service, $country);
 
             return $this->json([
                 'status' => 'success',

@@ -62,12 +62,26 @@ class SMSPurchase {
     }
 
     /**
+     * Find a specific activation by activation_id (global search for internal reconciliation).
+     */
+    public function findByActivationId(int $activationId): ?array {
+        $stmt = $this->db->prepare("
+            SELECT * FROM sms_purchases
+            WHERE activation_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$activationId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    /**
      * Update the status and OTP code of a purchase.
      */
-    public function updateStatus(int $id, string $status, ?string $otpCode): bool {
+    public function updateStatus(int $id, string $status, ?string $otpCode = null): bool {
         $stmt = $this->db->prepare("
             UPDATE sms_purchases
-            SET status = ?, otp_code = ?
+            SET status = ?, otp_code = COALESCE(?, otp_code)
             WHERE id = ?
         ");
         return $stmt->execute([$status, $otpCode, $id]);

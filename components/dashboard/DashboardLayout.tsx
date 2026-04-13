@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.replace('/login');
       } else if (user?.role === 'admin') {
         // Globally redirect admins away from user dashboard pages to the admin dashboard
-        router.replace('/admin/dashboard');
+        router.replace('/dashboard/admin/dashboard');
       }
     }
   }, [isAuthenticated, hasHydrated, router, user]);

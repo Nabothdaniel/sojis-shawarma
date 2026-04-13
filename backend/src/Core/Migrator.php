@@ -66,8 +66,15 @@ class Migrator {
         
         if (trim($sql) === '') return;
 
-        // Execute SQL - simple exec for now (can be improved for multi-statement)
-        $this->db->exec($sql);
+        // Simple splitting by semicolon. 
+        // Note: This matches most migrations but isn't perfect for complex triggers/procedures.
+        $statements = array_filter(array_map('trim', explode(';', $sql)));
+
+        foreach ($statements as $statement) {
+            if ($statement !== '') {
+                $this->db->exec($statement);
+            }
+        }
 
         // Record it
         $stmt = $this->db->prepare("INSERT INTO migrations (name) VALUES (?)");

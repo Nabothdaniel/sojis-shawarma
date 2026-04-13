@@ -53,8 +53,8 @@ export default function AdminLogsPage() {
 
   return (
     <AdminLayout>
-      <div style={{ padding: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+      <div className="admin-content" style={{ padding: '32px' }}>
+        <div className="admin-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--color-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -62,10 +62,10 @@ export default function AdminLogsPage() {
               </div>
               <h1 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: 'var(--color-text)' }}>System Audit Logs</h1>
             </div>
-            <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500 }}>Real-time tracking of all critical platform activities and security events.</p>
+            <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500 }}>Real-time tracking of platform activities and security events.</p>
           </div>
           <button 
-            className="btn-primary" 
+            className="btn-primary refresh-btn" 
             onClick={fetchLogs}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px' }}
           >
@@ -74,60 +74,78 @@ export default function AdminLogsPage() {
         </div>
 
         {loading ? (
-          <PageLoader />
+          <div style={{ textAlign: 'center', padding: '100px 0', color: 'var(--color-text-faint)' }}>
+            <div className="spinner" style={{ margin: '0 auto 24px', width: '40px', height: '40px', border: '3px solid var(--color-primary-glow)', borderTopColor: 'var(--color-primary)' }} />
+            <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>Sychronizing Audit Trail...</p>
+          </div>
         ) : (
-          <div className="stat-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)', background: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
+          <div className="stat-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)', background: 'var(--color-bg-2)', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '900px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-hover)' }}>
-                    <th style={{ padding: '18px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Timestamp</th>
-                    <th style={{ padding: '18px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Initiator</th>
-                    <th style={{ padding: '18px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Operation</th>
-                    <th style={{ padding: '18px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Data payload</th>
+                  <tr style={{ borderBottom: '2px solid var(--color-border)', background: 'var(--color-bg-hover)' }}>
+                    <th style={{ padding: '20px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Timestamp</th>
+                    <th style={{ padding: '20px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Initiator</th>
+                    <th style={{ padding: '20px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Operation</th>
+                    <th style={{ padding: '20px 24px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-text-faint)' }}>Data payload</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ padding: '64px', textAlign: 'center', color: 'var(--color-text-faint)' }}>
-                        <RiHistoryLine size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
-                        <div style={{ fontWeight: 600 }}>No system activity recorded yet.</div>
+                      <td colSpan={4} style={{ padding: '80px', textAlign: 'center', color: 'var(--color-text-faint)' }}>
+                        <RiHistoryLine size={56} style={{ opacity: 0.1, marginBottom: 20 }} />
+                        <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>No activity records found.</div>
+                        <p style={{ fontSize: '0.9rem', marginTop: 8 }}>The audit trail is currently empty.</p>
                       </td>
                     </tr>
                   ) : (
                     logs.map((log) => (
                       <tr key={log.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }} className="log-row">
-                        <td style={{ padding: '24px', fontSize: '0.85rem', color: 'var(--color-text)', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                          {new Date(log.created_at).toLocaleString()}
+                        <td style={{ padding: '20px 24px' }}>
+                           <div style={{ display: 'flex', flexDirection: 'column' }}>
+                             <span style={{ fontSize: '0.9rem', color: 'var(--color-text)', fontWeight: 700 }}>
+                               {new Date(log.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                             </span>
+                             <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 600 }}>
+                               {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                             </span>
+                           </div>
                         </td>
-                        <td style={{ padding: '24px' }}>
+                        <td style={{ padding: '20px 24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-primary-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                            <div style={{ 
+                               width: 38, height: 38, borderRadius: 10, 
+                               background: log.user_name ? 'var(--color-primary-dim)' : 'rgba(0,0,0,0.05)', 
+                               display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                               color: log.user_name ? 'var(--color-primary)' : 'var(--color-text-faint)',
+                               border: '1px solid currentColor', opacity: 0.7
+                            }}>
                               <RiUserLine size={18} />
                             </div>
                             <div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)' }}>{log.user_name || 'System Auto'}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>{log.user_email || 'Core Service'}</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)' }}>{log.user_name || 'System Engine'}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', fontWeight: 600 }}>{log.user_email || 'CORE_SERVICE'}</div>
                             </div>
                           </div>
                         </td>
-                        <td style={{ padding: '24px' }}>
+                        <td style={{ padding: '20px 24px' }}>
                           <span style={{ 
-                            padding: '6px 12px', 
+                            padding: '6px 14px', 
                             borderRadius: '8px', 
-                            fontSize: '0.7rem', 
-                            fontWeight: 800, 
+                            fontSize: '0.65rem', 
+                            fontWeight: 900, 
                             textTransform: 'uppercase',
-                            letterSpacing: '0.02em',
+                            letterSpacing: '0.06em',
                             background: log.action.includes('error') ? 'rgba(239,68,68,0.1)' : 'var(--color-primary-dim)',
                             color: log.action.includes('error') ? '#EF4444' : 'var(--color-primary)',
-                            border: `1px solid ${log.action.includes('error') ? 'rgba(239,68,68,0.1)' : 'var(--color-primary-glow)'}`
+                            border: `1.5px solid currentColor`,
+                            opacity: 0.9
                           }}>
                             {log.action.replace(/_/g, ' ')}
                           </span>
                         </td>
-                        <td style={{ padding: '24px' }}>
+                        <td style={{ padding: '20px 24px' }}>
                           {formatDetails(log.details)}
                         </td>
                       </tr>
@@ -138,10 +156,25 @@ export default function AdminLogsPage() {
             </div>
           </div>
         )}
+
+        <style jsx>{`
+          .log-row:hover { background: var(--color-bg-hover); }
+          @media (max-width: 1024px) {
+            .admin-content {
+              padding: 20px 16px !important;
+            }
+            .admin-header {
+              flex-direction: column;
+              align-items: flex-start !important;
+              gap: 20px;
+            }
+            .refresh-btn {
+              width: 100%;
+              justify-content: center;
+            }
+          }
+        `}</style>
       </div>
-      <style>{`
-        .log-row:hover { background: var(--color-bg-hover); }
-      `}</style>
     </AdminLayout>
   );
 }

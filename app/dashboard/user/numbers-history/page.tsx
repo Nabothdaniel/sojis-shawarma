@@ -23,7 +23,7 @@ export default function NumbersHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  
+
   // Pagination / Infinite Scroll States
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -35,6 +35,8 @@ export default function NumbersHistoryPage() {
   const [revealLoading, setRevealLoading] = useState(false);
   const [revealTarget, setRevealTarget] = useState<number | null>(null);
   const [revealedData, setRevealedData] = useState<{ [key: number]: { phone: string; otp: string } }>({});
+  const [isVerified, setIsVerified] = useState(false);
+  const sessionPinRef = useRef<string | null>(null);
 
   const pollingRef = useRef<{ [key: number]: NodeJS.Timeout }>({});
 
@@ -70,10 +72,10 @@ export default function NumbersHistoryPage() {
         if (smsStatus === 'OK' || smsStatus === 'CANCEL' || smsStatus === 'WAIT_RETRY') {
           // Refresh list if status changed
           fetchHistory(false, 0, true);
-          
+
           if (smsStatus === 'OK') {
             addToast(`OTP Received!`, 'success');
-            new Audio(NOTIFICATION_SOUND).play().catch(() => {});
+            new Audio(NOTIFICATION_SOUND).play().catch(() => { });
             delete pollingRef.current[dbId];
             return;
           }
@@ -107,9 +109,41 @@ export default function NumbersHistoryPage() {
     });
   }, [items, startPolling]);
 
-  const handleRevealClick = (dbId: number) => {
-    setRevealTarget(dbId);
-    setRevealModalOpen(true);
+  const handleRevealClick = async (dbId: number) => {
+    if (isVerified) {
+      // If already verified in this session, reveal directly
+      setRevealTarget(dbId);
+      await revealDirectly(dbId);
+    } else {
+      setRevealTarget(dbId);
+      setRevealModalOpen(true);
+    }
+  };
+
+  const revealDirectly = async (dbId: number) => {
+    if (!sessionPinRef.current) {
+      setIsVerified(false);
+      handleRevealClick(dbId);
+      return;
+    }
+    setRevealLoading(true);
+    try {
+      const res = await smsService.revealPlainNumber(dbId, sessionPinRef.current);
+      setRevealedData(prev => ({
+        ...prev,
+        [dbId]: { phone: res.data.phoneNumber, otp: res.data.otpCode }
+      }));
+      addToast('Information revealed', 'success');
+    } catch (err: any) {
+      addToast(err.message || 'Verification failed', 'error');
+      if (err.message?.includes('PIN')) {
+        setIsVerified(false);
+        sessionPinRef.current = null;
+      }
+    } finally {
+      setRevealLoading(false);
+      setRevealTarget(null);
+    }
   };
 
   const handleRevealSuccess = async (pin: string) => {
@@ -122,13 +156,31 @@ export default function NumbersHistoryPage() {
         [revealTarget]: { phone: res.data.phoneNumber, otp: res.data.otpCode }
       }));
       setRevealModalOpen(false);
-      addToast('Information revealed', 'success');
+      setIsVerified(true);
+      sessionPinRef.current = pin;
+      addToast('Information revealed. History unlocked for this session.', 'success');
     } catch (err: any) {
       addToast(err.message || 'Verification failed', 'error');
     } finally {
       setRevealLoading(false);
       setRevealTarget(null);
     }
+  };
+
+  const handleLock = () => {
+    setIsVerified(false);
+    sessionPinRef.current = null;
+    setRevealedData({}); // Clear reveals on lock for maximum security
+    addToast('History locked', 'info');
+  };
+
+  const handleUnreveal = (dbId: number) => {
+    setRevealedData(prev => {
+      const next = { ...prev };
+      delete next[dbId];
+      return next;
+    });
+    addToast('Details hidden', 'info');
   };
 
   const handleHide = async (id: number) => {
@@ -178,8 +230,17 @@ export default function NumbersHistoryPage() {
             <span>/</span>
             <span>Number History</span>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {isVerified && (
+              <button
+                onClick={handleLock}
+                className="btn-ghost"
+                style={{ color: '#EF4444', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+              >
+                Lock History
+              </button>
+            )}
             <HistoryViewSwitcher view={viewMode} onChange={(v) => {
               setViewMode(v);
               fetchHistory(false, 0); // Reset to page 1 on view change
@@ -197,7 +258,7 @@ export default function NumbersHistoryPage() {
             <strong>Privacy Note:</strong> Phone numbers and OTP codes are masked by default. Click the <strong>Reveal (eye)</strong> icon and enter your PIN to view the full details.
           </p>
         </div>
-        
+
         <PinModal
           isOpen={revealModalOpen}
           onClose={() => setRevealModalOpen(false)}
@@ -212,10 +273,11 @@ export default function NumbersHistoryPage() {
         ) : items.length === 0 ? (
           <EmptyHistory message="No history found" />
         ) : viewMode === 'table' ? (
-          <HistoryTable 
-            items={items} 
-            onReveal={handleRevealClick} 
-            onHide={handleHide} 
+          <HistoryTable
+            items={items}
+            onReveal={handleRevealClick}
+            onUnreveal={handleUnreveal}
+            onHide={handleHide}
             onCopy={handleCopy}
             revealedData={revealedData}
             pagination={{
@@ -226,10 +288,11 @@ export default function NumbersHistoryPage() {
             }}
           />
         ) : (
-          <HistoryGrid 
-            items={items} 
-            onReveal={handleRevealClick} 
-            onHide={handleHide} 
+          <HistoryGrid
+            items={items}
+            onReveal={handleRevealClick}
+            onUnreveal={handleUnreveal}
+            onHide={handleHide}
             onCopy={handleCopy}
             onConfirm={handleConfirm}
             onCancel={handleCancel}

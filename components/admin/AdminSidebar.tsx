@@ -11,21 +11,30 @@ import {
 import { useAppStore } from '@/store/appStore';
 
 const NAV_ITEMS = [
-  { name: 'Dashboard', href: '/admin/dashboard', icon: RiDashboardLine },
-  { name: 'Price Management', href: '/admin/prices', icon: RiMoneyDollarCircleLine },
-  { name: 'Global Settings', href: '/admin/settings', icon: RiSettings4Line },
-  { name: 'User Management', href: '/admin/users', icon: RiGroupLine },
-  { name: 'System Logs', href: '/admin/logs', icon: RiHistoryLine },
+  { name: 'Dashboard', href: '/dashboard/admin/dashboard', icon: RiDashboardLine },
+  { name: 'Price Management', href: '/dashboard/admin/prices', icon: RiMoneyDollarCircleLine },
+  { name: 'Global Settings', href: '/dashboard/admin/settings', icon: RiSettings4Line },
+  { name: 'User Management', href: '/dashboard/admin/users', icon: RiGroupLine },
+  { name: 'System Logs', href: '/dashboard/admin/logs', icon: RiHistoryLine },
 ];
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  onClose?: () => void;
+}
+
+export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAppStore();
 
+  const handleNavClick = (href: string) => {
+    if (onClose) onClose();
+  };
+
   const handleLogout = () => {
     logout();
     router.push('/login');
+    if (onClose) onClose();
   };
 
   return (
@@ -70,6 +79,7 @@ export default function AdminSidebar() {
             <Link 
               key={item.href} 
               href={item.href}
+              onClick={() => handleNavClick(item.href)}
               className={`nav-item ${isActive ? 'active' : ''}`}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',

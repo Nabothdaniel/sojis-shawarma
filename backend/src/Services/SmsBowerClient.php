@@ -51,13 +51,24 @@ class SmsBowerClient {
 
         if ($errno) {
             $this->log("CURL ERROR ($errno)");
-            throw new \RuntimeException("cURL error $errno connecting to SMSBower. Check your server's outbound connection.");
+            
+            // Gracefully handle timeout (error 28)
+            if ($errno === 28) {
+                \BamzySMS\Core\Logger::warn('PROVIDER_TIMEOUT', [
+                    'url' => $url,
+                    'message' => 'The request to SMSBower timed out after 30 seconds.'
+                ]);
+                throw new \RuntimeException("The SMS provider is currently slow to respond. Please try again in a few moments.");
+            }
+
+            throw new \RuntimeException("Connection error ($errno) to SMSBower. Check your server's outbound connection.");
         }
 
         $this->log("RAW RESPONSE: $result");
 
         if (!is_string($result) || $result === '') {
-            throw new \RuntimeException('SMS provider returned an empty response.');
+            \BamzySMS\Core\Logger::error('PROVIDER_EMPTY_RESPONSE', ['url' => $url]);
+            throw new \RuntimeException('The SMS provider returned an empty response. They may be undergoing maintenance.');
         }
 
         $providerError = $this->extractProviderError($result);
@@ -261,12 +272,17 @@ class SmsBowerClient {
         return $this->_getCached('services', function() {
             $raw  = $this->request(['action' => 'getServicesList']);
             $data = json_decode($raw, true);
-            if (is_array($data) && isset($data['services']) && is_array($data['services'])) {
-                return $data['services'];
+            
+            // Handle structure: {"services": [...]} OR directly [...]
+            if (is_array($data)) {
+                if (isset($data['services']) && is_array($data['services'])) {
+                    return $data['services'];
+                }
+                return $data; // Flat array
             }
-            throw new \RuntimeException("getServicesList failed: $raw");
+            throw new \RuntimeException("getServicesList failed: Response is not an array. Raw: " . substr($raw, 0, 100));
         }, 86400, function ($data) {
-            return is_array($data);
+            return is_array($data) && !empty($data);
         });
     }
 
@@ -315,9 +331,13 @@ class SmsBowerClient {
     }
 
     private function isProviderErrorArray($data): bool {
-        return is_array($data)
-            && array_is_list($data)
-            && isset($data[0], $data[1])
+        if (!is_array($data) || count($data) < 2) return false;
+        
+        // Manual check for list keys [0, 1] to support PHP < 8.1
+        $keys = array_keys($data);
+        $isList = ($keys === [0, 1]);
+
+        return $isList
             && ((string)$data[0] === '0')
             && is_string($data[1]);
     }

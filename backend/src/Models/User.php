@@ -65,6 +65,11 @@ class User {
         return $stmt->execute([$amount, $userId, $amount]);
     }
 
+    public function addBalance($userId, $amount) {
+        $stmt = $this->db->prepare("UPDATE users SET balance = balance + ? WHERE id = ?");
+        return $stmt->execute([$amount, $userId]);
+    }
+
     public function updateToken($id, $token) {
         $hashedToken = hash('sha256', $token);
         $sql = "UPDATE users SET token = ? WHERE id = ?";

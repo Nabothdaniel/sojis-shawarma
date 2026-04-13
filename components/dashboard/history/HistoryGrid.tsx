@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { 
   RiHashtag, RiMessage2Line, RiTimeLine, 
   RiFileCopyLine, RiCloseCircleLine, RiRefreshLine,
-  RiEyeLine, RiInformationLine, RiDeleteBinLine
+  RiEyeLine, RiEyeOffLine, RiInformationLine, RiDeleteBinLine
 } from 'react-icons/ri';
 import Tooltip from '@/components/ui/Tooltip';
 import { CardSkeleton } from './HistorySkeleton';
@@ -12,6 +12,7 @@ import { CardSkeleton } from './HistorySkeleton';
 interface HistoryGridProps {
   items: any[];
   onReveal: (id: number) => void;
+  onUnreveal: (id: number) => void;
   onHide: (id: number) => void;
   onCopy: (text: string) => void;
   onConfirm: (activationId: number) => void;
@@ -23,7 +24,7 @@ interface HistoryGridProps {
 }
 
 export default function HistoryGrid({ 
-  items, onReveal, onHide, onCopy, onConfirm, onCancel, 
+  items, onReveal, onUnreveal, onHide, onCopy, onConfirm, onCancel, 
   revealedData, hasMore, onLoadMore, isLoadingMore 
 }: HistoryGridProps) {
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -109,7 +110,11 @@ export default function HistoryGrid({
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {!revealedData[item.id] && (
+                {revealedData[item.id] ? (
+                  <button onClick={() => onUnreveal(item.id)} className="btn-ghost" style={{ padding: 8, minWidth: 'auto', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>
+                    <RiEyeOffLine size={18} />
+                  </button>
+                ) : (
                   <button onClick={() => onReveal(item.id)} className="btn-ghost" style={{ padding: 8, minWidth: 'auto', background: 'var(--color-primary-dim)', color: 'var(--color-primary)' }}>
                     <RiEyeLine size={18} />
                   </button>

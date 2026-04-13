@@ -19,13 +19,36 @@ class Router {
 
     public function resolve() {
         $method = $_SERVER['REQUEST_METHOD'];
-        $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         
-        // Handle subdirectory if any (strip /api if needed or just use from root)
-        // For this project we assume /api prefix is part of the path or stripped by htaccess
-        
+        // Handle subdirectory detection (e.g. /api/)
+        $basePath = dirname($_SERVER['SCRIPT_NAME']);
+        if ($basePath === '/' || $basePath === '\\') {
+            $basePath = '';
+        }
+
+        // Strip base path from URI if it exists at the start
+        if ($basePath && strpos($uri, $basePath) === 0) {
+            $uri = substr($uri, strlen($basePath));
+        }
+
+        // Optional: Strip leading '/api' if it's still there (handles local /api/ requests)
+        if (strpos($uri, '/api') === 0) {
+            $uri = substr($uri, 4);
+        }
+
+        // Ensure uri starts with / and is at least /
+        if (!$uri || $uri === '' || $uri === '/') {
+            $uri = '/';
+        } else {
+            // Ensure leading slash
+            if ($uri[0] !== '/') {
+                $uri = '/' . $uri;
+            }
+        }
+
         foreach ($this->routes as $route) {
-            if ($route['method'] === $method && preg_match($route['path'], $path, $matches)) {
+            if ($route['method'] === $method && preg_match($route['path'], $uri, $matches)) {
                 $handler = $route['handler'];
                 list($controllerName, $methodName) = explode('@', $handler);
                 
@@ -38,7 +61,13 @@ class Router {
             }
         }
 
+        header("Content-Type: application/json");
         header("HTTP/1.1 404 Not Found");
-        echo json_encode(['error' => 'Endpoint not found']);
+        echo json_encode([
+            'error' => 'Endpoint not found',
+            'requested_uri' => $_SERVER['REQUEST_URI'],
+            'matched_uri' => $uri,
+            'base_path' => $basePath
+        ]);
     }
 }

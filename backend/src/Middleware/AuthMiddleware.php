@@ -11,11 +11,10 @@ class AuthMiddleware {
 
         if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
             $token = $matches[1];
-            $userModel = new User();
-            $userId = $userModel->verifyToken($token);
+            $payload = \BamzySMS\Core\JwtHelper::verify($token);
 
-            if ($userId) {
-                return $userId;
+            if ($payload && isset($payload['id'])) {
+                return $payload['id'];
             }
         }
 

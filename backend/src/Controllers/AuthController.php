@@ -4,15 +4,18 @@ namespace BamzySMS\Controllers;
 
 use BamzySMS\Core\Controller;
 use BamzySMS\Models\User;
-use BamzySMS\Core\EncryptionHelper;
+use BamzySMS\Services\MailService;
+use BamzySMS\Models\Verification;
 
 class AuthController extends Controller {
     private $userModel;
     private $verificationModel;
+    private $mailService;
 
     public function __construct() {
         $this->userModel = new User();
-        $this->verificationModel = new \BamzySMS\Models\Verification();
+        $this->verificationModel = new Verification();
+        $this->mailService = new MailService();
     }
 
     public function sendOtp() {
@@ -35,10 +38,21 @@ class AuthController extends Controller {
         // Store in DB
         $this->verificationModel->create($email, $otp, $type);
 
-        // Simulation
-        error_log("OTP for $email ($type): $otp");
+        // Send Email
+        $subject = ($type === 'signup') ? "Verify your BamzySMS Account" : "Reset your BamzySMS Password";
+        $body = "<h2>BamzySMS Verification</h2>
+                 <p>Your OTP code is: <strong style='font-size: 24px;'>$otp</strong></p>
+                 <p>This code will expire in 10 minutes.</p>";
+        
+        $sent = $this->mailService->send($email, $subject, $body);
 
-        return $this->json(['status' => 'success', 'message' => 'OTP sent to email']);
+        if (!$sent) {
+            // Fallback for local testing if SMTP fails
+            error_log("MAIL_SIMULATION: OTP for $email is $otp");
+            return $this->json(['status' => 'success', 'message' => 'Verification code simulated (Check server logs)']);
+        }
+
+        return $this->json(['status' => 'success', 'message' => 'OTP sent to your email']);
     }
 
     public function verifyOtp() {
@@ -94,8 +108,11 @@ class AuthController extends Controller {
         $user = $this->userModel->findByEmail($email);
 
         if ($user && password_verify($password, $user['password'])) {
-            $token = bin2hex(random_bytes(32));
-            $this->userModel->updateToken($user['id'], $token);
+            $token = \BamzySMS\Core\JwtHelper::generate([
+                'id' => $user['id'],
+                'email' => $user['email'],
+                'role' => $user['role']
+            ]);
 
             $userData = $this->userModel->findById($user['id']);
             return $this->json([
@@ -126,10 +143,14 @@ class AuthController extends Controller {
 
         try {
             $userId = $this->userModel->create($data);
-            $token = bin2hex(random_bytes(32));
-            $this->userModel->updateToken($userId, $token);
-
             $userData = $this->userModel->findById($userId);
+            
+            $token = \BamzySMS\Core\JwtHelper::generate([
+                'id' => $userData['id'],
+                'email' => $userData['email'],
+                'role' => $userData['role']
+            ]);
+
             return $this->json([
                 'status' => 'success',
                 'data' => [
@@ -140,5 +161,23 @@ class AuthController extends Controller {
         } catch (\Exception $e) {
             return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * GET /api/auth/me
+     * Get current user via JWT
+     */
+    public function getMe() {
+        $userId = \BamzySMS\Middleware\AuthMiddleware::handle();
+        $user = $this->userModel->findById($userId);
+        
+        if (!$user) {
+            return $this->json(['status' => 'error', 'message' => 'User not found'], 404);
+        }
+
+        return $this->json([
+            'status' => 'success',
+            'data' => $user
+        ]);
     }
 }

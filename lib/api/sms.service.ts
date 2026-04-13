@@ -59,6 +59,7 @@ export const smsService = {
     countryName: string;
     maxPrice?: number;
     pin: string;
+    quantity?: number;
   }): Promise<{ status: string; message: string; data: BuyResult }> =>
     apiClient.post('/sms/buy', payload),
 

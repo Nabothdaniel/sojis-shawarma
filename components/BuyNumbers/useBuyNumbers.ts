@@ -27,6 +27,7 @@ export function useBuyNumbers(defaultCountry: string) {
   const [fetching, setFetching] = useState(true);
   const [checkingPrice, setCheckingPrice] = useState(false);
   const [accordionOpen, setAccordionOpen] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
   
   // PIN states
   const [pinModalOpen, setPinModalOpen] = useState(false);
@@ -93,8 +94,9 @@ export function useBuyNumbers(defaultCountry: string) {
       return;
     }
 
-    if (!user || user.balance < priceInfo.price) { 
-      addToast(`Insufficient balance. This costs ₦${priceInfo.price}, you have ₦${user?.balance?.toLocaleString() ?? '0'}.`, 'error'); 
+    const totalCost = priceInfo.price * quantity;
+    if (!user || user.balance < totalCost) { 
+      addToast(`Insufficient balance. This costs ₦${totalCost.toLocaleString()}, you have ₦${user?.balance?.toLocaleString() ?? '0'}.`, 'error'); 
       return; 
     }
 
@@ -110,18 +112,20 @@ export function useBuyNumbers(defaultCountry: string) {
         countryId: selectedCountryId!,
         countryName: country!.eng,
         maxPrice: priceInfo!.price!,
-        pin
+        pin,
+        quantity
       });
       
       setSelectedServiceCode('');
       setPurchaseError(null);
       setPinModalOpen(false);
+      setQuantity(1);
       
       const profileRes = await userService.getProfile();
       login(profileRes.data);
 
-      addToast(`${chosenService!.name} number purchased successfully!`, 'success');
-      router.push('/dashboard/numbers-history');
+      addToast(`${quantity} X ${chosenService!.name} number(s) purchased successfully!`, 'success');
+      router.push('/dashboard/user/history');
     } catch (error: any) {
       setPurchaseError(error.message || 'Purchase failed');
       addToast(error.message || 'Purchase failed', 'error');
@@ -144,6 +148,7 @@ export function useBuyNumbers(defaultCountry: string) {
     pinLoading,
     selectedCountryId, setSelectedCountryId,
     selectedServiceCode, setSelectedServiceCode,
+    quantity, setQuantity,
     // Actions
     handleBuy, handlePinSuccess
   };

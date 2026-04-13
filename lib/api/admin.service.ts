@@ -49,13 +49,36 @@ export const adminService = {
   getPricingOverrides: (): Promise<{ status: string; data: PricingOverride[] }> =>
     apiClient.get('/admin/pricing/overrides'),
 
-  updatePricingOverride: (data: { serviceCode: string; multiplier?: number; fixedPrice?: number }): Promise<{ status: string; message: string }> =>
+  updatePricingOverride: (data: { serviceCode: string; countryId?: number; multiplier?: number; fixedPrice?: number }): Promise<{ status: string; message: string }> =>
     apiClient.post('/admin/pricing/update', data),
 
-  deletePricingOverride: (serviceCode: string): Promise<{ status: string; message: string }> =>
-    apiClient.delete(`/admin/pricing/delete?serviceCode=${serviceCode}`),
+  bulkUpdatePricingOverrides: (data: { countryId: number; overrides: { serviceCode: string; fixedPrice: number }[] }): Promise<{ status: string; message: string }> =>
+    apiClient.post('/admin/pricing/bulk-update', data),
+
+  deletePricingOverride: (serviceCode: string, countryId: number = 0): Promise<{ status: string; message: string }> =>
+    apiClient.delete(`/admin/pricing/delete?serviceCode=${serviceCode}&countryId=${countryId}`),
 
   // Audit Logs
   getSystemLogs: (): Promise<{ status: string; data: any[] }> =>
     apiClient.get('/admin/logs'),
+
+  // Analytics
+  getAnalytics: (): Promise<{ status: string; data: any }> =>
+    apiClient.get('/admin/analytics'),
+
+  // Paginated Services for Price Management
+  getPaginatedServices: (params: { page: number; limit: number; search?: string; countryId?: number }): Promise<{ 
+    status: string; 
+    data: any[]; 
+    pagination: { total: number; page: number; limit: number; pages: number } 
+  }> =>
+    apiClient.get(`/admin/pricing/services?page=${params.page}&limit=${params.limit}&search=${params.search || ''}&countryId=${params.countryId || 0}`),
+
+  // Get countries list
+  getCountries: (): Promise<{ status: string; data: any[] }> =>
+    apiClient.get('/admin/countries'),
+
+  // Get provider status
+  getProviderStatus: (): Promise<{ status: string; data: any }> =>
+    apiClient.get('/admin/provider/status'),
 };

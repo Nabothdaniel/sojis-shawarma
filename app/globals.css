@@ -10,11 +10,11 @@
 
 /* ── Light Theme Color Variables ──────────────────── */
 :root {
-  /* Backgrounds: Pure White and Subtle Grays */
-  --color-bg:          #F9FAFB;
+  /* Backgrounds: Gray background for better card contrast */
+  --color-bg:          #F0F1F3;
   --color-bg-2:        #FFFFFF;
   --color-bg-card:     #FFFFFF;
-  --color-bg-hover:    #F3F4F6;
+  --color-bg-hover:    #E5E7EB;
 
   /* Brand: Sharp Blue Accents */
   --color-primary:        #2563EB; /* Premium Blue */
@@ -29,8 +29,8 @@
   --color-text-faint:     #6B7280; /* Medium Gray */
 
   /* Borders: Precise and Subtle */
-  --color-border:         #E5E7EB;
-  --color-border-hover:   #D1D5DB;
+  --color-border:         #D1D5DB;
+  --color-border-hover:   #9CA3AF;
 
   /* Status: Vibrant */
   --color-success:        #10B981;
@@ -212,7 +212,7 @@ h1, h2, h3, h4, h5, h6 {
 .input-field {
   width: 100%;
   padding: 12px 14px;
-  background: #F9FAFB;
+  background: #FFFFFF;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text);

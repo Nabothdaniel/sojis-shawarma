@@ -151,8 +151,8 @@ export default function Topbar({ title }: { title?: string }) {
 
               <div style={{ padding: '6px' }}>
                 {[
-                  { icon: <RiUserSettingsLine size={15} />, label: 'Profile', href: '/dashboard/profile' },
-                  { icon: <RiShoppingCartLine size={15} />, label: 'Buy Numbers', href: '/dashboard/usa-numbers' },
+                  { icon: <RiUserSettingsLine size={15} />, label: 'Profile', href: '/dashboard/user/profile' },
+                  { icon: <RiShoppingCartLine size={15} />, label: 'Buy Numbers', href: '/dashboard/user/usa-numbers' },
                 ].map((item) => (
                   <Link key={item.label} href={item.href} style={{ textDecoration: 'none' }}
                     onClick={() => setDropOpen(false)}>

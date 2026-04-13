@@ -25,4 +25,4 @@ echo ""
 echo "------------------------------------------"
 echo "Starting Next.js Frontend Developer Server..."
 echo "------------------------------------------"
-npm run dev
+cd frontend && npm run dev

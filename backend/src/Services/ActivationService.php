@@ -59,7 +59,7 @@ class ActivationService {
             $rawPrice = $tier['price'];
             if ($rawPrice > $basePrice * 1.3) break;
 
-            $finalPriceNaira = PricingHelper::calculatePrice($rawPrice, $serviceCode);
+            $finalPriceNaira = PricingHelper::calculatePrice($rawPrice, $serviceCode, $countryId);
             if ((float)$user['balance'] < $finalPriceNaira) {
                 $error = "Insufficient balance. Needs ₦" . number_format($finalPriceNaira) . ".";
                 break;
@@ -85,7 +85,7 @@ class ActivationService {
         $activationId   = (int)$result['activationId'];
         $phoneNumber    = (string)$result['phoneNumber'];
         $activationCost = (float)($result['activationCost'] ?? $lastAttemptedPrice);
-        $finalCharge    = PricingHelper::calculatePrice($activationCost, $serviceCode);
+        $finalCharge    = PricingHelper::calculatePrice($activationCost, $serviceCode, $countryId);
 
         if (!$this->userModel->deductBalance($userId, $finalCharge)) {
             try { $this->sms->setStatus($activationId, 8); } catch (\Throwable $e) {}
@@ -113,17 +113,53 @@ class ActivationService {
      */
     public function setStatus(int $userId, int $activationId, int $status): string {
         // Logging for Admin Audit
-        $this->logAction($userId, $activationId, "SET_STATUS:$status");
+        \BamzySMS\Core\Logger::info('ACTIVATION_STATUS_CHANGE', [
+            'activation_id' => $activationId,
+            'new_status' => $status
+        ], $userId);
+
+        // Handle Auto-Reconciliation (Refund)
+        // Status 8 = Cancelled (by user or provider) 
+        // Status 7 = Cancelled (alternate code)
+        if ($status === 8 || $status === 7) {
+            $purchase = $this->purchaseModel->findByActivationId($activationId);
+            
+            if ($purchase && $purchase['status'] !== 'cancelled') {
+                $refundAmount = (float)$purchase['activation_cost'];
+                
+                if ($refundAmount > 0) {
+                    $this->db->beginTransaction();
+                    try {
+                        // 1. Credit user balance
+                        $this->userModel->addBalance($userId, $refundAmount);
+                        
+                        // 2. Log transaction
+                        $this->transactionModel->create(
+                            $userId, 
+                            $refundAmount, 
+                            'credit', 
+                            "Refund: Order #{$activationId} cancelled"
+                        );
+                        
+                        // 3. Update purchase record
+                        $this->purchaseModel->updateStatus($purchase['id'], 'cancelled');
+                        
+                        $this->db->commit();
+                        \BamzySMS\Core\Logger::info('REFUND_PROCESSED', [
+                            'activation_id' => $activationId,
+                            'amount' => $refundAmount
+                        ], $userId);
+                    } catch (\Exception $e) {
+                        $this->db->rollBack();
+                        \BamzySMS\Core\Logger::error('REFUND_FAILED', [
+                            'activation_id' => $activationId,
+                            'error' => $e->getMessage()
+                        ], $userId);
+                    }
+                }
+            }
+        }
 
         return $this->sms->setStatus($activationId, $status);
-    }
-
-    private function logAction(int $userId, int $activationId, string $action): void {
-        try {
-            $stmt = $this->db->prepare("INSERT INTO system_logs (user_id, action, details) VALUES (?, ?, ?)");
-            $stmt->execute([$userId, 'activation_action', json_encode(['id' => $activationId, 'action' => $action])]);
-        } catch (\Throwable $e) {
-            // Silently fail if log table doesn't exist yet, or handle appropriately
-        }
     }
 }

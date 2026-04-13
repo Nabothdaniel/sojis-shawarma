@@ -98,8 +98,7 @@ export default function RegisterPage() {
         phone: form.phone,
         password: form.password
       });
-      localStorage.setItem('bamzysms-token', response.data.token);
-      login(response.data.user);
+      login(response.data.user, response.data.token);
       addToast('Welcome home!', 'success');
       router.push('/onboarding');
     } catch (error: any) {

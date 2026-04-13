@@ -29,7 +29,7 @@ export interface AppState {
   // Auth
   user: User | null;
   isAuthenticated: boolean;
-  login: (user: User) => void;
+  login: (user: User, token?: string) => void;
   logout: () => void;
 
   // Email (landing)

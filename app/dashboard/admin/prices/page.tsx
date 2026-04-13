@@ -1,193 +1,383 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { adminService, PricingOverride } from '@/lib/api/admin.service';
-import { smsService, SmsService } from '@/lib/api';
-import { useAppStore } from '@/store/appStore';
-import { RiAddLine, RiDeleteBinLine, RiEditLine, RiInformationLine, RiPulseLine } from 'react-icons/ri';
+import { usePricing } from '@/hooks/usePricing';
+import PricingSkeleton from '@/components/admin/PricingSkeleton';
+import { 
+  RiDeleteBinLine, 
+  RiInformationLine, RiPulseLine, RiArrowLeftSLine, 
+  RiArrowRightSLine, RiSave3Line, RiEditLine
+} from 'react-icons/ri';
+import SearchableDropdown from '@/components/admin/SearchableDropdown';
 
 export default function AdminPricePage() {
-  const { addToast } = useAppStore();
-  const [services, setServices] = useState<SmsService[]>([]);
-  const [overrides, setOverrides] = useState<PricingOverride[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
+  const [modalData, setModalData] = React.useState({ rate: '', multiplier: '' });
 
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [currentService, setCurrentService] = useState<SmsService | null>(null);
-  const [formData, setFormData] = useState({ multiplier: '', fixedPrice: '' });
+  const {
+    services, loading, search, setSearch,
+    pagination, setPage, calculateUserPrice,
+    calculateProfit, handleDelete, handleSave, 
+    handleSaveAllChanges, updateLocalValue, 
+    formData, hasUnsavedChanges, globalSettings,
+    countries, selectedCountry, setSelectedCountry,
+    applyBulkMarkup, updateGlobalSettings
+  } = usePricing();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [servRes, overRes] = await Promise.all([
-          smsService.getSmsBowerServices(),
-          adminService.getPricingOverrides()
-        ]);
-        setServices(servRes.data);
-        setOverrides(overRes.data);
-      } catch (err: any) {
-        addToast('Failed to load pricing data', 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [addToast]);
-
-  const handleEdit = (service: SmsService) => {
-    const existing = overrides.find(o => o.service_code === service.code);
-    setCurrentService(service);
-    setFormData({
-      multiplier: existing?.multiplier?.toString() || '',
-      fixedPrice: existing?.fixed_price?.toString() || ''
-    });
-    setEditModalOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!currentService) return;
-    try {
-      await adminService.updatePricingOverride({
-        serviceCode: currentService.code,
-        multiplier: formData.multiplier ? parseFloat(formData.multiplier) : undefined,
-        fixedPrice: formData.fixedPrice ? parseFloat(formData.fixedPrice) : undefined
+  React.useEffect(() => {
+    if (globalSettings) {
+      setModalData({
+        rate: globalSettings.usd_to_ngn_rate || '1600',
+        multiplier: globalSettings.price_markup_multiplier || '1.5'
       });
-      addToast(`Price override updated for ${currentService.name}`, 'success');
-      
-      // Refresh overrides
-      const res = await adminService.getPricingOverrides();
-      setOverrides(res.data);
-      setEditModalOpen(false);
-    } catch (err: any) {
-      addToast(err.message || 'Failed to update', 'error');
     }
+  }, [globalSettings]);
+
+  const onSettingsSave = async () => {
+    await updateGlobalSettings({
+      usd_to_ngn_rate: modalData.rate,
+      price_markup_multiplier: modalData.multiplier
+    });
+    setIsSettingsModalOpen(false);
   };
 
-  const handleDelete = async (code: string) => {
-    if (!confirm('Remove this override?')) return;
-    try {
-      await adminService.deletePricingOverride(code);
-      setOverrides(overrides.filter(o => o.service_code !== code));
-      addToast('Override removed', 'success');
-    } catch (err: any) {
-      addToast('Failed to delete', 'error');
-    }
-  };
-
-  const filteredServices = services.filter(s => 
-    s.name.toLowerCase().includes(search.toLowerCase()) || 
-    s.code.toLowerCase().includes(search.toLowerCase())
-  );
+  const countryOptions = [
+    { id: -1, name: '🌎 All Countries (Global)' },
+    ...countries
+      .filter(c => c.id !== null && c.id !== undefined)
+      .map(c => ({ 
+        id: Number(c.id), 
+        name: c.eng,
+        flag: c.flag
+      }))
+  ];
 
   return (
     <AdminLayout>
-      <div style={{ padding: '32px' }}>
-        <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="admin-content" style={{ padding: '32px' }}>
+        <div className="admin-header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <h1 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0 0 8px' }}>Price Management</h1>
-            <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0 }}>Configure service-specific markups and fixed prices.</p>
+            <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500 }}>Manage margins by comparing provider costs and selling prices per country.</p>
           </div>
-          <div style={{ position: 'relative' }}>
-             <input 
-               type="text" 
-               placeholder="Search services..." 
-               value={search}
-               onChange={(e) => setSearch(e.target.value)}
-               className="input-field" 
-               style={{ width: '280px', padding: '12px 16px' }}
-             />
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="search-container" style={{ position: 'relative' }}>
+               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-text-faint)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filter Services</label>
+               <input 
+                 type="text" 
+                 placeholder="Search services..." 
+                 value={search}
+                 onChange={(e) => setSearch(e.target.value)}
+                 className="input-field" 
+                 style={{ width: '220px', padding: '10px 16px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: '12px', fontWeight: 600 }}
+               />
+            </div>
+            
+            <SearchableDropdown 
+              label="Select Country"
+              value={selectedCountry}
+              onChange={(val) => setSelectedCountry(Number(val))}
+              options={countryOptions}
+            />
           </div>
         </div>
 
-        {loading ? (
-             <div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>
-        ) : (
-          <div className="stat-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#0a0a0b', borderBottom: '1px solid #1a1a1c' }}>
-                  <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Service</th>
-                  <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Code</th>
-                  <th style={{ padding: '16px', textAlign: 'left', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Current Markup</th>
-                  <th style={{ padding: '16px', textAlign: 'right', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredServices.map(s => {
-                  const override = overrides.find(o => o.service_code === s.code);
-                  return (
-                    <tr key={s.code} style={{ borderBottom: '1px solid #1a1a1c' }}>
-                      <td style={{ padding: '16px', fontWeight: 600 }}>{s.name}</td>
-                      <td style={{ padding: '16px', color: 'rgba(255,255,255,0.5)' }}>{s.code}</td>
-                      <td style={{ padding: '16px' }}>
-                        {override ? (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            {override.multiplier && <span className="badge" style={{ background: 'rgba(0, 229, 255, 0.1)', color: 'var(--color-primary)' }}>{override.multiplier}x Multiplier</span>}
-                            {override.fixed_price && <span className="badge" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>₦{override.fixed_price} Fixed</span>}
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)' }}>Global Default</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                          <button onClick={() => handleEdit(s)} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: '8px' }}>
-                             <RiEditLine size={18} />
-                          </button>
-                          {override && (
-                            <button onClick={() => handleDelete(s.code)} style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '8px' }}>
-                               <RiDeleteBinLine size={18} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* Global Parameters Context Bar */}
+        <div style={{ 
+          display: 'flex', gap: 16, marginBottom: '32px', padding: '16px 24px', 
+          background: hasUnsavedChanges ? 'var(--color-primary-dim)' : '#FFFFFF', 
+          border: `1px solid ${hasUnsavedChanges ? 'var(--color-primary)' : 'var(--color-border)'}`, 
+          borderRadius: '16px', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+          transition: 'all 0.3s'
+        }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <RiInformationLine size={18} color="var(--color-primary)" />
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase' }}>Config:</span>
+           </div>
+           <div style={{ height: '16px', width: '1px', background: 'var(--color-border)' }} />
+           <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+              Rate: <span style={{ color: 'var(--color-primary)' }}>₦{Number(globalSettings?.usd_to_ngn_rate || '1600').toLocaleString()} / USD</span>
+           </div>
+           <div style={{ height: '16px', width: '1px', background: 'var(--color-border)' }} />
+           <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+              Default Markup: <span style={{ color: 'var(--color-primary)' }}>{globalSettings?.price_markup_multiplier || '1.5'}x</span>
+           </div>
 
-        {/* Edit Modal */}
-        {editModalOpen && currentService && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)' }}>
-            <div className="stat-card" style={{ width: '400px', padding: '24px' }}>
-              <h3 style={{ margin: '0 0 16px' }}>Override: {currentService.name}</h3>
+           <button 
+             onClick={() => setIsSettingsModalOpen(true)}
+             style={{
+               background: 'var(--color-primary-dim)', color: 'var(--color-primary)',
+               border: 'none', padding: '6px 12px', borderRadius: '8px', 
+               fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer',
+               display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s'
+             }}
+             className="edit-settings-btn"
+           >
+             <RiEditLine size={14} />
+             EDIT
+           </button>
+
+           {hasUnsavedChanges && (
+             <>
+               <div style={{ height: '16px', width: '1px', background: 'var(--color-border)' }} />
+               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-primary)', fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase' }}>
+                  <RiPulseLine className="pulse-icon" />
+                  Unsaved Edits Pending
+               </div>
+             </>
+           )}
+
+           <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
+              <button 
+                onClick={applyBulkMarkup}
+                className="btn-secondary"
+                style={{ scale: '0.9', padding: '8px 16px', borderRadius: '10px' }}
+              >
+                Auto-fill Markup
+              </button>
               
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>Multiplier (e.g. 1.8)</label>
+              {hasUnsavedChanges && (
+                <button 
+                  onClick={handleSaveAllChanges}
+                  className="btn-primary"
+                  style={{ scale: '0.9', padding: '8px 24px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <RiSave3Line size={18} />
+                  Save All
+                </button>
+              )}
+           </div>
+        </div>
+
+        <div className="stat-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--color-border)', background: '#FFFFFF', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+          {loading ? (
+            <div style={{ padding: '80px 0', textAlign: 'center' }}>
+               <PricingSkeleton />
+               <p style={{ marginTop: '20px', color: 'var(--color-text-faint)', fontWeight: 600 }}>Synchronizing service data...</p>
+            </div>
+          ) : (
+            <>
+              <div style={{ width: '100%', overflowX: 'auto' }}>
+                <table style={{ minWidth: '1000px', width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--color-bg-hover)', borderBottom: '2px solid var(--color-border)' }}>
+                      <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>Service</th>
+                      <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, width: '150px' }}>Provider Price</th>
+                      <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, width: '200px' }}>Selling Price (NGN)</th>
+                      <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, width: '150px' }}>Profit Margin</th>
+                      <th style={{ padding: '20px 24px', textAlign: 'right', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {services.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-faint)' }}>
+                          No services found matching "{search}"
+                        </td>
+                      </tr>
+                    ) : (
+                      services.map(s => {
+                        const rowForm = formData[s.code] || { fixedPrice: '' };
+                        const isDirty = s.override?.fixed_price?.toString() !== rowForm.fixedPrice;
+                        const profit = calculateProfit(s);
+                        const userPrice = calculateUserPrice(s);
+                        const costPrice = s.base_cost_ngn || 320;
+                        const hasOverride = !!s.override || isDirty;
+
+                        return (
+                          <tr key={s.code} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }}>
+                            <td style={{ padding: '16px 24px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ width: 32, height: 32, borderRadius: '8px', background: 'var(--color-primary-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                                  <RiPulseLine size={16} />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                   <span style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: '0.9rem' }}>{s.name}</span>
+                                   <code style={{ fontSize: '0.65rem', color: 'var(--color-text-faint)', opacity: 0.6 }}>{s.code}</code>
+                                </div>
+                              </div>
+                            </td>
+                            {/* COST PRICE */}
+                            <td style={{ padding: '16px 24px' }}>
+                               <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                                  ₦{costPrice.toLocaleString()}
+                               </div>
+                               <div style={{ fontSize: '0.65rem', color: 'var(--color-text-faint)' }}>
+                                  ${(costPrice / Number(globalSettings?.usd_to_ngn_rate || 1600)).toFixed(2)}
+                               </div>
+                            </td>
+                            {/* SELLING PRICE INPUT */}
+                            <td style={{ padding: '16px 24px' }}>
+                               <div style={{ position: 'relative', width: '160px' }}>
+                                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.85rem', color: 'var(--color-text)' }}>₦</span>
+                                  <input 
+                                    type="number"
+                                    value={rowForm.fixedPrice}
+                                    placeholder={userPrice.toLocaleString()}
+                                    onChange={(e) => updateLocalValue(s.code, e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSave(s.code)}
+                                    className="input-field"
+                                    style={{ 
+                                      width: '100%', 
+                                      border: profit <= 0 ? '1.5px solid var(--color-error)' : (isDirty ? '1.5px solid var(--color-primary)' : '1.5px solid var(--color-border)'),
+                                      padding: '10px 10px 10px 28px', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700,
+                                      outline: 'none', transition: 'all 0.2s',
+                                      background: '#fff', color: 'var(--color-text)'
+                                    }}
+                                  />
+                                  {!hasOverride && (
+                                    <div style={{ 
+                                      position: 'absolute', top: '-8px', right: '-8px', 
+                                      background: 'var(--color-primary-dim)', color: 'var(--color-primary)', 
+                                      fontSize: '9px', padding: '2px 6px', borderRadius: '4px', fontWeight: 800, 
+                                      textTransform: 'uppercase', border: '1px solid var(--color-primary-glow)',
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                    }}>
+                                      Global
+                                    </div>
+                                  )}
+                               </div>
+                            </td>
+                            {/* PROFIT MARGIN */}
+                            <td style={{ padding: '16px 24px' }}>
+                               <div style={{ 
+                                 fontSize: '0.95rem', fontWeight: 800, 
+                                 color: profit > 0 ? '#10B981' : (profit < 0 ? '#EF4444' : 'var(--color-text-faint)')
+                                }}>
+                                ₦{profit.toLocaleString()}
+                                <div style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 700 }}>
+                                   {((profit / costPrice) * 100).toFixed(1)}% {profit <= 0 ? (profit === 0 ? 'Margin' : 'Loss') : 'Profit'}
+                                </div>
+                               </div>
+                            </td>
+                            <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                {isDirty ? (
+                                  <button 
+                                    onClick={() => handleSave(s.code)} 
+                                    className="btn-primary" 
+                                    style={{ padding: '8px 16px', borderRadius: '10px', height: '38px', fontSize: '0.85rem', fontWeight: 800, background: profit <= 0 ? '#EF4444' : 'var(--color-primary)' }}
+                                  >
+                                    Save
+                                  </button>
+                                ) : (
+                                  s.override && (
+                                    <button onClick={() => handleDelete(s.code)} className="action-btn-red" title="Reset to global default">
+                                      <RiDeleteBinLine size={18} />
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.02)' }}>
+                 <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)' }}>
+                    Showing page <b>{pagination.page}</b> of <b>{pagination.pages}</b>
+                 </div>
+                 <div style={{ display: 'flex', gap: 8 }}>
+                    <button 
+                      onClick={() => setPage(pagination.page - 1)} 
+                      disabled={pagination.page <= 1}
+                      className="pagination-btn"
+                    >
+                       <RiArrowLeftSLine size={20} />
+                    </button>
+                    <button 
+                      onClick={() => setPage(pagination.page + 1)} 
+                      disabled={pagination.page >= pagination.pages}
+                      className="pagination-btn"
+                    >
+                       <RiArrowRightSLine size={20} />
+                    </button>
+                 </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Global Settings Modal */}
+      {isSettingsModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsSettingsModalOpen(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <h2 style={{ marginBottom: '20px', fontSize: '1.25rem' }}>Global Price Parameters</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-text-faint)', marginBottom: '8px', textTransform: 'uppercase' }}>Exchange Rate (NGN/USD)</label>
                 <input 
                   type="number" 
-                  step="0.1"
-                  className="input-field" 
-                  value={formData.multiplier}
-                  onChange={(e) => setFormData({ ...formData, multiplier: e.target.value })}
-                  placeholder="Leave empty for global default"
+                  value={modalData.rate} 
+                  onChange={e => setModalData({...modalData, rate: e.target.value})}
+                  className="input-field"
+                  placeholder="e.g. 1600"
                 />
               </div>
 
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>Fixed Price in NGN (Override multiplier)</label>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-text-faint)', marginBottom: '8px', textTransform: 'uppercase' }}>Default Markup Multiplier</label>
                 <input 
                   type="number" 
-                  className="input-field" 
-                  value={formData.fixedPrice}
-                  onChange={(e) => setFormData({ ...formData, fixedPrice: e.target.value })}
-                  placeholder="e.g. 2500"
+                  step="0.01"
+                  value={modalData.multiplier} 
+                  onChange={e => setModalData({...modalData, multiplier: e.target.value})}
+                  className="input-field"
+                  placeholder="e.g. 1.5"
                 />
-              </div>
-
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => setEditModalOpen(false)} className="btn-secondary" style={{ flex: 1, padding: '12px' }}>Cancel</button>
-                <button onClick={handleSave} className="btn-primary" style={{ flex: 1, padding: '12px' }}>Save Changes</button>
               </div>
             </div>
+
+            <div style={{ marginTop: '24px', display: 'flex', gap: 12 }}>
+              <button className="btn-primary" style={{ flex: 1 }} onClick={onSettingsSave}>
+                Save Platform Changes
+              </button>
+              <button className="btn-ghost" onClick={() => setIsSettingsModalOpen(false)}>
+                Cancel
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .edit-settings-btn:hover {
+          background: var(--color-primary-glow) !important;
+          transform: translateY(-1px);
+        }
+        .action-btn-red {
+          width: 36px; height: 36px; border-radius: 8px; border: none; cursor: pointer;
+          background: rgba(239, 68, 68, 0.1); color: #ef4444; transition: all 0.2s;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .pagination-btn {
+          width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--color-border);
+          background: #FFFFFF; color: var(--color-text); cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(0, 229, 255, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
+        }
+
+        @media (max-width: 1024px) {
+          .admin-content { padding: 20px 16px !important; }
+          .admin-header { flex-direction: column; align-items: flex-start !important; gap: 20px; }
+          .search-container { width: 100%; }
+          .search-container input { width: 100% !important; }
+        }
+      `}</style>
     </AdminLayout>
   );
 }

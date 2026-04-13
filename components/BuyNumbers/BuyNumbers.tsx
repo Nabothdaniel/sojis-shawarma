@@ -46,7 +46,7 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
         onSuccess={logic.handlePinSuccess}
         isLoading={logic.pinLoading}
         title="Confirm Purchase"
-        description={`Please enter your 4-digit transaction PIN to purchase a ${logic.chosenService?.name} number for ₦${logic.priceInfo?.price?.toLocaleString()}.`}
+        description={`Please enter your 4-digit transaction PIN to purchase ${logic.quantity} x ${logic.chosenService?.name} number(s) for ₦${((logic.priceInfo?.price || 0) * logic.quantity).toLocaleString()}.`}
       />
 
       <div className="stat-card">
@@ -95,7 +95,7 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <RiInformationLine size={15} color="var(--color-primary)" />
                     <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                      Price for <strong style={{ color: 'var(--color-text)' }}>{logic.chosenService?.name}</strong>: 
+                      Price per number: 
                       <strong style={{ color: 'var(--color-primary)', marginLeft: 4 }}>₦{logic.priceInfo.price?.toLocaleString()}</strong>
                       <span style={{ marginLeft: 8, fontSize: '0.75rem', opacity: 0.6 }}>({logic.priceInfo.count} available)</span>
                     </span>
@@ -107,13 +107,34 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
             </div>
           )}
 
+          {logic.priceInfo?.available && (
+            <div style={{ 
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+              padding: '8px 14px', background: 'var(--color-bg-1)', borderRadius: 10, border: '1px solid var(--color-border)' 
+            }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Quantity:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="20" 
+                  value={logic.quantity} 
+                  onChange={(e) => logic.setQuantity(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))} 
+                  className="input-field" 
+                  style={{ width: '60px', padding: '6px', textAlign: 'center', margin: 0 }} 
+                />
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>Max 20</span>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={logic.handleBuy}
             disabled={logic.loading || !logic.selectedServiceCode || logic.checkingPrice || !logic.priceInfo?.available}
             className="btn-primary"
             style={{ padding: '14px', width: '100%', fontSize: '0.95rem', opacity: (!logic.selectedServiceCode || logic.checkingPrice || !logic.priceInfo?.available) ? 0.5 : 1, gap: 8, marginTop: 4 }}
           >
-            {logic.loading ? 'Processing...' : <><RiShoppingCartLine size={18} /> Buy Number</>}
+            {logic.loading ? 'Processing...' : <><RiShoppingCartLine size={18} /> Buy {logic.quantity > 1 ? `${logic.quantity} Numbers` : 'Number'}</>}
           </button>
         </div>
       </div>

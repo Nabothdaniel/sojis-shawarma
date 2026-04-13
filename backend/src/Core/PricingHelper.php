@@ -13,7 +13,7 @@ class PricingHelper {
      * @param string $serviceCode The service short code
      * @return float Final price in NGN
      */
-    public static function calculatePrice(float $rawPriceUsd, string $serviceCode): float {
+    public static function calculatePrice(float $rawPriceUsd, string $serviceCode, int $countryId = 0): float {
         $settings     = (new Setting())->getAll();
         $globalMult   = (float)($settings['price_markup_multiplier'] ?? 1.5);
         $exchangeRate = (float)($settings['usd_to_ngn_rate'] ?? 1600);
@@ -22,28 +22,25 @@ class PricingHelper {
         $db = Database::getInstance()->getConnection();
         
         try {
-            $stmt = $db->prepare("SELECT multiplier, fixed_price FROM service_overrides WHERE service_code = ?");
-            $stmt->execute([$serviceCode]);
+            // Priority 1: Specific Service + Country match
+            // Priority 2: Service + Global (country_id = 0) match
+            $stmt = $db->prepare("
+                SELECT multiplier, fixed_price, country_id 
+                FROM service_overrides 
+                WHERE service_code = ? AND (country_id = ? OR country_id = 0)
+                ORDER BY country_id DESC LIMIT 1
+            ");
+            $stmt->execute([$serviceCode, $countryId]);
             $override = $stmt->fetch(\PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
-            // Table might not exist yet if admin hasn't visited any admin page
-            if ($e->getCode() == '42S02') {
-                $db->exec("CREATE TABLE IF NOT EXISTS service_overrides (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    service_code VARCHAR(50) NOT NULL UNIQUE,
-                    multiplier DECIMAL(10, 2) DEFAULT NULL,
-                    fixed_price DECIMAL(15, 2) DEFAULT NULL,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                )");
-            }
             $override = null;
         }
 
         if ($override) {
-            if ($override['fixed_price'] !== null) {
+            if ($override['fixed_price'] !== null && $override['fixed_price'] > 0) {
                 return (float)$override['fixed_price'];
             }
-            if ($override['multiplier'] !== null) {
+            if ($override['multiplier'] !== null && $override['multiplier'] > 0) {
                 return (float)ceil($rawPriceUsd * $override['multiplier'] * $exchangeRate);
             }
         }

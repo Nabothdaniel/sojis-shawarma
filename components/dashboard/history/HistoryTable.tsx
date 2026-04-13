@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
-import { RiFileCopyLine, RiEyeLine, RiDeleteBinLine, RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri';
+import { RiFileCopyLine, RiEyeLine, RiEyeOffLine, RiDeleteBinLine, RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri';
 import Tooltip from '@/components/ui/Tooltip';
 
 interface HistoryTableProps {
   items: any[];
   onReveal: (id: number) => void;
+  onUnreveal: (id: number) => void;
   onHide: (id: number) => void;
   onCopy: (text: string) => void;
   revealedData: { [key: number]: { phone: string; otp: string } };
@@ -18,7 +19,7 @@ interface HistoryTableProps {
   };
 }
 
-export default function HistoryTable({ items, onReveal, onHide, onCopy, revealedData, pagination }: HistoryTableProps) {
+export default function HistoryTable({ items, onReveal, onUnreveal, onHide, onCopy, revealedData, pagination }: HistoryTableProps) {
   const currentPage = Math.floor(pagination.offset / pagination.limit) + 1;
   const totalPages = Math.ceil(pagination.total / pagination.limit);
 
@@ -45,9 +46,14 @@ export default function HistoryTable({ items, onReveal, onHide, onCopy, revealed
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {revealedData[item.id]?.phone || item.phone_number}
                     {revealedData[item.id] ? (
-                      <button onClick={() => onCopy(revealedData[item.id].phone)} className="btn-ghost" style={{ padding: 4, minWidth: 'auto' }}>
-                        <RiFileCopyLine size={14} />
-                      </button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => onCopy(revealedData[item.id].phone)} className="btn-ghost" style={{ padding: 4, minWidth: 'auto' }}>
+                          <RiFileCopyLine size={14} />
+                        </button>
+                        <button onClick={() => onUnreveal(item.id)} className="btn-ghost" style={{ padding: 4, minWidth: 'auto', color: '#EF4444' }}>
+                          <RiEyeOffLine size={14} />
+                        </button>
+                      </div>
                     ) : (
                       <button onClick={() => onReveal(item.id)} className="btn-ghost" style={{ padding: 4, minWidth: 'auto', color: 'var(--color-primary)' }}>
                         <RiEyeLine size={14} />

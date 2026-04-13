@@ -33,6 +33,12 @@ class SMSController extends Controller {
         $countryName = trim($data['countryName']  ?? '');
         $serviceName = trim($data['serviceName']  ?? '');
         $pin         = trim($data['pin']          ?? '');
+        $quantity    = (int)($data['quantity']    ?? 1);
+
+        if ($quantity < 1) $quantity = 1;
+        if ($quantity > 20) {
+            return $this->json(['status' => 'error', 'message' => 'Maximum 20 numbers per bulk order.'], 400);
+        }
 
         if (!$serviceCode || $countryId < 0 || !$pin) {
             return $this->json(['status' => 'error', 'message' => 'Required fields missing.'], 400);
@@ -43,23 +49,43 @@ class SMSController extends Controller {
             return $this->json(['status' => 'error', 'message' => 'Invalid transaction PIN.'], 401);
         }
 
-        try {
-            $result = $this->activationService->buyNumber($userId, $serviceCode, $serviceName, $countryId, $countryName);
-            
-            return $this->json([
-                'status'  => 'success',
-                'message' => 'Number purchased successfully!',
-                'data'    => [
-                    'id'            => $result['id'],
-                    'activationId'  => $result['activationId'],
-                    'phoneNumber'   => $result['phoneNumber'],
-                    'price'         => $result['finalCharge'],
-                    'smsStatus'     => 'WAIT_CODE',
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            return $this->json(['status' => 'error', 'message' => $e->getMessage()], 422);
+        $successful = [];
+        $failed     = [];
+        $lastError  = 'Purchase failed';
+
+        for ($i = 0; $i < $quantity; $i++) {
+            try {
+                $res = $this->activationService->buyNumber($userId, $serviceCode, $serviceName, $countryId, $countryName);
+                $successful[] = [
+                    'id'           => $res['id'],
+                    'activationId' => $res['activationId'],
+                    'phoneNumber'  => $res['phoneNumber'],
+                    'price'        => $res['finalCharge']
+                ];
+            } catch (\Throwable $e) {
+                $failed[] = $e->getMessage();
+                $lastError = $e->getMessage();
+                // If the first one fails and it's something like "Insufficient balance", don't keep trying
+                if (str_contains($lastError, 'balance') || str_contains($lastError, 'available')) {
+                    break;
+                }
+            }
         }
+
+        if (empty($successful)) {
+            return $this->json(['status' => 'error', 'message' => $lastError], 422);
+        }
+
+        return $this->json([
+            'status'  => 'success',
+            'message' => count($successful) . " number(s) purchased successfully!",
+            'data'    => [
+                'count'      => count($successful),
+                'items'      => $successful,
+                'failedCount'=> count($failed),
+                'errors'     => array_unique($failed)
+            ],
+        ]);
     }
 
     // ─── GET /api/sms/purchases ───────────────────────────────────────────────

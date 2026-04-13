@@ -53,7 +53,15 @@ apiClient.interceptors.request.use(
   async (config) => {
     if (typeof window !== 'undefined') {
       // 1. Attach Auth Token
-      const token = localStorage.getItem('bamzysms-token');
+      // 1. Attach Auth Token (Session Isolation)
+      let token = sessionStorage.getItem('bamzysms-token');
+      
+      // Fallback to localStorage ONLY for persistent login if desired, 
+      // but for isolation, sessionStorage is safer.
+      if (!token) {
+        token = localStorage.getItem('bamzysms-token');
+      }
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

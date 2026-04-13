@@ -7,7 +7,21 @@ use BamzySMS\Core\Controller;
 class UtilsController extends Controller {
     
     /**
-     * GET /api/utils/server-ip
+     * GET /
+     * Root health check endpoint.
+     */
+    public function healthCheck() {
+        return $this->json([
+            'status' => 'success',
+            'message' => 'BamzySMS API is online',
+            'version' => '1.2.0',
+            'environment' => env_or_default('APP_ENV', 'production'),
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+    }
+
+    /**
+     * GET /utils/server-ip
      * Returns a detailed diagnostic report for whitelisting.
      */
     public function getServerIp() {
