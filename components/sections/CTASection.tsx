@@ -6,12 +6,8 @@ import Link from 'next/link';
 import { useAppStore } from '@/store/appStore';
 
 export default function CTASection() {
-  const { email, setEmail, submitEmail } = useAppStore();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    submitEmail(email);
-  };
+  // handleSubmit removed
 
   return (
     <section style={{
@@ -54,24 +50,6 @@ export default function CTASection() {
           </Link>
         </div>
 
-        {/* OR divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28, maxWidth: 400, margin: '0 auto 28px' }}>
-          <div className="divider" style={{ flex: 1 }} />
-          <span style={{ color: 'var(--color-text-faint)', fontSize: '0.75rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>or join the waitlist</span>
-          <div className="divider" style={{ flex: 1 }} />
-        </div>
-
-        {/* Waitlist form */}
-        <form onSubmit={handleSubmit} className="cta-form"
-          style={{ display: 'flex', gap: 10, maxWidth: 420, margin: '0 auto', flexWrap: 'wrap' }}>
-          <input type="email" className="input-field" placeholder="your@email.com"
-            value={email} onChange={(e) => setEmail(e.target.value)}
-            style={{ flex: 1, minWidth: 200 }} />
-          <button type="submit" className="btn-primary"
-            style={{ padding: '13px 20px', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
-            Notify Me
-          </button>
-        </form>
       </div>
 
       <style>{`

@@ -6,7 +6,7 @@ import { SmsService } from '@/lib/api';
 import { useAppStore } from '@/store/appStore';
 
 export function usePricing() {
-  const { addToast } = useAppStore();
+  const { addToast, hasHydrated, user } = useAppStore();
   const [services, setServices] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<number>(-1); 
@@ -14,12 +14,16 @@ export function usePricing() {
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 15, pages: 1 });
   const [globalSettings, setGlobalSettings] = useState<AdminSettings | null>(null);
+  const [filtersReady, setFiltersReady] = useState(false);
+  const canLoadAdminData = hasHydrated && user?.role === 'admin';
 
   const [formData, setFormData] = useState<{ [key: string]: { multiplier: string, fixedPrice: string } }>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Load selection from localStorage on mount
   useEffect(() => {
+    if (!hasHydrated) return;
+
     const saved = localStorage.getItem('bamzysms_admin_country');
     if (saved) {
       const val = parseInt(saved, 10);
@@ -28,27 +32,32 @@ export function usePricing() {
     
     const savedSearch = localStorage.getItem('bamzysms_admin_search');
     if (savedSearch) setSearch(savedSearch);
-  }, []);
+    setFiltersReady(true);
+  }, [hasHydrated]);
 
   // Save selection to localStorage
   useEffect(() => {
+    if (!filtersReady) return;
     localStorage.setItem('bamzysms_admin_country', selectedCountry.toString());
-  }, [selectedCountry]);
+  }, [filtersReady, selectedCountry]);
 
   useEffect(() => {
+    if (!filtersReady) return;
     localStorage.setItem('bamzysms_admin_search', search);
-  }, [search]);
+  }, [filtersReady, search]);
 
   const fetchCountries = useCallback(async () => {
+    if (!canLoadAdminData) return;
     try {
       const res = await adminService.getCountries();
       setCountries(res.data || []);
     } catch (err) {
       console.error('Failed to fetch countries', err);
     }
-  }, []);
+  }, [canLoadAdminData]);
 
   const fetchPricingData = useCallback(async (page = pagination.page, searchQuery = search, countryId = selectedCountry) => {
+    if (!canLoadAdminData) return;
     setLoading(true);
     try {
       const [settingsRes, servicesRes] = await Promise.all([
@@ -74,15 +83,17 @@ export function usePricing() {
     } finally {
       setLoading(false);
     }
-  }, [addToast, pagination.limit, selectedCountry, search, pagination.page]);
+  }, [addToast, canLoadAdminData, pagination.limit, selectedCountry, search, pagination.page]);
 
   useEffect(() => {
+    if (!canLoadAdminData) return;
     fetchCountries();
-  }, [fetchCountries]);
+  }, [canLoadAdminData, fetchCountries]);
 
   useEffect(() => {
+    if (!canLoadAdminData || !filtersReady) return;
     fetchPricingData(1, search, selectedCountry);
-  }, [search, selectedCountry]);
+  }, [canLoadAdminData, filtersReady, fetchPricingData, search, selectedCountry]);
 
   const calculateUserPrice = (service: any) => {
     const currentForm = formData[service.code];

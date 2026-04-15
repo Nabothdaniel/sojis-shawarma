@@ -11,6 +11,7 @@ import {
   RiUserSettingsLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 const NAV_ITEMS = [
   { href: '/dashboard/user', icon: <RiDashboardLine size={18} />, label: 'Dashboard' },
@@ -73,20 +74,13 @@ export default function Sidebar() {
             background: 'var(--color-bg-hover)',
             border: '1px solid var(--color-border)',
           }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg, var(--color-primary), #7C3AED)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.8rem', color: '#000',
-            }}>
-              {user.name.charAt(0).toUpperCase()}
-            </div>
+            <UserAvatar seed={user.username || user.name || 'user'} size={34} style={{ border: 'none' }} />
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user.name}
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--color-text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.email}
+                @{user.username}
               </div>
             </div>
           </div>

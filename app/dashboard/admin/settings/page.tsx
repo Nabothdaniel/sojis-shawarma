@@ -4,20 +4,22 @@ import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService, AdminSettings } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
-import { RiSettings4Line, RiSave3Line, RiInformationLine, RiPulseLine } from 'react-icons/ri';
+import { RiSave3Line, RiInformationLine, RiPulseLine } from 'react-icons/ri';
 
 export default function AdminSettingsPage() {
-  const { addToast } = useAppStore();
+  const { addToast, hasHydrated, user } = useAppStore();
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!hasHydrated || user?.role !== 'admin') return;
+
     adminService.getSettings()
       .then(res => setSettings(res.data))
       .catch(() => addToast('Failed to load settings', 'error'))
       .finally(() => setLoading(false));
-  }, [addToast]);
+  }, [addToast, hasHydrated, user?.role]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();

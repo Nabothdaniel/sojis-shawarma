@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { RiEyeLine, RiEyeOffLine, RiMailLine, RiLockLine, RiSignalTowerFill } from 'react-icons/ri';
+import { RiEyeLine, RiEyeOffLine, RiUserLine, RiLockLine, RiSignalTowerFill } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 import PageLoader from '@/components/ui/PageLoader';
 import AuthLayout from '@/components/auth/AuthLayout';
@@ -14,17 +14,20 @@ export default function LoginPage() {
   const { login, addToast } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ username: '', password: '' });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.email || !form.password) { addToast('Please fill in all fields.', 'error'); return; }
+    if (!form.username || !form.password) { addToast('Please fill in all fields.', 'error'); return; }
     setLoading(true);
     try {
-      const response = await authService.login(form);
+      const response = await authService.login({
+        username: form.username.trim(),
+        password: form.password
+      });
       login(response.data.user, response.data.token);
       addToast('Welcome back!', 'success');
 
@@ -71,15 +74,15 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>
-              Email Address
+              Username
             </label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', display: 'flex' }}>
-                <RiMailLine size={18} />
+                <RiUserLine size={18} />
               </span>
               <input
-                name="email" type="email" className="input-field"
-                placeholder="name@example.com" value={form.email}
+                name="username" type="text" className="input-field"
+                placeholder="Enter your username" value={form.username}
                 onChange={handleChange} style={{ paddingLeft: 44 }}
               />
             </div>

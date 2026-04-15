@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import Topbar from '@/components/dashboard/Topbar';
 import { RiBankCardLine, RiArrowRightLine, RiAlertLine, RiBankLine } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import { formatMoney } from '@/lib/utils';
 
 export default function FundWalletPage() {
   const { user } = useAppStore();
@@ -24,7 +25,7 @@ export default function FundWalletPage() {
         <div className="stat-card" style={{ marginBottom: 24, background: 'var(--color-primary)', color: '#fff', border: 'none' }}>
           <div style={{ opacity: 0.8, fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>Current Balance</div>
           <div style={{ fontSize: '2.4rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
-            ₦{user?.balance?.toLocaleString() ?? '0'}
+            {formatMoney(user?.balance)}
           </div>
         </div>
 

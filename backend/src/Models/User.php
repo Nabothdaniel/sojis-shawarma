@@ -13,27 +13,28 @@ class User {
     }
 
     public function create($data) {
-        $sql = "INSERT INTO users (name, email, phone, password, referral_code) VALUES (?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO users (username, name, phone, password, referral_code) VALUES (?, ?, ?, ?, ?)";
         $stmt = $this->db->prepare($sql);
+        $username = strtolower($data['username'] ?? preg_replace('/[^a-zA-Z0-9]/', '', $data['name'] ?? 'user' . rand(100, 999)));
         $stmt->execute([
-            $data['name'],
-            $data['email'],
-            $data['phone'],
+            $username,
+            $data['name'] ?? $username,
+            $data['phone'] ?? null,
             password_hash($data['password'], PASSWORD_DEFAULT),
             'BAMZY' . strtoupper(substr(uniqid(), -6))
         ]);
         return $this->db->lastInsertId();
     }
 
-    public function findByEmail($email) {
-        $sql = "SELECT * FROM users WHERE email = ?";
+    public function findByUsername($username) {
+        $sql = "SELECT * FROM users WHERE username = ?";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$email]);
+        $stmt->execute([strtolower(trim((string) $username))]);
         return $stmt->fetch();
     }
 
     public function findById($id) {
-        $sql = "SELECT id, name, email, phone, balance, role, created_at FROM users WHERE id = ?";
+        $sql = "SELECT id, username, name, phone, balance, role, created_at FROM users WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -51,13 +52,16 @@ class User {
      * List all users for administrative purposes.
      */
     public function getAllUsers(): array {
-        $stmt = $this->db->query("SELECT id, name, email, phone, balance, role, created_at FROM users ORDER BY id DESC");
+        $stmt = $this->db->query("SELECT id, username, name, phone, balance, role, created_at FROM users ORDER BY id DESC");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function updatePassword($email, $hashedPassword) {
-        $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE email = ?");
-        return $stmt->execute([$hashedPassword, $email]);
+    public function updatePassword($username, $password) {
+        $stmt = $this->db->prepare("UPDATE users SET password = ? WHERE username = ?");
+        return $stmt->execute([
+            password_hash($password, PASSWORD_DEFAULT),
+            strtolower(trim((string) $username))
+        ]);
     }
 
     public function deductBalance($userId, $amount) {

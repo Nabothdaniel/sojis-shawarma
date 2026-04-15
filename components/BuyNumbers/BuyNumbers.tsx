@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { RiShoppingCartLine, RiInformationLine } from 'react-icons/ri';
-import { useAppStore } from '@/store/appStore';
 import PinModal from '@/components/ui/PinModal';
 import Tooltip from '@/components/ui/Tooltip';
+import { formatMoney } from '@/lib/utils';
 
 import { useBuyNumbers } from './useBuyNumbers';
 import { BuyNumbersProps, FAQItem } from './types';
@@ -27,7 +27,6 @@ const FAQ_SECTIONS: FAQItem[] = [
 ];
 
 export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false }: BuyNumbersProps) {
-  const { user } = useAppStore();
   const logic = useBuyNumbers(defaultCountry);
 
   if (logic.fetching) {
@@ -46,7 +45,7 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
         onSuccess={logic.handlePinSuccess}
         isLoading={logic.pinLoading}
         title="Confirm Purchase"
-        description={`Please enter your 4-digit transaction PIN to purchase ${logic.quantity} x ${logic.chosenService?.name} number(s) for ₦${((logic.priceInfo?.price || 0) * logic.quantity).toLocaleString()}.`}
+        description={`Please enter your 4-digit transaction PIN to purchase ${logic.quantity} x ${logic.chosenService?.name} number(s) for ${formatMoney((logic.priceInfo?.price || 0) * logic.quantity)}.`}
       />
 
       <div className="stat-card">
@@ -96,7 +95,7 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
                     <RiInformationLine size={15} color="var(--color-primary)" />
                     <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
                       Price per number: 
-                      <strong style={{ color: 'var(--color-primary)', marginLeft: 4 }}>₦{logic.priceInfo.price?.toLocaleString()}</strong>
+                      <strong style={{ color: 'var(--color-primary)', marginLeft: 4 }}>{formatMoney(logic.priceInfo.price)}</strong>
                       <span style={{ marginLeft: 8, fontSize: '0.75rem', opacity: 0.6 }}>({logic.priceInfo.count} available)</span>
                     </span>
                   </div>

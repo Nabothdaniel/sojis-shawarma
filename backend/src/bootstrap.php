@@ -17,10 +17,14 @@ foreach ($envCandidates as $envFile) {
             if (str_starts_with(trim($line), '#')) continue;
             if (!str_contains($line, '=')) continue;
             [$key, $val] = explode('=', $line, 2);
-            $_ENV[trim($key)] = trim($val);
-            putenv(trim($key) . '=' . trim($val));
+            $key = trim($key);
+            $val = trim($val);
+
+            if (!array_key_exists($key, $_ENV) && getenv($key) === false) {
+                $_ENV[$key] = $val;
+                putenv($key . '=' . $val);
+            }
         }
-        break;
     }
 }
 
@@ -60,6 +64,6 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Vary: Origin");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (($_SERVER['REQUEST_METHOD'] ?? null) === 'OPTIONS') {
     exit;
 }

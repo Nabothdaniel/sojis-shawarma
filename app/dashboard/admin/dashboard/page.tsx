@@ -4,21 +4,27 @@ import React, { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService } from '@/lib/api/admin.service';
 import {
-  RiWalletLine, RiCpuLine, RiGlobalLine,
+  RiWalletLine, RiCpuLine,
   RiLineChartLine, RiUserStarLine, RiTimerFlashLine,
-  RiSettings4Line
+  RiQuestionLine
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import Tooltip from '@/components/ui/Tooltip';
+import { formatMoney, formatNumber } from '@/lib/utils';
 
 export default function AdminDashboard() {
-  const { addToast } = useAppStore();
+  const { addToast, hasHydrated, user } = useAppStore();
   const [stats, setStats] = useState<any>(null);
   const [globalSettings, setGlobalSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [providerStatus, setProviderStatus] = useState<{ status: string, error?: string } | null>(null);
+  const canLoadAdminData = hasHydrated && user?.role === 'admin';
 
   const fetchData = useCallback(async () => {
+    if (!canLoadAdminData) return;
+
     try {
+      setLoading(true);
       const results = await Promise.allSettled([
         adminService.getProviderBalance(),
         adminService.getSettings(),
@@ -78,11 +84,12 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, canLoadAdminData]);
 
   useEffect(() => {
+    if (!canLoadAdminData) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, canLoadAdminData]);
 
   const maxDaily = stats?.daily?.length ? Math.max(...stats.daily.map((d: any) => parseFloat(d.daily_revenue))) : 0;
 
@@ -132,9 +139,14 @@ export default function AdminDashboard() {
                   </div>
                   <span className="badge" style={{ background: 'var(--color-primary-dim)', color: 'var(--color-primary)', fontWeight: 700 }}>Provider</span>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px' }}>SMSBower Balance</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  SMSBower Balance
+                  <Tooltip content="The live USD balance available with your upstream provider for buying activations.">
+                    <span style={{ display: 'inline-flex', color: 'var(--color-text-faint)', cursor: 'help' }}><RiQuestionLine size={14} /></span>
+                  </Tooltip>
+                </div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>
-                  ${stats?.providerBalance?.toLocaleString() || '0'}
+                  {formatMoney(stats?.providerBalance, 'USD')}
                 </div>
               </div>
 
@@ -146,8 +158,13 @@ export default function AdminDashboard() {
                   </div>
                   <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.05)', color: '#10B981', fontWeight: 700 }}>Revenue</span>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px' }}>Total Sales (NGN)</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>₦{stats?.revenue?.toLocaleString() || '0'}</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Total Sales (NGN)
+                  <Tooltip content="Gross revenue collected from completed purchases before you analyze per-service margins.">
+                    <span style={{ display: 'inline-flex', color: 'var(--color-text-faint)', cursor: 'help' }}><RiQuestionLine size={14} /></span>
+                  </Tooltip>
+                </div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>{formatMoney(stats?.revenue)}</div>
               </div>
 
               {/* Success Rate */}
@@ -158,7 +175,12 @@ export default function AdminDashboard() {
                   </div>
                   <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.05)', color: '#F59E0B', fontWeight: 700 }}>Efficiency</span>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px' }}>Activation Success Rate</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Activation Success Rate
+                  <Tooltip content="The share of activation requests that ended successfully instead of failing, timing out, or being cancelled.">
+                    <span style={{ display: 'inline-flex', color: 'var(--color-text-faint)', cursor: 'help' }}><RiQuestionLine size={14} /></span>
+                  </Tooltip>
+                </div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-text)' }}>{stats?.successRate || '0'}%</div>
               </div>
 
@@ -209,7 +231,7 @@ export default function AdminDashboard() {
                               borderRadius: '4px', whiteSpace: 'nowrap', opacity: 0, transition: 'opacity 0.2s',
                               pointerEvents: 'none', fontWeight: 700
                             }}>
-                              ₦{parseFloat(d.daily_revenue).toLocaleString()}
+                              {formatMoney(parseFloat(d.daily_revenue))}
                             </div>
                           </div>
                           <span style={{ fontSize: '0.65rem', color: 'var(--color-text-faint)', fontWeight: 700 }}>
@@ -239,7 +261,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>Global Default Rate: {Number(stats?.conversionRate || 0).toLocaleString()} NGN/USD</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>Global Default Rate: {formatNumber(stats?.conversionRate || 0)} NGN/USD</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>Active Multiplier: {Number(globalSettings?.price_markup_multiplier || 1.5).toFixed(2)}x (Global)</div>
                   </div>
                 </div>

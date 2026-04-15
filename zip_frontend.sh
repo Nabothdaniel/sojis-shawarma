@@ -23,7 +23,7 @@ fi
 # 3. Create new zip
 echo "📦 Zipping contents of $OUTPUT_DIR..."
 cd "$OUTPUT_DIR" || exit
-zip -r "../$ZIP_NAME" ./*
+zip -r "../$ZIP_NAME" .
 cd ..
 
 echo "✅ Success! Your deployment package is ready at: $ZIP_NAME"

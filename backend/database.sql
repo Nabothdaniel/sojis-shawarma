@@ -3,8 +3,8 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255) NULL,
+    username VARCHAR(255) NULL UNIQUE,
     phone VARCHAR(20),
     password VARCHAR(255) NOT NULL,
     balance DECIMAL(15, 2) DEFAULT 0.00,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS verifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NOT NULL,
     otp VARCHAR(10) NOT NULL,
     type ENUM('signup', 'reset') DEFAULT 'signup',
     expires_at DATETIME NOT NULL,
@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS sms_purchases (
 );
 
 -- Migration: if upgrading from the old schema, run these manually:
+-- ALTER TABLE users DROP COLUMN email;
 -- ALTER TABLE sms_purchases
 --   ADD COLUMN activation_id BIGINT NOT NULL DEFAULT 0 AFTER user_id,
 --   ADD COLUMN service_code VARCHAR(20) NOT NULL DEFAULT '' AFTER activation_id,

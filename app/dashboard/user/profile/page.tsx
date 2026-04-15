@@ -10,7 +10,6 @@ export default function ProfilePage() {
   const { user, login } = useAppStore();
   const [form, setForm] = useState({
     name: user?.name ?? '',
-    email: user?.email ?? '',
     phone: user?.phone ?? '',
   });
   const [saved, setSaved] = useState(false);
@@ -21,7 +20,7 @@ export default function ProfilePage() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    login({ ...user, name: form.name, email: form.email, phone: form.phone });
+    login({ ...user, name: form.name, phone: form.phone });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
@@ -42,6 +41,18 @@ export default function ProfilePage() {
           </h2>
 
           <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Username */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                Username
+              </label>
+              <input
+                type="text" className="input-field"
+                value={user?.username || ''} disabled
+                style={{ opacity: 0.6, cursor: 'not-allowed' }}
+              />
+            </div>
+
             {/* Name */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 8 }}>
@@ -51,18 +62,6 @@ export default function ProfilePage() {
                 name="name" type="text" className="input-field"
                 value={form.name} onChange={handleChange}
                 placeholder="Enter your name"
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                Email
-              </label>
-              <input
-                name="email" type="email" className="input-field"
-                value={form.email} onChange={handleChange}
-                placeholder="Enter your email"
               />
             </div>
 

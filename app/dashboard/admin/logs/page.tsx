@@ -4,15 +4,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
-import { RiHistoryLine, RiRefreshLine, RiUserLine, RiInformationLine, RiPulseLine } from 'react-icons/ri';
-import PageLoader from '@/components/ui/PageLoader';
+import { RiHistoryLine, RiRefreshLine, RiUserLine, RiPulseLine } from 'react-icons/ri';
 
 export default function AdminLogsPage() {
-  const { addToast } = useAppStore();
+  const { addToast, hasHydrated, user } = useAppStore();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const canLoadAdminData = hasHydrated && user?.role === 'admin';
 
   const fetchLogs = useCallback(async () => {
+    if (!canLoadAdminData) return;
     setLoading(true);
     try {
       const res = await adminService.getSystemLogs();
@@ -22,11 +23,12 @@ export default function AdminLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, canLoadAdminData]);
 
   useEffect(() => {
+    if (!canLoadAdminData) return;
     fetchLogs();
-  }, [fetchLogs]);
+  }, [fetchLogs, canLoadAdminData]);
 
   const formatDetails = (details: string) => {
     try {
@@ -125,7 +127,7 @@ export default function AdminLogsPage() {
                             </div>
                             <div>
                               <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-text)' }}>{log.user_name || 'System Engine'}</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', fontWeight: 600 }}>{log.user_email || 'CORE_SERVICE'}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', fontWeight: 600 }}>{log.user_username ? `@${log.user_username}` : 'CORE_SERVICE'}</div>
                             </div>
                           </div>
                         </td>

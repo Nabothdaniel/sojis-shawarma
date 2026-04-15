@@ -13,11 +13,14 @@ class EncryptionHelper {
         if (!$encryptedData) return $encryptedData;
 
         try {
-            $data = base64_decode($encryptedData);
+            $data = base64_decode($encryptedData, true);
             if (!$data) return $encryptedData; // Not base64, return as is
 
             // We expect the first 16 bytes to be the IV
             $ivLength = openssl_cipher_iv_length(self::$method);
+            if (strlen($data) <= $ivLength) {
+                return $encryptedData;
+            }
             $iv = substr($data, 0, $ivLength);
             $ciphertext = substr($data, $ivLength);
 

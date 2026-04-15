@@ -14,6 +14,7 @@ import { useAppStore } from '@/store/appStore';
 import { userService, smsService } from '@/lib/api';
 import PinModal from '@/components/ui/PinModal';
 import { RiShieldKeyholeLine } from 'react-icons/ri';
+import { formatMoney } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -123,7 +124,7 @@ export default function DashboardPage() {
                 Wallet Balance
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.8rem', color: 'var(--color-text)' }}>
-                ₦{user?.balance?.toLocaleString() ?? '0'}
+                {formatMoney(user?.balance)}
               </div>
             </div>
           </div>
@@ -177,7 +178,7 @@ export default function DashboardPage() {
                 Total Top-up
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.8rem' }}>
-                ₦{recentTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + parseFloat(t.amount), 0).toLocaleString()}
+                {formatMoney(recentTransactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + parseFloat(t.amount), 0))}
               </div>
             </div>
           </div>
@@ -248,7 +249,7 @@ export default function DashboardPage() {
                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-faint)' }}>{new Date(t.created_at).toLocaleDateString()}</div>
                     </div>
                     <span style={{ fontWeight: 800, fontSize: '0.95rem', color: t.type === 'credit' ? '#10B981' : 'var(--color-text)' }}>
-                       {t.type === 'credit' ? '+' : '-'}₦{parseFloat(t.amount).toLocaleString()}
+                       {t.type === 'credit' ? '+' : '-'}{formatMoney(t.amount)}
                     </span>
                   </div>
                 ))}

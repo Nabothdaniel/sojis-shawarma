@@ -7,7 +7,7 @@ import Topbar from '@/components/dashboard/Topbar';
 import EmptyHistory from '@/components/dashboard/EmptyHistory';
 import PageLoader from '@/components/ui/PageLoader';
 import { userService } from '@/lib/api';
-import { RiExchangeLine } from 'react-icons/ri';
+import { formatMoney } from '@/lib/utils';
 
 export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
@@ -61,7 +61,7 @@ export default function TransactionsPage() {
                     </td>
                     <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 500 }}>{tx.description}</td>
                     <td style={{ padding: '16px 20px', fontSize: '0.95rem', fontWeight: 700 }}>
-                      {tx.type === 'credit' ? '+' : '-'}₦{parseFloat(tx.amount).toLocaleString()}
+                      {tx.type === 'credit' ? '+' : '-'}{formatMoney(tx.amount)}
                     </td>
                     <td style={{ padding: '16px 20px', fontSize: '0.85rem', color: 'var(--color-text-faint)' }}>
                       {new Date(tx.created_at).toLocaleDateString()}

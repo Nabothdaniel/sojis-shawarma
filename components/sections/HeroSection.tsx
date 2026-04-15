@@ -12,7 +12,6 @@ const STATS = [
 ];
 
 export default function HeroSection() {
-  const { email, setEmail, submitEmail } = useAppStore();
   const sectionRef = useRef<HTMLElement>(null);
   const setActiveSection = useAppStore((s) => s.setActiveSection);
 
@@ -25,10 +24,7 @@ export default function HeroSection() {
     return () => observer.disconnect();
   }, [setActiveSection]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    submitEmail(email);
-  };
+  // handleSubmit removed
 
   return (
     <section id="home" ref={sectionRef} className="grid-bg hero-section"
@@ -79,33 +75,21 @@ export default function HeroSection() {
           <strong style={{ color: 'var(--color-primary)', fontWeight: 600 }}>₦2,000</strong>.
         </p>
 
-        {/* Email form */}
-        <form id="signup" onSubmit={handleSubmit} className="hero-form"
-          style={{ display: 'flex', gap: 10, maxWidth: 460, margin: '0 auto 16px', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-            <span style={{
-              position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--color-text-faint)', pointerEvents: 'none', display: 'flex', zIndex: 1,
-            }}>
-              <RiMailLine size={17} />
-            </span>
-            <input type="email" className="input-field" placeholder="Enter your email"
-              value={email} onChange={(e) => setEmail(e.target.value)}
-              required style={{ paddingLeft: 42 }} />
-          </div>
-          <button type="submit" className="btn-primary"
-            style={{ padding: '13px 22px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
-            Sign Up Free <RiArrowRightLine size={16} />
-          </button>
-        </form>
+        {/* Get Started Button */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 40 }}>
+          <a href="/register" className="btn-primary" 
+            style={{ padding: '16px 32px', fontSize: '1.05rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+            Get Started Now <RiArrowRightLine size={20} />
+          </a>
+        </div>
 
         <p style={{
-          color: 'var(--color-text-faint)', fontSize: '0.78rem',
+          color: 'var(--color-text-faint)', fontSize: '0.85rem',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           gap: 6, marginBottom: 56,
         }}>
-          <RiLockPasswordLine size={13} />
-          No spam. Unsubscribe anytime. 100% secure.
+          <RiShieldCheckLine size={13} />
+          Instant activation. Secure payments. 24/7 Support.
         </p>
 
         {/* Stats strip */}

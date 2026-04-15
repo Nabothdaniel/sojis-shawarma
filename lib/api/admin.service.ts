@@ -3,8 +3,8 @@ import apiClient from './client';
 export interface AdminUser {
   id: number;
   name: string;
-  email: string;
-  phone: string;
+  username: string;
+  phone?: string;
   balance: number;
   role: 'user' | 'admin';
   created_at: string;

@@ -4,15 +4,19 @@ import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService, AdminUser } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
-import { RiUserLine, RiSearchLine, RiMailLine, RiPhoneLine, RiWalletLine, RiTimeLine } from 'react-icons/ri';
+import { RiSearchLine, RiPhoneLine, RiWalletLine, RiTimeLine } from 'react-icons/ri';
+import UserAvatar from '@/components/ui/UserAvatar';
+import { formatMoney } from '@/lib/utils';
 
 export default function AdminUsersPage() {
-  const { addToast } = useAppStore();
+  const { addToast, hasHydrated, user } = useAppStore();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
+    if (!hasHydrated || user?.role !== 'admin') return;
+
     const fetchUsers = async () => {
       try {
         const res = await adminService.getUsers();
@@ -24,11 +28,11 @@ export default function AdminUsersPage() {
       }
     };
     fetchUsers();
-  }, [addToast]);
+  }, [addToast, hasHydrated, user?.role]);
 
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(search.toLowerCase()) || 
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
+    u.username.toLowerCase().includes(search.toLowerCase()) ||
     u.phone?.includes(search)
   );
 
@@ -83,31 +87,17 @@ export default function AdminUsersPage() {
                       <tr key={u.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }} className="user-row">
                         <td style={{ padding: '18px 24px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                            <div style={{ 
-                              width: 44, height: 44, borderRadius: '12px', 
-                              background: u.role === 'admin' ? 'rgba(139, 92, 246, 0.1)' : 'var(--color-primary-dim)', 
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                              color: u.role === 'admin' ? '#8B5CF6' : 'var(--color-primary)',
-                              border: '1px solid currentColor', opacity: 0.8
-                            }}>
-                               <RiUserLine size={22} />
-                            </div>
+                            <UserAvatar seed={u.username || u.name || 'user'} size={44} style={{ border: '1px solid var(--color-border)' }} />
                             <div>
                               <div style={{ fontWeight: 800, color: 'var(--color-text)', fontSize: '0.95rem' }}>{u.name}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 600 }}>USER_ID: #{u.id}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 600 }}>@{u.username}</div>
                             </div>
                           </div>
                         </td>
                         <td style={{ padding: '18px 24px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--color-text)', fontWeight: 600 }}>
-                              <RiMailLine size={14} color="var(--color-primary)" />
-                              {u.email}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                              <RiPhoneLine size={14} />
-                              {u.phone || '—'}
-                            </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                            <RiPhoneLine size={14} />
+                            {u.phone || '—'}
                           </div>
                         </td>
                         <td style={{ padding: '18px 24px' }}>
@@ -115,7 +105,7 @@ export default function AdminUsersPage() {
                             <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                <RiWalletLine size={14} color="#10B981" />
                             </div>
-                            ₦{u.balance?.toLocaleString()}
+                            {formatMoney(u.balance)}
                           </div>
                         </td>
                         <td style={{ padding: '18px 24px' }}>

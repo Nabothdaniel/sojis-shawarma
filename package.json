@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test tests/*.test.mjs",
+    "test:frontend": "node --test tests/frontend.smoke.test.mjs",
+    "test:backend": "/opt/lampp/bin/php backend/tests/AuthControllerTest.php"
   },
   "dependencies": {
     "axios": "^1.13.6",

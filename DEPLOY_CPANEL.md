@@ -80,3 +80,4 @@ If API responds with JSON, routing is correct.
 - Frontend uses `NEXT_PUBLIC_API_URL` and defaults to `/api`.
 - Backend CORS is controlled by `CORS_ALLOWED_ORIGINS`.
 - If Bearer auth fails on cPanel, ensure `public_html/api/.htaccess` is present.
+- For GitHub Actions based CI/CD over SSH, see `GITHUB_CICD_CPANEL.md`.

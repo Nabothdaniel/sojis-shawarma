@@ -14,12 +14,12 @@ async function encryptSensitive(value: string): Promise<string> {
   try {
     const keyText = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || 'BAMZY-DEFAULT-KEY-2026';
     const encoder = new TextEncoder();
-    
+
     // PHP uses hash('sha256', $key, true), so we must digest the key text
     const keyHash = await crypto.subtle.digest('SHA-256', encoder.encode(keyText));
-    
+
     const data = encoder.encode(value);
-    
+
     // Convert hashed key to a crypto key
     const keyBuffer = await crypto.subtle.importKey(
       'raw',
@@ -55,7 +55,7 @@ apiClient.interceptors.request.use(
       // 1. Attach Auth Token
       // 1. Attach Auth Token (Session Isolation)
       let token = sessionStorage.getItem('bamzysms-token');
-      
+
       // Fallback to localStorage ONLY for persistent login if desired, 
       // but for isolation, sessionStorage is safer.
       if (!token) {

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  RiEyeLine, RiEyeOffLine, RiMailLine, RiLockLine,
+  RiEyeLine, RiEyeOffLine, RiUserLine, RiLockLine,
   RiArrowRightLine, RiArrowLeftLine, RiMessage2Line, RiSignalTowerFill
 } from 'react-icons/ri';
 import PageLoader from '@/components/ui/PageLoader';
@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   
   const [form, setForm] = useState({ 
-    email: '', 
+    username: '', 
     otp: '',
     password: '', 
     confirm: ''
@@ -41,14 +41,14 @@ export default function ForgotPasswordPage() {
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSendOtp = async () => {
-    if (!form.email) {
-      addToast('Please enter your email address.', 'error');
+    if (!form.username) {
+      addToast('Please enter your username.', 'error');
       return;
     }
     setLoading(true);
     try {
-      await authService.sendOtp(form.email, 'reset');
-      addToast('Reset code sent to your email!', 'success');
+      await authService.sendOtp(form.username, 'reset');
+      addToast('Reset code generated for your account!', 'success');
       setStep(2);
       setResendTimer(60);
     } catch (error: any) {
@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
     // but verifying it now gives better UX.
     setLoading(true);
     try {
-      await authService.verifyOtp(form.email, form.otp, 'reset');
+      await authService.verifyOtp(form.username, form.otp, 'reset');
       // We don't actually want to delete the OTP yet because resetPassword needs it.
       // Wait, my verify() deletes it. I should probably NOT delete it if we need it for the next step, 
       // OR I should return a temporary "reset_token".
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
       // WORKAROUND: In resetPassword, I'll allow it if verified recently? No.
       // BETTER: I'll just comment out the delete in Verification model for now or handle it.
       await authService.resetPassword({
-        email: form.email,
+        username: form.username,
         otp: form.otp,
         password: form.password
       });
@@ -144,19 +144,19 @@ export default function ForgotPasswordPage() {
           {step === 1 ? 'Forgot Password?' : step === 2 ? 'Enter Reset Code' : 'Set New Password'}
         </h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem', marginBottom: 32 }}>
-          {step === 1 ? 'Enter your email to receive a password reset code' : step === 2 ? `Check ${form.email} for the 6-digit code` : 'Choose a strong new password for your account'}
+          {step === 1 ? 'Enter your username to receive a password reset code' : step === 2 ? `Check logs for the 6-digit code for ${form.username}` : 'Choose a strong new password for your account'}
         </p>
 
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>Email Address</label>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>Username</label>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', display: 'flex' }}>
-                  <RiMailLine size={18} />
+                  <RiUserLine size={18} />
                 </span>
-                <input name="email" type="email" className="input-field" placeholder="john@example.com"
-                  value={form.email} onChange={handleChange} style={{ paddingLeft: 44 }} />
+                <input name="username" type="text" className="input-field" placeholder="Enter your username"
+                  value={form.username} onChange={handleChange} style={{ paddingLeft: 44 }} />
               </div>
             </div>
             <button type="button" onClick={handleSendOtp} className="btn-primary"

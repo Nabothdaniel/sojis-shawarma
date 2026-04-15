@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
 import { smsService, userService, SmsCountry, SmsService, AvailabilityInfo } from '@/lib/api';
+import { formatMoney } from '@/lib/utils';
 
 export function useBuyNumbers(defaultCountry: string) {
   const router = useRouter();
@@ -96,7 +97,7 @@ export function useBuyNumbers(defaultCountry: string) {
 
     const totalCost = priceInfo.price * quantity;
     if (!user || user.balance < totalCost) { 
-      addToast(`Insufficient balance. This costs ₦${totalCost.toLocaleString()}, you have ₦${user?.balance?.toLocaleString() ?? '0'}.`, 'error'); 
+      addToast(`Insufficient balance. This costs ${formatMoney(totalCost)}, you have ${formatMoney(user?.balance)}.`, 'error'); 
       return; 
     }
 

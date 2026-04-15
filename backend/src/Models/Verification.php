@@ -12,20 +12,20 @@ class Verification {
         $this->db = Database::getInstance()->getConnection();
     }
 
-    public function create($email, $otp, $type = 'signup') {
+    public function create($username, $otp, $type = 'signup') {
         $expiresAt = date('Y-m-d H:i:s', strtotime('+15 minutes'));
         
-        // Clear previous OTPs for this email/type to keep it clean
-        $stmt = $this->db->prepare("DELETE FROM verifications WHERE email = ? AND type = ?");
-        $stmt->execute([$email, $type]);
+        // Clear previous OTPs for this username/type to keep it clean
+        $stmt = $this->db->prepare("DELETE FROM verifications WHERE username = ? AND type = ?");
+        $stmt->execute([$username, $type]);
 
-        $stmt = $this->db->prepare("INSERT INTO verifications (email, otp, type, expires_at) VALUES (?, ?, ?, ?)");
-        return $stmt->execute([$email, $otp, $type, $expiresAt]);
+        $stmt = $this->db->prepare("INSERT INTO verifications (username, otp, type, expires_at) VALUES (?, ?, ?, ?)");
+        return $stmt->execute([$username, $otp, $type, $expiresAt]);
     }
 
-    public function verify($email, $otp, $type = 'signup', $deleteAfter = true) {
-        $stmt = $this->db->prepare("SELECT * FROM verifications WHERE email = ? AND otp = ? AND type = ? AND expires_at > NOW()");
-        $stmt->execute([$email, $otp, $type]);
+    public function verify($username, $otp, $type = 'signup', $deleteAfter = true) {
+        $stmt = $this->db->prepare("SELECT * FROM verifications WHERE username = ? AND otp = ? AND type = ? AND expires_at > NOW()");
+        $stmt->execute([$username, $otp, $type]);
         $verification = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($verification) {

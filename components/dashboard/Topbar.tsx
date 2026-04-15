@@ -4,11 +4,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  RiMenu2Line, RiNotificationLine, RiUserLine,
+  RiMenu2Line, RiNotificationLine,
   RiCoinLine, RiUserSettingsLine, RiShoppingCartLine, RiLogoutBoxLine,
   RiSignalTowerFill,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import UserAvatar from '@/components/ui/UserAvatar';
+import { formatMoney } from '@/lib/utils';
 
 export default function Topbar({ title }: { title?: string }) {
   const { toggleSidebar, user, logout } = useAppStore();
@@ -80,7 +82,7 @@ export default function Topbar({ title }: { title?: string }) {
             fontFamily: 'var(--font-display)',
           }}>
             <RiCoinLine size={13} />
-            ₦{user?.balance?.toLocaleString() ?? '0'}
+            {formatMoney(user?.balance)}
           </div>
         )}
 
@@ -100,17 +102,17 @@ export default function Topbar({ title }: { title?: string }) {
             onClick={() => setDropOpen(!dropOpen)}
             style={{
               width: 34, height: 34, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.78rem', fontWeight: 700, color: '#000',
-              fontFamily: 'var(--font-display)', cursor: 'pointer',
+              cursor: 'pointer',
               border: dropOpen ? '2px solid var(--color-primary)' : '2px solid transparent',
               boxShadow: '0 0 10px var(--color-primary-glow)',
-              transition: 'border 0.2s', flexShrink: 0,
+              transition: 'all 0.2s', flexShrink: 0,
+              padding: 0,
+              background: 'none'
             }}
             aria-label="User menu"
           >
-            {user?.name ? user.name.charAt(0).toUpperCase() : <RiUserLine size={15} />}
+            <UserAvatar seed={user?.username || user?.name || 'user'} size={32} style={{ border: 'none' }} />
           </button>
 
           {dropOpen && (
@@ -130,21 +132,13 @@ export default function Topbar({ title }: { title?: string }) {
                 borderBottom: '1px solid var(--color-border)',
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 700, fontSize: '0.82rem', color: '#000',
-                  fontFamily: 'var(--font-display)',
-                }}>
-                  {user?.name?.charAt(0).toUpperCase() ?? 'U'}
-                </div>
+                <UserAvatar seed={user?.username || user?.name || 'user'} size={36} />
                 <div style={{ overflow: 'hidden' }}>
                   <div style={{ fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {user?.name ?? 'User'}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--color-text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {user?.email ?? ''}
+                    @{user?.username}
                   </div>
                 </div>
               </div>

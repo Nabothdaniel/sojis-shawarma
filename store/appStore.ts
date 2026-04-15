@@ -35,22 +35,6 @@ export const useAppStore = create<AppState>()(
         set({ user: null, isAuthenticated: false });
       },
 
-      // Email
-      email: '',
-      setEmail: (email) => set({ email }),
-      submittedEmails: [],
-      submitEmail: (email: string) => {
-        const { submittedEmails, addToast } = get();
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          addToast('Please enter a valid email address.', 'error'); return;
-        }
-        if (submittedEmails.includes(email)) {
-          addToast('This email is already registered!', 'info'); return;
-        }
-        set({ submittedEmails: [...submittedEmails, email], email: '' });
-        addToast("You're on the list! We'll be in touch soon.", 'success');
-      },
-
       // Toasts
       toasts: [],
       addToast: (message, type) => {
@@ -75,7 +59,6 @@ export const useAppStore = create<AppState>()(
     {
       name: 'bamzysms-storage',
       partialize: (state) => ({
-        submittedEmails: state.submittedEmails,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         welcomeModalSeen: state.welcomeModalSeen,

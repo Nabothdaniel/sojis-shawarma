@@ -4,68 +4,67 @@ namespace BamzySMS\Controllers;
 
 use BamzySMS\Core\Controller;
 use BamzySMS\Models\User;
-use BamzySMS\Services\MailService;
 use BamzySMS\Models\Verification;
 
 class AuthController extends Controller {
     private $userModel;
     private $verificationModel;
-    private $mailService;
 
-    public function __construct() {
-        $this->userModel = new User();
-        $this->verificationModel = new Verification();
-        $this->mailService = new MailService();
+    public function __construct($userModel = null, $verificationModel = null) {
+        $this->userModel = $userModel ?? new User();
+        $this->verificationModel = $verificationModel ?? new Verification();
+    }
+
+    private function sanitizeUsername($username) {
+        $username = strtolower(trim((string) $username));
+        return preg_replace('/[^a-z0-9_]/', '', $username);
+    }
+
+    private function sanitizeText($value) {
+        return trim(strip_tags((string) $value));
+    }
+
+    private function sanitizePhone($phone) {
+        $phone = trim((string) $phone);
+        return preg_replace('/[^0-9+]/', '', $phone);
     }
 
     public function sendOtp() {
         $data = $this->getPostData();
-        $email = $data['email'] ?? '';
+        $username = $this->sanitizeUsername($data['username'] ?? '');
         $type = $data['type'] ?? 'signup';
 
-        if (!$email) {
-            return $this->json(['status' => 'error', 'message' => 'Email is required'], 400);
+        if (!$username) {
+            return $this->json(['status' => 'error', 'message' => 'Username is required'], 400);
         }
 
         // Check if user exists for reset
-        if ($type === 'reset' && !$this->userModel->findByEmail($email)) {
-            return $this->json(['status' => 'error', 'message' => 'No account found with this email'], 404);
+        if ($type === 'reset' && !$this->userModel->findByUsername($username)) {
+            return $this->json(['status' => 'error', 'message' => 'No account found with this username'], 404);
         }
 
         // Generate 6-digit OTP
         $otp = sprintf("%06d", mt_rand(1, 999999));
         
         // Store in DB
-        $this->verificationModel->create($email, $otp, $type);
+        $this->verificationModel->create($username, $otp, $type);
 
-        // Send Email
-        $subject = ($type === 'signup') ? "Verify your BamzySMS Account" : "Reset your BamzySMS Password";
-        $body = "<h2>BamzySMS Verification</h2>
-                 <p>Your OTP code is: <strong style='font-size: 24px;'>$otp</strong></p>
-                 <p>This code will expire in 10 minutes.</p>";
-        
-        $sent = $this->mailService->send($email, $subject, $body);
-
-        if (!$sent) {
-            // Fallback for local testing if SMTP fails
-            error_log("MAIL_SIMULATION: OTP for $email is $otp");
-            return $this->json(['status' => 'success', 'message' => 'Verification code simulated (Check server logs)']);
-        }
-
-        return $this->json(['status' => 'success', 'message' => 'OTP sent to your email']);
+        // Simulation/Logging only (since email is gone)
+        error_log("OTP_SIMULATION: OTP for $username is $otp");
+        return $this->json(['status' => 'success', 'message' => 'Verification code generated (Check logs in simulation mode)']);
     }
 
     public function verifyOtp() {
         $data = $this->getPostData();
-        $email = $data['email'] ?? '';
-        $otp = $data['otp'] ?? '';
+        $username = $this->sanitizeUsername($data['username'] ?? '');
+        $otp = preg_replace('/\D/', '', (string) ($data['otp'] ?? ''));
         $type = $data['type'] ?? 'signup';
 
-        if (!$email || !$otp) {
-            return $this->json(['status' => 'error', 'message' => 'Email and OTP are required'], 400);
+        if (!$username || !$otp) {
+            return $this->json(['status' => 'error', 'message' => 'Username and OTP are required'], 400);
         }
 
-        if ($this->verificationModel->verify($email, $otp, $type, $type === 'signup')) {
+        if ($this->verificationModel->verify($username, $otp, $type, $type === 'signup')) {
             return $this->json(['status' => 'success', 'message' => 'Verified successfully']);
         }
 
@@ -74,22 +73,20 @@ class AuthController extends Controller {
 
     public function resetPassword() {
         $data = $this->getPostData();
-        $email = $data['email'] ?? '';
-        $otp = $data['otp'] ?? '';
-        $password = $data['password'] ?? '';
+        $username = $this->sanitizeUsername($data['username'] ?? '');
+        $otp = preg_replace('/\D/', '', (string) ($data['otp'] ?? ''));
+        $password = trim((string) ($data['password'] ?? ''));
 
-        if (!$email || !$otp || !$password) {
+        if (!$username || !$otp || !$password) {
             return $this->json(['status' => 'error', 'message' => 'All fields are required'], 400);
         }
 
-        // We verify one last time (the verifyOtp call usually deletes the OTP, but we can assume the frontend verified it, 
-        // however for security we should verify it again or use a temporary 'verified' token.
-        // For simplicity here, let's just use verify() without deleting it in the model yet, or just trust the previous step.
-        // Actually, let's modify the Verification model to optionally NOT delete on verify if needed, 
-        // OR better: the frontend sends the OTP along with the password reset.
-        
-        if ($this->verificationModel->verify($email, $otp, 'reset')) {
-            $this->userModel->updatePassword($email, $password);
+        if (strlen($password) < 6) {
+            return $this->json(['status' => 'error', 'message' => 'Password must be at least 6 characters'], 400);
+        }
+
+        if ($this->verificationModel->verify($username, $otp, 'reset')) {
+            $this->userModel->updatePassword($username, $password);
             return $this->json(['status' => 'success', 'message' => 'Password reset successfully']);
         }
 
@@ -98,19 +95,20 @@ class AuthController extends Controller {
 
     public function login() {
         $data = $this->getPostData();
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
+        $username = $this->sanitizeUsername($data['username'] ?? '');
+        $password = trim((string) ($data['password'] ?? ''));
 
-        if (!$email || !$password) {
-            return $this->json(['status' => 'error', 'message' => 'Email and password required'], 400);
+        if (!$username || !$password) {
+            return $this->json(['status' => 'error', 'message' => 'Username and password required'], 400);
         }
 
-        $user = $this->userModel->findByEmail($email);
+        // Only find by username
+        $user = $this->userModel->findByUsername($username);
 
         if ($user && password_verify($password, $user['password'])) {
             $token = \BamzySMS\Core\JwtHelper::generate([
                 'id' => $user['id'],
-                'email' => $user['email'],
+                'username' => $user['username'] ?? '',
                 'role' => $user['role']
             ]);
 
@@ -129,25 +127,52 @@ class AuthController extends Controller {
 
     public function register() {
         $data = $this->getPostData();
-        $required = ['name', 'email', 'phone', 'password'];
+        $username = $this->sanitizeUsername($data['username'] ?? '');
+        $password = trim((string) ($data['password'] ?? ''));
+        $confirmPassword = trim((string) ($data['confirm_password'] ?? ($data['confirm'] ?? '')));
+        $name = $this->sanitizeText($data['name'] ?? '');
+        $phone = $this->sanitizePhone($data['phone'] ?? '');
 
-        foreach ($required as $field) {
-            if (empty($data[$field])) {
-                return $this->json(['status' => 'error', 'message' => "$field is required"], 400);
-            }
+        if (!$username) {
+            return $this->json(['status' => 'error', 'message' => 'username is required'], 400);
         }
 
-        if ($this->userModel->findByEmail($data['email'])) {
-            return $this->json(['status' => 'error', 'message' => 'Email already exists'], 400);
+        if (!$password) {
+            return $this->json(['status' => 'error', 'message' => 'password is required'], 400);
+        }
+
+        if ($confirmPassword === '') {
+            return $this->json(['status' => 'error', 'message' => 'Password confirmation is required'], 400);
+        }
+
+        if ($password !== $confirmPassword) {
+            return $this->json(['status' => 'error', 'message' => 'Passwords do not match'], 400);
+        }
+
+        if (strlen($username) < 3) {
+            return $this->json(['status' => 'error', 'message' => 'Username must be at least 3 characters'], 400);
+        }
+
+        if (strlen($password) < 6) {
+            return $this->json(['status' => 'error', 'message' => 'Password must be at least 6 characters'], 400);
+        }
+
+        if ($this->userModel->findByUsername($username)) {
+            return $this->json(['status' => 'error', 'message' => 'Username already exists'], 400);
         }
 
         try {
-            $userId = $this->userModel->create($data);
+            $userId = $this->userModel->create([
+                'username' => $username,
+                'name' => $name ?: $username,
+                'phone' => $phone ?: null,
+                'password' => $password
+            ]);
             $userData = $this->userModel->findById($userId);
             
             $token = \BamzySMS\Core\JwtHelper::generate([
                 'id' => $userData['id'],
-                'email' => $userData['email'],
+                'username' => $userData['username'],
                 'role' => $userData['role']
             ]);
 

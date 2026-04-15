@@ -5,8 +5,8 @@ export interface ToastMessage {
 }
 
 export interface User {
+  username: string;
   name: string;
-  email: string;
   phone?: string;
   balance: number;
   smsUnits: number;
@@ -31,12 +31,6 @@ export interface AppState {
   isAuthenticated: boolean;
   login: (user: User, token?: string) => void;
   logout: () => void;
-
-  // Email (landing)
-  email: string;
-  setEmail: (email: string) => void;
-  submittedEmails: string[];
-  submitEmail: (email: string) => void;
 
   // Toasts
   toasts: ToastMessage[];

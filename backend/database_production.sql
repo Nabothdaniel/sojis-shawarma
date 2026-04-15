@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(100) NOT NULL UNIQUE,
     phone VARCHAR(20),
     password VARCHAR(255) NOT NULL,
     balance DECIMAL(15, 2) DEFAULT 0.00,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 -- 3. Verifications Table
 CREATE TABLE IF NOT EXISTS verifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NOT NULL,
     otp VARCHAR(10) NOT NULL,
     type ENUM('signup', 'reset') DEFAULT 'signup',
     expires_at DATETIME NOT NULL,

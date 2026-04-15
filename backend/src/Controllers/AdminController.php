@@ -289,7 +289,7 @@ class AdminController extends Controller {
         $this->checkAdmin($userId);
 
         $stmt = $this->db->prepare("
-            SELECT l.*, u.name as user_name, u.email as user_email 
+            SELECT l.*, u.name as user_name, u.username as user_username
             FROM system_logs l
             LEFT JOIN users u ON l.user_id = u.id
             ORDER BY l.id DESC LIMIT 200
@@ -455,22 +455,22 @@ class AdminController extends Controller {
             return $this->json(['status' => 'error', 'message' => 'Admin account already exists.'], 400);
         }
 
-        $adminEmail = 'admin@bamzysms.com';
+        $adminUsername = 'admin';
         $adminPass  = 'Admin@' . mt_rand(1000, 9999) . '!';
         $hashedPass = password_hash($adminPass, PASSWORD_DEFAULT);
 
         try {
             $stmt = $this->db->prepare("
-                INSERT INTO users (name, email, phone, password, role)
+                INSERT INTO users (username, name, phone, password, role)
                 VALUES (?, ?, ?, ?, ?)
             ");
-            $stmt->execute(['Bamzy Admin', $adminEmail, '0000000000', $hashedPass, 'admin']);
+            $stmt->execute([$adminUsername, 'Bamzy Admin', '0000000000', $hashedPass, 'admin']);
 
             return $this->json([
                 'status' => 'success', 
                 'message' => 'Master admin created.',
                 'credentials' => [
-                    'email'    => $adminEmail,
+                    'username' => $adminUsername,
                     'password' => $adminPass,
                     'note'     => 'Please log in and change your password immediately.'
                 ]
