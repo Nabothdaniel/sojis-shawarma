@@ -20,6 +20,13 @@ foreach ($envCandidates as $envFile) {
             $key = trim($key);
             $val = trim($val);
 
+            // Strip quotes from value
+            if (str_starts_with($val, '"') && str_ends_with($val, '"')) {
+                $val = substr($val, 1, -1);
+            } elseif (str_starts_with($val, "'") && str_ends_with($val, "'")) {
+                $val = substr($val, 1, -1);
+            }
+
             if (!array_key_exists($key, $_ENV) && getenv($key) === false) {
                 $_ENV[$key] = $val;
                 putenv($key . '=' . $val);

@@ -6,12 +6,12 @@ export default function EmptyHistory({ message }: { message: string }) {
     <div className="empty-state">
       {/* Open box SVG illustration */}
       <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="20" y="55" width="80" height="40" rx="4" fill="rgba(0,229,255,0.06)" stroke="rgba(0,229,255,0.2)" strokeWidth="1.5"/>
-        <path d="M20 55 L35 38 L85 38 L100 55" stroke="rgba(0,229,255,0.2)" strokeWidth="1.5" fill="rgba(0,229,255,0.04)"/>
-        <path d="M20 55 L60 65 L100 55" stroke="rgba(0,229,255,0.15)" strokeWidth="1" fill="none"/>
-        <rect x="45" y="38" width="30" height="17" rx="2" fill="rgba(0,229,255,0.08)" stroke="rgba(0,229,255,0.15)" strokeWidth="1.5"/>
-        <circle cx="75" cy="25" r="8" fill="rgba(0,229,255,0.08)" stroke="rgba(0,229,255,0.2)" strokeWidth="1.5" strokeDasharray="3 2"/>
-        <line x1="60" y1="22" x2="75" y2="25" stroke="rgba(0,229,255,0.15)" strokeWidth="1"/>
+        <rect x="20" y="55" width="80" height="40" rx="4" fill="rgba(37,99,235,0.06)" stroke="rgba(37,99,235,0.18)" strokeWidth="1.5"/>
+        <path d="M20 55 L35 38 L85 38 L100 55" stroke="rgba(37,99,235,0.18)" strokeWidth="1.5" fill="rgba(37,99,235,0.04)"/>
+        <path d="M20 55 L60 65 L100 55" stroke="rgba(37,99,235,0.14)" strokeWidth="1" fill="none"/>
+        <rect x="45" y="38" width="30" height="17" rx="2" fill="rgba(37,99,235,0.08)" stroke="rgba(37,99,235,0.14)" strokeWidth="1.5"/>
+        <circle cx="75" cy="25" r="8" fill="rgba(37,99,235,0.08)" stroke="rgba(37,99,235,0.18)" strokeWidth="1.5" strokeDasharray="3 2"/>
+        <line x1="60" y1="22" x2="75" y2="25" stroke="rgba(37,99,235,0.14)" strokeWidth="1"/>
       </svg>
 
       <div style={{ color: 'var(--color-text-faint)', marginTop: 4 }}>

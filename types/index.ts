@@ -31,6 +31,7 @@ export interface AppState {
   isAuthenticated: boolean;
   login: (user: User, token?: string) => void;
   logout: () => void;
+  updateUserBalance: (balance: number) => void;
 
   // Toasts
   toasts: ToastMessage[];

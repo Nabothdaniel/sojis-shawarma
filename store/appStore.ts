@@ -34,6 +34,12 @@ export const useAppStore = create<AppState>()(
         localStorage.removeItem('bamzysms-token');
         set({ user: null, isAuthenticated: false });
       },
+      updateUserBalance: (balance: number) => {
+        set((s) => {
+          if (!s.user) return s;
+          return { user: { ...s.user, balance } };
+        });
+      },
 
       // Toasts
       toasts: [],

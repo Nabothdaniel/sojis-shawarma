@@ -43,18 +43,24 @@ class UserController extends Controller {
     }
     public function updatePin() {
         $userId = AuthMiddleware::handle();
+        $rawData = json_decode(file_get_contents('php://input'), true);
         $data = $this->getPostData();
         $pin = $data['pin'] ?? '';
 
+        // Diagnostic logging
+        $rawPin = $rawData['pin'] ?? 'MISSING';
+        error_log("[DIAG] PIN Setup - User: $userId, Raw Length: " . strlen($rawPin) . ", Decrypted: " . (is_string($pin) ? $pin : 'FAILED'));
+
         if (!preg_match('/^\d{4}$/', $pin)) {
-            return $this->json(['status' => 'error', 'message' => 'PIN must be exactly 4 digits'], 400);
+            $msg = is_string($pin) && strlen($pin) > 0 ? "PIN must be 4 digits (received " . strlen($pin) . " chars)" : "PIN must be exactly 4 digits";
+            return $this->json(['status' => 'error', 'message' => $msg], 400);
         }
 
         if ($this->userModel->updatePin($userId, $pin)) {
             return $this->json(['status' => 'success', 'message' => 'PIN updated successfully']);
         }
 
-        return $this->json(['status' => 'error', 'message' => 'Failed to update PIN'], 500);
+        return $this->json(['status' => 'error', 'message' => 'Failed to update PIN in database'], 500);
     }
     public function verifyPin() {
         $userId = AuthMiddleware::handle();

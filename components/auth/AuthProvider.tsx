@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { userService } from '@/lib/api';
 import PageLoader from '@/components/ui/PageLoader';
+import { useRealtime } from '@/hooks/useRealtime';
 
 /**
  * AuthProvider component handles session initialization and re-authentication
@@ -11,6 +12,9 @@ import PageLoader from '@/components/ui/PageLoader';
  */
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user, login, logout, hasHydrated } = useAppStore();
+  
+  // Initialize custom real-time event stream
+  useRealtime();
 
   useEffect(() => {
     // Only attempt profile fetch if we have hydrated the store from localStorage

@@ -87,12 +87,10 @@ class ActivationService {
         $activationCost = (float)($result['activationCost'] ?? $lastAttemptedPrice);
         $finalCharge    = PricingHelper::calculatePrice($activationCost, $serviceCode, $countryId);
 
-        if (!$this->userModel->deductBalance($userId, $finalCharge)) {
+        if (!$this->transactionModel->create($userId, $finalCharge, 'debit', "SMS Purchase: $serviceName ($countryName)")) {
             try { $this->sms->setStatus($activationId, 8); } catch (\Throwable $e) {}
-            throw new Exception("Failed to deduct balance");
+            throw new Exception("Insufficient balance or failed to deduct balance");
         }
-
-        $this->transactionModel->create($userId, $finalCharge, 'debit', "SMS Purchase: $serviceName ($countryName)");
         
         $purchaseId = $this->purchaseModel->create(
             $userId, $activationId, $serviceCode, $serviceName, $countryName, $phoneNumber, $finalCharge

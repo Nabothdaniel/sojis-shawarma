@@ -64,9 +64,9 @@ export default function Footer() {
                     color: 'var(--color-text-muted)', transition: 'all 0.2s', textDecoration: 'none',
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#1A73E8';
-                    (e.currentTarget as HTMLElement).style.color = '#1A73E8';
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(26,115,232,0.06)';
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-primary)';
+                    (e.currentTarget as HTMLElement).style.color = 'var(--color-primary)';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--color-primary-dim)';
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)';
@@ -123,4 +123,3 @@ export default function Footer() {
     </footer>
   );
 }
-

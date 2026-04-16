@@ -8,18 +8,21 @@ use BamzySMS\Services\ActivationService;
 use BamzySMS\Services\SmsBowerClient;
 use BamzySMS\Models\SMSPurchase;
 use BamzySMS\Models\User;
+use BamzySMS\Models\SystemEvent;
 
 class SMSController extends Controller {
     private ActivationService $activationService;
     private SmsBowerClient $sms;
     private $purchaseModel;
     private $userModel;
+    private $eventModel;
 
     public function __construct() {
         $this->activationService = new ActivationService();
         $this->sms               = new SmsBowerClient();
         $this->purchaseModel     = new SMSPurchase();
         $this->userModel         = new User();
+        $this->eventModel        = new SystemEvent();
     }
 
     // ─── POST /api/sms/buy ────────────────────────────────────────────────────
@@ -75,6 +78,13 @@ class SMSController extends Controller {
         if (empty($successful)) {
             return $this->json(['status' => 'error', 'message' => $lastError], 422);
         }
+
+        // Log balance update for real-time reactivity
+        $updatedUser = $this->userModel->findById($userId);
+        $this->eventModel->log($userId, 'balance_updated', [
+            'new_balance' => $updatedUser['balance'],
+            'message'     => 'Balance updated after purchase'
+        ]);
 
         return $this->json([
             'status'  => 'success',
@@ -148,6 +158,11 @@ class SMSController extends Controller {
                 $purchase = $this->purchaseModel->getByActivationId($activationId, $userId);
                 if ($purchase) {
                     $this->purchaseModel->updateStatus($purchase['id'], 'received', $status['code']);
+                    // Log event for real-time UI notification
+                    $this->eventModel->log($userId, 'notification', [
+                        'type'    => 'success',
+                        'message' => "OTP Received: " . $status['code']
+                    ]);
                 }
             } elseif ($status['status'] === 'CANCEL') {
                 $purchase = $this->purchaseModel->getByActivationId($activationId, $userId);

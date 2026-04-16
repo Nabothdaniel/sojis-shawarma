@@ -17,6 +17,8 @@ echo ""
 echo "------------------------------------------"
 echo "Starting PHP Backend Server (Port 8000)..."
 echo "------------------------------------------"
+# Enable multi-processing for SSE support
+export PHP_CLI_SERVER_WORKERS=5
 # We use the XAMPP PHP binary for consistency
 /opt/lampp/bin/php -S localhost:8000 -t backend/public &
 
@@ -25,4 +27,4 @@ echo ""
 echo "------------------------------------------"
 echo "Starting Next.js Frontend Developer Server..."
 echo "------------------------------------------"
-cd frontend && npm run dev
+npm run dev

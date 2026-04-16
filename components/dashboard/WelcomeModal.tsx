@@ -53,7 +53,7 @@ export default function WelcomeModal() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 40, height: 40, borderRadius: 10,
-              background: 'linear-gradient(135deg, var(--color-primary), #0EA5E9)',
+              background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '0.7rem', color: '#000' }}>BS</span>

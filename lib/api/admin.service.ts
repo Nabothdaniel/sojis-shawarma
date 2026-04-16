@@ -10,6 +10,16 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface AdminUserPayload {
+  userId?: number;
+  name: string;
+  username?: string;
+  phone?: string;
+  role: 'user' | 'admin';
+  password?: string;
+  balance?: number;
+}
+
 export interface AdminSettings {
   price_markup_multiplier: string;
   usd_to_ngn_rate: string;
@@ -28,6 +38,22 @@ export const adminService = {
   // Get all users
   getUsers: (): Promise<{ status: string; data: AdminUser[] }> =>
     apiClient.get('/admin/users'),
+
+  // Create a user
+  createUser: (payload: AdminUserPayload): Promise<{ status: string; message: string; data: AdminUser }> =>
+    apiClient.post('/admin/users', payload),
+
+  // Update a user
+  updateUser: (payload: AdminUserPayload): Promise<{ status: string; message: string; data: AdminUser }> =>
+    apiClient.put('/admin/users', payload),
+
+  // Delete a user
+  deleteUser: (userId: number): Promise<{ status: string; message: string }> =>
+    apiClient.delete(`/admin/users?userId=${userId}`),
+
+  // Top-up / debit a user balance
+  topUpUser: (payload: { userId: number; amount: number; type?: 'credit' | 'debit'; note?: string }): Promise<{ status: string; message: string }> =>
+    apiClient.post('/admin/user/topup', payload),
 
   // Update a user's balance
   updateUserBalance: (userId: number, balance: number): Promise<{ status: string; message: string }> =>

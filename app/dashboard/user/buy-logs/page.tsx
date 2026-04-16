@@ -22,12 +22,12 @@ export default function BuyLogsPage() {
           <div style={{ position: 'relative', width: 120, height: 120, marginBottom: 8 }}>
             <div style={{
               position: 'absolute', inset: 0, borderRadius: '50%',
-              border: '2px solid rgba(0,229,255,0.2)',
+              border: '2px solid var(--color-primary-glow)',
               animation: 'spinSlow 8s linear infinite',
             }} />
             <div style={{
               position: 'absolute', inset: 8, borderRadius: '50%',
-              border: '2px dashed rgba(0,229,255,0.1)',
+              border: '2px dashed var(--color-primary-dim)',
               animation: 'spinSlow 12s linear infinite reverse',
             }} />
             <div style={{
@@ -35,7 +35,7 @@ export default function BuyLogsPage() {
               alignItems: 'center', justifyContent: 'center',
               background: 'var(--color-primary-dim)',
               borderRadius: '50%',
-              border: '1px solid rgba(0,229,255,0.2)',
+              border: '1px solid var(--color-primary-glow)',
               color: 'var(--color-primary)',
             }}>
               <RiTimeLine size={40} />

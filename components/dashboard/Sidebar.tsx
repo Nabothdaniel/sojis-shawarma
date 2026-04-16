@@ -54,7 +54,7 @@ export default function Sidebar() {
       }}>
         <div style={{
           width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-          background: 'linear-gradient(135deg, var(--color-primary), #0EA5E9)',
+          background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 0 12px var(--color-primary-glow)',
         }}>

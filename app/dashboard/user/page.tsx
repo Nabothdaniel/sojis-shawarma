@@ -69,7 +69,7 @@ export default function DashboardPage() {
         {/* Security Banner */}
         {!user?.hasPin && (
           <div className="security-banner" style={{ 
-            background: 'linear-gradient(135deg, var(--color-primary) 0%, #0081ff 100%)', 
+            background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)', 
             borderRadius: 20, color: '#fff', border: 'none', 
             marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '32px', position: 'relative', overflow: 'hidden',
@@ -110,7 +110,7 @@ export default function DashboardPage() {
             padding: '24px', borderRadius: 20, display: 'flex', flexDirection: 'column', gap: 20
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(124,58,237,0.1)', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--color-primary-dim)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <RiWalletLine size={24} />
                </div>
                <Link href="/dashboard/fund-wallet">
@@ -189,7 +189,7 @@ export default function DashboardPage() {
           <div className="stat-card" style={{ padding: 32, borderRadius: 24, border: '1px solid var(--color-border)', background: 'var(--color-bg-2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,229,255,0.1)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-primary-dim)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <RiShoppingCartLine size={18} />
                  </div>
                  <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem', margin: 0 }}>
@@ -227,7 +227,7 @@ export default function DashboardPage() {
           <div className="stat-card" style={{ padding: 32, borderRadius: 24, border: '1px solid var(--color-border)', background: 'var(--color-bg-2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(124,58,237,0.1)', color: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                 <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--color-primary-dim)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <RiHistoryLine size={18} />
                  </div>
                  <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem', margin: 0 }}>
@@ -258,6 +258,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      <PinModal
+        isOpen={pinModalOpen}
+        onClose={() => setPinModalOpen(false)}
+        onSuccess={handleSetPin}
+        title="Set Transaction PIN"
+        description="Create a secure 4-digit PIN to protect your account."
+        isLoading={pinLoading}
+      />
 
       <style>{`
         @media (max-width: 1100px) {

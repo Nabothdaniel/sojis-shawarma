@@ -51,7 +51,7 @@ export default function Topbar({ title }: { title?: string }) {
         <div className="topbar-logo">
           <div style={{
             width: 28, height: 28, borderRadius: 8,
-            background: 'linear-gradient(135deg, var(--color-primary), #0EA5E9)',
+            background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <RiSignalTowerFill size={14} color="#fff" />
@@ -75,8 +75,8 @@ export default function Topbar({ title }: { title?: string }) {
           <div className="balance-chip" style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '5px 10px', borderRadius: 999,
-            background: 'rgba(0,229,255,0.08)',
-            border: '1px solid rgba(0,229,255,0.15)',
+            background: 'var(--color-primary-dim)',
+            border: '1px solid var(--color-primary-glow)',
             fontSize: '0.78rem', fontWeight: 600,
             color: 'var(--color-primary)',
             fontFamily: 'var(--font-display)',

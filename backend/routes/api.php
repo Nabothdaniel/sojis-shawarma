@@ -37,24 +37,40 @@ $router->add('GET',  '/sms/status',           'SMSController',         'getStatu
 $router->add('POST', '/sms/set-status',       'SMSController',         'setActivationStatus');
 $router->add('POST', '/sms/hide',             'SMSController',         'hide');
 
-// Admin
-$router->add('GET',  '/admin/provider-balance', 'AdminController', 'getProviderBalance');
-$router->add('GET',  '/admin/users',            'AdminController', 'getAllUsers');
-$router->add('POST', '/admin/user/balance',     'AdminController', 'updateUserBalance');
-$router->add('GET',  '/admin/settings',         'AdminController', 'getSettings');
-$router->add('POST', '/admin/settings',        'AdminController', 'updateSettings');
-$router->add('GET',  '/admin/logs',             'AdminController', 'getSystemLogs');
-$router->add('GET',  '/admin/analytics',        'AdminController', 'getAnalytics');
-$router->add('GET',  '/admin/pricing/services', 'AdminController', 'getPaginatedServices');
-$router->add('GET',  '/admin/pricing/overrides', 'AdminController', 'getPricingOverrides');
-$router->add('GET',  '/admin/provider/status', 'AdminController', 'getProviderStatus');
-$router->add('GET',  '/admin/countries',       'AdminController', 'getCountries');
-$router->add('GET',  '/admin/promote-me',       'AdminController', 'promoteToAdmin');
-$router->add('POST', '/admin/pricing/update',    'AdminController', 'updatePricingOverride');
-$router->add('POST', '/admin/pricing/bulk-update','AdminController', 'bulkUpdatePricingOverrides');
-$router->add('DELETE','/admin/pricing/delete',   'AdminController', 'deletePricingOverride');
-$router->add('GET',  '/admin/setup-master',     'AdminController', 'setupMasterAdmin');
-$router->add('GET',  '/admin/run-migrations',   'AdminController', 'runMigrations');
+// Admin - Users
+$router->add('GET',    '/admin/users',          'AdminUserController',   'getAllUsers');
+$router->add('POST',   '/admin/users',          'AdminUserController',   'createUser');
+$router->add('PUT',    '/admin/users',          'AdminUserController',   'updateUser');
+$router->add('DELETE', '/admin/users',          'AdminUserController',   'deleteUser');
+$router->add('POST',   '/admin/user/topup',     'AdminUserController',   'topUpUserBalance');
+$router->add('POST',   '/admin/user/balance',   'AdminUserController',   'updateUserBalance');
+$router->add('GET',    '/admin/promote-me',     'AdminUserController',   'promoteToAdmin');
+
+// Admin - Pricing & Services
+$router->add('GET',    '/admin/pricing/overrides', 'AdminPricingController', 'getPricingOverrides');
+$router->add('POST',   '/admin/pricing/update',    'AdminPricingController', 'updatePricingOverride');
+$router->add('POST',   '/admin/pricing/bulk-update','AdminPricingController', 'bulkUpdatePricingOverrides');
+$router->add('DELETE', '/admin/pricing/delete',    'AdminPricingController', 'deletePricingOverride');
+$router->add('GET',    '/admin/pricing/services',  'AdminPricingController', 'getPaginatedServices');
+$router->add('GET',    '/admin/countries',         'AdminPricingController', 'getCountries');
+
+// Admin - System
+$router->add('GET',  '/admin/settings',         'AdminSystemController', 'getSettings');
+$router->add('POST', '/admin/settings',        'AdminSystemController', 'updateSettings');
+$router->add('GET',  '/admin/logs',             'AdminSystemController', 'getSystemLogs');
+$router->add('GET',  '/admin/analytics',        'AdminSystemController', 'getAnalytics');
+$router->add('GET',  '/admin/provider-balance', 'AdminSystemController', 'getProviderBalance');
+$router->add('GET',  '/admin/provider/status',  'AdminSystemController', 'getProviderStatus');
+$router->add('GET',  '/admin/run-migrations',   'AdminSystemController', 'runMigrations');
+$router->add('GET',  '/admin/setup-master',     'AdminSystemController', 'setupMasterAdmin');
+
+// Payment — Virtual Account (PaymentPoint)
+$router->add('GET',  '/payment/virtual-account', 'PaymentController',     'getVirtualAccount');
+
+// Webhook & Events (Custom Reactivity)
+$router->add('POST', '/webhook/payment',          'WebhookController',     'handlePayment');
+$router->add('POST', '/webhook/paymentpoint',     'WebhookController',     'handlePaymentPoint');
+$router->add('GET',  '/events/stream',            'EventController',       'stream');
 
 // Utils
 $router->add('GET',  '/utils/server-ip',      'UtilsController',       'getServerIp');

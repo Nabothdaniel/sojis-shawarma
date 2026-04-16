@@ -193,8 +193,8 @@ h1, h2, h3, h4, h5, h6 {
   gap: 8px;
   padding: 11px 22px;
   background: transparent;
-  color: #1A73E8;
-  border: 1.5px solid #1A73E8;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-weight: 600;
@@ -223,9 +223,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 .input-field::placeholder { color: var(--color-text-faint); }
 .input-field:focus {
-  border-color: #1A73E8;
+  border-color: var(--color-primary);
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 /* ── Select ───────────────────────────────────────── */
@@ -244,8 +244,8 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
 }
 .select-field:focus {
-  border-color: #1A73E8;
-  box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
 /* ── Cards ────────────────────────────────────────── */
@@ -279,9 +279,9 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-body);
 }
 .badge-primary {
-  background: rgba(26,115,232,0.1);
-  color: #1A73E8;
-  border: 1px solid rgba(26,115,232,0.2);
+  background: var(--color-primary-dim);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-glow);
 }
 
 /* ── Nav link ─────────────────────────────────────── */
@@ -294,7 +294,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: color 0.2s;
   cursor: pointer;
 }
-.nav-link:hover, .nav-link.active { color: #1A73E8; }
+.nav-link:hover, .nav-link.active { color: var(--color-primary); }
 
 /* ── Divider ──────────────────────────────────────── */
 .divider { height: 1px; background: var(--color-border); }
@@ -336,8 +336,8 @@ h1, h2, h3, h4, h5, h6 {
 /* ── Grid background (landing) ────────────────────── */
 .grid-bg {
   background-image:
-    linear-gradient(rgba(26,115,232,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(26,115,232,0.04) 1px, transparent 1px);
+    linear-gradient(var(--color-primary-glow) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-primary-glow) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -351,8 +351,8 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .step-card:hover, .step-card.active {
-  border-color: #1A73E8;
-  box-shadow: 0 4px 20px rgba(26,115,232,0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 20px var(--color-primary-glow);
 }
 
 /* ── Animations ───────────────────────────────────── */
@@ -373,8 +373,8 @@ h1, h2, h3, h4, h5, h6 {
   to   { transform: rotate(360deg); }
 }
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0.3); }
-  50%       { box-shadow: 0 0 0 12px rgba(26,115,232,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.3); }
+  50%       { box-shadow: 0 0 0 12px rgba(37,99,235,0); }
 }
 @keyframes dotBounce {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
@@ -385,7 +385,7 @@ h1, h2, h3, h4, h5, h6 {
 .loader-dot {
   width: 10px; height: 10px;
   border-radius: 50%;
-  background: #1A73E8;
+  background: var(--color-primary);
   animation: dotBounce 1.2s ease-in-out infinite;
 }
 .loader-dot:nth-child(2) { animation-delay: 0.2s; opacity: 0.7; }
@@ -430,8 +430,8 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--color-bg-hover);
 }
 .sidebar-item.active {
-  color: #1A73E8;
-  background: rgba(26,115,232,0.08);
+  color: var(--color-primary);
+  background: var(--color-primary-dim);
   font-weight: 600;
 }
 
@@ -457,13 +457,13 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-body);
 }
 .breadcrumb a {
-  color: #1A73E8;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
 /* ── Auth ─────────────────────────────────────────── */
 .auth-bg {
-  background: linear-gradient(135deg, #EBF3FD 0%, #F3EEFF 50%, #FFF8EC 100%);
+  background: linear-gradient(135deg, #EBF3FD 0%, #F2F8FF 52%, #FFF8EC 100%);
 }
 .auth-card {
   background: #fff;
@@ -509,8 +509,8 @@ h1, h2, h3, h4, h5, h6 {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .accordion-item.open {
-  border-color: #1A73E8;
-  box-shadow: 0 2px 12px rgba(26,115,232,0.08);
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 12px var(--color-primary-glow);
 }
 .accordion-trigger {
   width: 100%;
@@ -548,7 +548,7 @@ h1, h2, h3, h4, h5, h6 {
   border: none;
   flex-shrink: 0;
 }
-.toggle.on { background: #1A73E8; }
+.toggle.on { background: var(--color-primary); }
 .toggle::after {
   content: '';
   position: absolute;
@@ -604,4 +604,3 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
   gap: 16px;
 }
-

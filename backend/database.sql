@@ -61,6 +61,16 @@ CREATE TABLE IF NOT EXISTS sms_purchases (
     INDEX idx_user_status (user_id, status)
 );
 
+CREATE TABLE IF NOT EXISTS system_events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    event_type VARCHAR(50) NOT NULL, -- e.g., 'balance_updated', 'notification', 'otp_received'
+    payload TEXT, -- JSON data
+    is_delivered BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_delivered (user_id, is_delivered)
+);
+
 -- Migration: if upgrading from the old schema, run these manually:
 -- ALTER TABLE users DROP COLUMN email;
 -- ALTER TABLE sms_purchases

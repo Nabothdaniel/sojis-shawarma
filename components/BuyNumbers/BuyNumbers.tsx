@@ -84,7 +84,7 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '10px 14px', borderRadius: 10,
-              background: 'var(--color-primary-dim)', border: '1px solid rgba(0,229,255,0.15)',
+              background: 'var(--color-primary-dim)', border: '1px solid var(--color-primary-glow)',
               minHeight: '42px',
             }}>
               {logic.checkingPrice ? (

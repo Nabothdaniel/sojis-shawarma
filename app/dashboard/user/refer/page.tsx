@@ -39,15 +39,15 @@ export default function ReferPage() {
         {/* Hero banner */}
         <div style={{
           borderRadius: 'var(--radius-xl)', overflow: 'hidden',
-          background: 'linear-gradient(135deg, rgba(0,229,255,0.08), rgba(124,58,237,0.08))',
-          border: '1px solid rgba(0,229,255,0.15)',
+          background: 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(14,165,233,0.08) 60%, rgba(245,158,11,0.07) 100%)',
+          border: '1px solid rgba(37,99,235,0.15)',
           padding: '32px', marginBottom: 20,
           display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12,
         }}>
           <div style={{
             width: 64, height: 64, borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--color-primary-dim), rgba(124,58,237,0.1))',
-            border: '1px solid rgba(0,229,255,0.2)',
+            background: 'linear-gradient(135deg, rgba(37,99,235,0.12), rgba(14,165,233,0.18))',
+            border: '1px solid rgba(37,99,235,0.18)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)',
           }}>
             <RiGiftLine size={30} />
@@ -92,7 +92,7 @@ export default function ReferPage() {
               <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{
                   width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                  background: 'var(--color-primary-dim)', border: '1px solid rgba(0,229,255,0.2)',
+                  background: 'var(--color-primary-dim)', border: '1px solid rgba(37,99,235,0.18)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.7rem', color: 'var(--color-primary)',
                 }}>
@@ -113,7 +113,7 @@ export default function ReferPage() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
-              { icon: <RiUserSharedLine size={18} />, label: 'Total Referred Users', value: '0', color: '#7C3AED' },
+              { icon: <RiUserSharedLine size={18} />, label: 'Total Referred Users', value: '0', color: 'var(--color-secondary)' },
               { icon: <RiCoinLine size={18} />, label: 'Total Transfer Amount', value: '₦0', color: 'var(--color-primary)' },
             ].map((stat) => (
               <div key={stat.label} style={{

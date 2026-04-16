@@ -105,7 +105,7 @@ export default function HeroSection() {
               <div style={{ textAlign: 'center', minWidth: 60 }}>
                 <div style={{
                   fontFamily: 'var(--font-display)', fontWeight: 800,
-                  fontSize: 'clamp(1.4rem, 3vw, 1.9rem)', color: '#1A73E8',
+                  fontSize: 'clamp(1.4rem, 3vw, 1.9rem)', color: 'var(--color-primary)',
                   lineHeight: 1, marginBottom: 5,
                 }}>
                   {stat.value}
@@ -134,4 +134,3 @@ export default function HeroSection() {
     </section>
   );
 }
-

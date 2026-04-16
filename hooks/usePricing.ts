@@ -66,11 +66,14 @@ export function usePricing() {
       ]);
 
       setGlobalSettings(settingsRes.data);
-      setServices(servicesRes.data);
-      setPagination(servicesRes.pagination);
+      setServices(servicesRes.data || []);
+      if (servicesRes.pagination) {
+        setPagination(servicesRes.pagination);
+      }
       
       const initialForm: { [key: string]: { multiplier: string, fixedPrice: string } } = {};
-      servicesRes.data.forEach((s: any) => {
+      const servicesData = servicesRes.data || [];
+      servicesData.forEach((s: any) => {
         initialForm[s.code] = {
           multiplier: s.override?.multiplier?.toString() || '',
           fixedPrice: s.override?.fixed_price?.toString() || ''
@@ -83,7 +86,7 @@ export function usePricing() {
     } finally {
       setLoading(false);
     }
-  }, [addToast, canLoadAdminData, pagination.limit, selectedCountry, search, pagination.page]);
+  }, [addToast, canLoadAdminData, pagination?.limit, selectedCountry, search, pagination?.page]);
 
   useEffect(() => {
     if (!canLoadAdminData) return;
