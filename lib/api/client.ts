@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const getApiUrl = () => {
+  const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  // Strip quotes and semicolons
+  return url.replace(/["';]/g, '');
+};
+
+const API_URL = getApiUrl();
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -66,13 +72,18 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // 2. Encrypt sensitive fields (password, pin)
+      // 2. Encrypt sensitive fields
       if (config.data) {
-        if (config.data.password) {
-          config.data.password = await encryptSensitive(config.data.password);
-        }
-        if (config.data.pin) {
-          config.data.pin = await encryptSensitive(config.data.pin);
+        const sensitiveFields = [
+          'password', 'confirm_password', 'confirm', 
+          'pin', 'transaction_pin', 
+          'old_password', 'new_password', 'current_password'
+        ];
+        
+        for (const field of sensitiveFields) {
+          if (config.data[field]) {
+            config.data[field] = await encryptSensitive(config.data[field]);
+          }
         }
       }
     }

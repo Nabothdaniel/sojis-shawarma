@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
     token VARCHAR(255),
     transaction_pin VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_balance_non_negative CHECK (balance >= 0)
 );
 
 -- 2. Transactions Table
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     amount DECIMAL(15, 2) NOT NULL,
     type ENUM('credit', 'debit') NOT NULL,
     description VARCHAR(255),
+    external_ref VARCHAR(255) NULL UNIQUE COMMENT 'Provider transaction ID for idempotent webhook processing',
     status ENUM('pending', 'completed', 'failed') DEFAULT 'completed',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)

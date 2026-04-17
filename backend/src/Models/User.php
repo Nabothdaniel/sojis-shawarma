@@ -41,9 +41,11 @@ class User {
     }
 
     /**
-     * Update a user's balance directly.
+     * Update a user's balance directly (admin/manual adjustments).
+     * Clamps to 0 — cannot set a negative balance.
      */
     public function updateBalance(int $userId, float $newBalance): bool {
+        $newBalance = max(0.00, $newBalance); // hard floor: never go negative
         $stmt = $this->db->prepare("UPDATE users SET balance = ? WHERE id = ?");
         return $stmt->execute([$newBalance, $userId]);
     }
@@ -69,7 +71,12 @@ class User {
         return $stmt->execute([$amount, $userId, $amount]);
     }
 
+    /**
+     * Add to a user's balance (top-ups, refunds).
+     * Guards against negative amounts being passed in.
+     */
     public function addBalance($userId, $amount) {
+        if ((float)$amount <= 0) return false; // never subtract via addBalance
         $stmt = $this->db->prepare("UPDATE users SET balance = balance + ? WHERE id = ?");
         return $stmt->execute([$amount, $userId]);
     }

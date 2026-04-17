@@ -70,6 +70,7 @@ $router->add('GET',  '/payment/virtual-account', 'PaymentController',     'getVi
 // Webhook & Events (Custom Reactivity)
 $router->add('POST', '/webhook/payment',          'WebhookController',     'handlePayment');
 $router->add('POST', '/webhook/paymentpoint',     'WebhookController',     'handlePaymentPoint');
+$router->add('GET',  '/webhook/paymentpoint',     'WebhookController',     'checkPaymentPoint');
 $router->add('GET',  '/events/stream',            'EventController',       'stream');
 
 // Utils

@@ -78,8 +78,10 @@ class WebhookController extends Controller {
 
         $paymentService = new PaymentPointService();
         if (!$paymentService->verifyWebhookSignature($rawPayload, $signatureHeader)) {
-            Logger::warning('PAYMENTPOINT_WEBHOOK_INVALID_SIG', [
+            Logger::error('PAYMENTPOINT_WEBHOOK_INVALID_SIG', [
                 'received_sig' => $signatureHeader,
+                'payload_size' => strlen($rawPayload),
+                'ip'           => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
             ]);
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Invalid signature']);
@@ -112,8 +114,10 @@ class WebhookController extends Controller {
                 'transaction_status'  => $transactionStatus,
                 'transaction_id'      => $transactionId,
             ]);
+            
+            // Return 200 to PaymentPoint to stop retries for non-failure events
             http_response_code(200);
-            echo json_encode(['status' => 'ignored', 'message' => 'Non-successful event received']);
+            echo json_encode(['status' => 'ignored', 'message' => 'Non-success event acknowledged']);
             exit;
         }
 
@@ -123,16 +127,9 @@ class WebhookController extends Controller {
             exit;
         }
 
-        // ── Step 5: Idempotency — don't credit the same transaction twice ─────
-        // We use the transaction_id as the description lookup. For a real system
-        // you would store processed transaction IDs in a separate table.
-        $alreadyProcessed = $this->transactionAlreadyProcessed($transactionId);
-        if ($alreadyProcessed) {
-            Logger::info('PAYMENTPOINT_WEBHOOK_DUPLICATE', ['transaction_id' => $transactionId]);
-            http_response_code(200);
-            echo json_encode(['status' => 'ignored', 'message' => 'Transaction already processed']);
-            exit;
-        }
+        // ── Step 5: Idempotency — the UNIQUE constraint on transactions.external_ref
+        //    ensures only one INSERT succeeds even if two webhooks arrive simultaneously.
+        //    We pass $transactionId as the $externalRef; a duplicate will return false.
 
         // ── Step 6: Find the user by their virtual account number ─────────────
         $receiverAccountNumber = $receiver['account_number'] ?? '';
@@ -154,9 +151,20 @@ class WebhookController extends Controller {
 
         // ── Step 7: Credit the user's wallet ─────────────────────────────────
         try {
-            // Use settlement_amount (after fee) to credit the user
+            // Use settlement_amount (after fee) to credit the user.
+            // Pass $transactionId as $externalRef — the UNIQUE constraint makes this atomic:
+            // if a duplicate webhook fires, the INSERT will fail with a duplicate-key error
+            // and create() returns false without crediting the wallet twice.
             $description = "PaymentPoint deposit — Ref: $transactionId";
-            $this->transactionModel->create($userId, $settlementAmount, 'credit', $description);
+            $credited = $this->transactionModel->create($userId, $settlementAmount, 'credit', $description, $transactionId);
+
+            if (!$credited) {
+                // This means the transaction_id was already inserted — duplicate webhook
+                Logger::info('PAYMENTPOINT_WEBHOOK_DUPLICATE', ['transaction_id' => $transactionId]);
+                http_response_code(200);
+                echo json_encode(['status' => 'ignored', 'message' => 'Transaction already processed']);
+                exit;
+            }
 
             // Trigger real-time UI update via SSE events
             $updatedUser = $this->userModel->findById($userId);
@@ -189,6 +197,18 @@ class WebhookController extends Controller {
         }
     }
 
+    /**
+     * GET /api/webhook/paymentpoint
+     * Used for browser testing and diagnostic checks.
+     */
+    public function checkPaymentPoint() {
+        return $this->json([
+            'status' => 'active',
+            'message' => 'PaymentPoint Webhook endpoint is reachabe. Please use POST for real notifications.',
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+    }
+
     // ─── Private Helpers ──────────────────────────────────────────────────────
 
     /**
@@ -216,21 +236,4 @@ class WebhookController extends Controller {
         }
     }
 
-    /**
-     * Simple idempotency check — ensures a PaymentPoint transaction_id isn't credited twice.
-     */
-    private function transactionAlreadyProcessed(string $transactionId): bool {
-        try {
-            $db   = \BamzySMS\Core\Database::getInstance()->getConnection();
-            $stmt = $db->prepare("
-                SELECT id FROM transactions
-                WHERE description LIKE ?
-                LIMIT 1
-            ");
-            $stmt->execute(["%Ref: $transactionId%"]);
-            return (bool)$stmt->fetch();
-        } catch (\PDOException $e) {
-            return false;
-        }
-    }
 }

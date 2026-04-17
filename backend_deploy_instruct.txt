@@ -24,9 +24,9 @@ This package is optimized for hosting the backend in the `public_html/api/` fold
 3. Edit `.env` and fill in your details:
    ```env
    DB_HOST=localhost
-   DB_NAME=youruser_bamzysms
-   DB_USER=youruser_bamzysms_user
-   DB_PASS=your_strong_password
+   DB_NAME=tiheogwi_bamzy_sms
+   DB_USER=tiheogwi_bamzy_admin
+   DB_PASS=tiheogwi_bamzy_admin
    SMSBOWER_API_KEY=your_actual_key_here
    CORS_ALLOWED_ORIGINS=https://yourdomain.com
    ```
@@ -36,4 +36,4 @@ This package is optimized for hosting the backend in the `public_html/api/` fold
 - **500 Internal Server Error**: Check the PHP error logs in cPanel or make sure your PHP version is 8.1+.
 - **Database Connection Error**: Double-check your `.env` credentials.
 
-Your backend is now ready! You can test it by visiting `https://yourdomain.com/api/countries`.
+Your backend is now ready! You can test it by visiting `https://yourdomain.com/api{"error":"Endpoint not found"}`.

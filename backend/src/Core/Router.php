@@ -19,31 +19,42 @@ class Router {
 
     public function resolve() {
         $method = $_SERVER['REQUEST_METHOD'];
-        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        
-        // Handle subdirectory detection (e.g. /api/)
-        $basePath = dirname($_SERVER['SCRIPT_NAME']);
+        // 1. Detect base path (subdirectory where the script lives)
+        $scriptName = $_SERVER['SCRIPT_NAME'];
+        $basePath   = dirname($scriptName);
         if ($basePath === '/' || $basePath === '\\') {
             $basePath = '';
         }
 
-        // Strip base path from URI if it exists at the start
+        // 2. Resolve URI
+        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        // Remove quotes and semicolons that might come from malformed config
+        $uri = str_replace(['"', ';'], '', $uri);
+        
+        // 3. Strip base path from URI (e.g. /api/user -> /user)
         if ($basePath && strpos($uri, $basePath) === 0) {
             $uri = substr($uri, strlen($basePath));
         }
 
-        // Optional: Strip leading '/api' if it's still there (handles local /api/ requests)
-        if (strpos($uri, '/api') === 0) {
+        // 4. Fallback: Strip leading '/api' if it's still there (e.g. for some local alias setups)
+        // Only do this if uri isn't empty and the first segment is /api
+        if (strpos($uri, '/api/') === 0) {
             $uri = substr($uri, 4);
+        } elseif ($uri === '/api') {
+            $uri = '/';
         }
 
-        // Ensure uri starts with / and is at least /
-        if (!$uri || $uri === '' || $uri === '/') {
+        // 5. Normalization
+        if (!$uri || $uri === '') {
             $uri = '/';
         } else {
             // Ensure leading slash
             if ($uri[0] !== '/') {
                 $uri = '/' . $uri;
+            }
+            // Strip trailing slash if it's not just '/'
+            if ($uri !== '/' && substr($uri, -1) === '/') {
+                $uri = substr($uri, 0, -1);
             }
         }
 
@@ -64,10 +75,13 @@ class Router {
         header("Content-Type: application/json");
         header("HTTP/1.1 404 Not Found");
         echo json_encode([
-            'error' => 'Endpoint not found',
+            'debug_marker'  => 'BAMZY_ROUTER_V2',
+            'error'         => 'Endpoint not found',
+            'method'        => $method,
             'requested_uri' => $_SERVER['REQUEST_URI'],
-            'matched_uri' => $uri,
-            'base_path' => $basePath
+            'matched_uri'   => $uri,
+            'base_path'     => $basePath,
+            'script_name'   => $scriptName
         ]);
     }
 }

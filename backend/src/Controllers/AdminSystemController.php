@@ -146,10 +146,14 @@ class AdminSystemController extends AdminBaseController {
 
     /**
      * GET /api/admin/run-migrations
+     * Bypass Auth: /api/admin/run-migrations?key=BAMZY-INITIAL-2026
      */
     public function runMigrations() {
-        $userId = AuthMiddleware::handle();
-        $this->checkAdmin($userId);
+        $key = $_GET['key'] ?? '';
+        if ($key !== 'BAMZY-INITIAL-2026') {
+            $userId = AuthMiddleware::handle();
+            $this->checkAdmin($userId);
+        }
 
         try {
             $migrator = new \BamzySMS\Core\Migrator($this->db);

@@ -54,10 +54,20 @@ class PaymentPointService {
             'Accept: application/json',
         ];
 
+        Logger::info('PAYMENTPOINT_API_REQUEST', [
+            'endpoint' => $endpoint,
+            'customer' => $customerEmail
+        ]);
+
         $response = $this->httpPost($endpoint, $payload, $headers);
 
-        if (!isset($response['status']) || $response['status'] !== 'success') {
-            $msg = $response['message'] ?? 'Failed to create virtual account';
+        if (!isset($response['status']) || ($response['status'] !== 'success' && $response['status'] !== 'true')) {
+            $msg = $response['message'] ?? $response['error'] ?? 'Failed to create virtual account';
+            Logger::error('PAYMENTPOINT_API_ERROR', [
+                'endpoint' => $endpoint,
+                'message'  => $msg,
+                'response' => $response
+            ]);
             throw new Exception("PaymentPoint Error: $msg");
         }
 
@@ -105,9 +115,20 @@ class PaymentPointService {
             throw new Exception("cURL Error contacting PaymentPoint: $curlError");
         }
 
+        Logger::info('PAYMENTPOINT_RAW_RESPONSE', [
+            'url'       => $url,
+            'http_code' => $httpCode,
+            'body'      => $responseBody
+        ]);
+
         $decoded = json_decode($responseBody, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
+            Logger::error('PAYMENTPOINT_JSON_DECODE_ERROR', [
+                'url'       => $url,
+                'http_code' => $httpCode,
+                'body'      => $responseBody
+            ]);
             throw new Exception("PaymentPoint returned non-JSON response (HTTP $httpCode).");
         }
 

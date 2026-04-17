@@ -26,12 +26,15 @@ class ActivationService {
 
     /**
      * Executes the purchase flow with intelligent retries.
+     *
+     * Security model:
+     *  - Balance is checked with a FOR UPDATE row-lock INSIDE the debit transaction,
+     *    so no concurrent request can deduct the same funds between our check and write.
+     *  - The API call (getNumberV2) happens BEFORE the DB transaction. If the debit
+     *    subsequently fails, we immediately cancel the activation with the provider (status 8).
      */
     public function buyNumber(int $userId, string $serviceCode, string $serviceName, int $countryId, string $countryName): array {
-        $user = $this->userModel->findById($userId);
-        if (!$user) throw new Exception("User not found.");
-
-        // 1. Get available tiers
+        // 1. Get available tiers (read-only, no lock needed here)
         $prices      = $this->sms->getPricesV2($serviceCode, $countryId);
         $serviceData = $prices[(string)$countryId][$serviceCode] ?? [];
         if (empty($serviceData)) throw new Exception("Service not available for this country.");
@@ -43,32 +46,31 @@ class ActivationService {
             }
         }
         usort($tiers, fn($a, $b) => $a['price'] <=> $b['price']);
-
         if (empty($tiers)) throw new Exception("No numbers available for this service.");
 
-        // 2. Retry Loop
-        $success   = false;
-        $result    = null;
-        $error     = "Internal Purchase Error";
-        $basePrice = $tiers[0]['price'];
-        $maxTiers  = array_slice($tiers, 0, 3);
+        // 2. Do a quick pre-flight balance check (non-locking) to give a helpful
+        //    error early without hitting the provider API.
+        $basePrice       = $tiers[0]['price'];
+        $lowestCharge    = PricingHelper::calculatePrice($basePrice, $serviceCode, $countryId);
+        $user            = $this->userModel->findById($userId);
+        if (!$user) throw new Exception("User not found.");
+        if ((float)$user['balance'] < $lowestCharge) {
+            throw new Exception("Insufficient balance. Needs ₦" . number_format($lowestCharge, 2) . ".");
+        }
 
+        // 3. Retry Loop — try up to 3 cheapest tiers
+        $maxTiers           = array_slice($tiers, 0, 3);
+        $result             = null;
+        $error              = "Internal Purchase Error";
         $lastAttemptedPrice = 0;
 
         foreach ($maxTiers as $tier) {
             $rawPrice = $tier['price'];
             if ($rawPrice > $basePrice * 1.3) break;
 
-            $finalPriceNaira = PricingHelper::calculatePrice($rawPrice, $serviceCode, $countryId);
-            if ((float)$user['balance'] < $finalPriceNaira) {
-                $error = "Insufficient balance. Needs ₦" . number_format($finalPriceNaira) . ".";
-                break;
-            }
-
             try {
-                $result = $this->sms->getNumberV2($serviceCode, $countryId, $rawPrice);
+                $result             = $this->sms->getNumberV2($serviceCode, $countryId, $rawPrice);
                 $lastAttemptedPrice = $rawPrice;
-                $success = true;
                 break;
             } catch (\Throwable $e) {
                 $error = $e->getMessage();
@@ -79,19 +81,23 @@ class ActivationService {
             }
         }
 
-        if (!$success) throw new Exception($error);
+        if (!$result) throw new Exception($error);
 
-        // 3. Finalize
+        // 4. Atomically debit — the Transaction model uses FOR UPDATE inside its own
+        //    transaction, so the actual balance check + debit is race-condition-free.
         $activationId   = (int)$result['activationId'];
         $phoneNumber    = (string)$result['phoneNumber'];
         $activationCost = (float)($result['activationCost'] ?? $lastAttemptedPrice);
         $finalCharge    = PricingHelper::calculatePrice($activationCost, $serviceCode, $countryId);
 
         if (!$this->transactionModel->create($userId, $finalCharge, 'debit', "SMS Purchase: $serviceName ($countryName)")) {
+            // Debit failed (insufficient balance after lock) — cancel the activation
+            // so the provider releases the number and we don't leak it.
             try { $this->sms->setStatus($activationId, 8); } catch (\Throwable $e) {}
-            throw new Exception("Insufficient balance or failed to deduct balance");
+            throw new Exception("Insufficient balance. Please top up your wallet.");
         }
-        
+
+        // 5. Record the purchase and activate
         $purchaseId = $this->purchaseModel->create(
             $userId, $activationId, $serviceCode, $serviceName, $countryName, $phoneNumber, $finalCharge
         );
@@ -117,41 +123,52 @@ class ActivationService {
         ], $userId);
 
         // Handle Auto-Reconciliation (Refund)
-        // Status 8 = Cancelled (by user or provider) 
+        // Status 8 = Cancelled (by user or provider)
         // Status 7 = Cancelled (alternate code)
         if ($status === 8 || $status === 7) {
             $purchase = $this->purchaseModel->findByActivationId($activationId);
-            
+
             if ($purchase && $purchase['status'] !== 'cancelled') {
                 $refundAmount = (float)$purchase['activation_cost'];
-                
+
                 if ($refundAmount > 0) {
                     $this->db->beginTransaction();
                     try {
-                        // 1. Credit user balance
-                        $this->userModel->addBalance($userId, $refundAmount);
-                        
-                        // 2. Log transaction
-                        $this->transactionModel->create(
-                            $userId, 
-                            $refundAmount, 
-                            'credit', 
-                            "Refund: Order #{$activationId} cancelled"
+                        // 1. Mark as cancelled FIRST (idempotency guard).
+                        //    If two concurrent cancel requests arrive, only one will
+                        //    change a non-cancelled row; the second will affect 0 rows.
+                        $rowsAffected = $this->purchaseModel->updateStatusIfNot(
+                            $purchase['id'], 'cancelled', 'cancelled'
                         );
-                        
-                        // 3. Update purchase record
-                        $this->purchaseModel->updateStatus($purchase['id'], 'cancelled');
-                        
-                        $this->db->commit();
-                        \BamzySMS\Core\Logger::info('REFUND_PROCESSED', [
-                            'activation_id' => $activationId,
-                            'amount' => $refundAmount
-                        ], $userId);
+
+                        if ($rowsAffected > 0) {
+                            // 2. Credit user balance
+                            $this->userModel->addBalance($userId, $refundAmount);
+
+                            // 3. Log refund transaction
+                            $this->transactionModel->createCredit(
+                                $userId,
+                                $refundAmount,
+                                "Refund: Order #{$activationId} cancelled"
+                            );
+
+                            $this->db->commit();
+                            \BamzySMS\Core\Logger::info('REFUND_PROCESSED', [
+                                'activation_id' => $activationId,
+                                'amount'        => $refundAmount
+                            ], $userId);
+                        } else {
+                            // Already cancelled by a concurrent request — skip refund
+                            $this->db->rollBack();
+                            \BamzySMS\Core\Logger::info('REFUND_SKIPPED_DUPLICATE', [
+                                'activation_id' => $activationId,
+                            ], $userId);
+                        }
                     } catch (\Exception $e) {
                         $this->db->rollBack();
                         \BamzySMS\Core\Logger::error('REFUND_FAILED', [
                             'activation_id' => $activationId,
-                            'error' => $e->getMessage()
+                            'error'         => $e->getMessage()
                         ], $userId);
                     }
                 }

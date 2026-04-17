@@ -114,6 +114,16 @@ class PaymentController extends Controller {
             ]);
 
         } catch (\Exception $e) {
+            \BamzySMS\Core\Logger::error('VIRTUAL_ACCOUNT_CREATION_FAILED', $e->getMessage());
+            
+            if (str_contains($e->getMessage(), "Table") && str_contains($e->getMessage(), "doesn't exist")) {
+                return $this->json([
+                    'status'  => 'error', 
+                    'message' => 'Virtual accounts table is missing. Please run migrations.',
+                    'hint'    => 'Visit /api/admin/run-migrations to fix this.'
+                ], 500);
+            }
+            
             return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }

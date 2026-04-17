@@ -88,6 +88,23 @@ class SMSPurchase {
     }
 
     /**
+     * Conditionally update status only when the current status is NOT the excluded value.
+     * Returns the number of rows actually changed (0 = already in target state, idempotent skip).
+     *
+     * Used for refund idempotency: only the first call that transitions away from a
+     * non-cancelled state will actually update the row.
+     */
+    public function updateStatusIfNot(int $id, string $newStatus, string $notCurrentStatus): int {
+        $stmt = $this->db->prepare("
+            UPDATE sms_purchases
+            SET status = ?
+            WHERE id = ? AND status != ?
+        ");
+        $stmt->execute([$newStatus, $id, $notCurrentStatus]);
+        return $stmt->rowCount();
+    }
+
+    /**
      * Soft-hide a purchase record.
      */
     public function hidePurchase(int $id, int $userId): bool {

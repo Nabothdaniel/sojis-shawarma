@@ -232,6 +232,35 @@ export default function FundWalletPage() {
           ) : null}
         </div>
 
+        {/* ── How it Works Step-by-Step ── */}
+        <div style={{ marginBottom: 32 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 16, color: 'var(--color-text-muted)' }}>How to Fund Your Wallet</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            {[
+              { step: '1', title: 'Copy Account', desc: 'Select a bank above and copy the account number.' },
+              { step: '2', title: 'Make Transfer', desc: 'Transfer any amount from your bank app to this account.' },
+              { step: '3', title: 'Auto-Credit', desc: 'Your wallet is credited instantly once the payment is confirmed.' },
+            ].map((item, i) => (
+              <div key={i} style={{ 
+                padding: '16px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-alt)', 
+                border: '1px solid var(--color-border)', display: 'flex', gap: 12
+              }}>
+                <div style={{ 
+                  width: 28, height: 28, borderRadius: '50%', background: 'var(--color-primary)', 
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  fontSize: '0.8rem', fontWeight: 800, flexShrink: 0
+                }}>
+                  {item.step}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', lineHeight: 1.4 }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Alert banner */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,

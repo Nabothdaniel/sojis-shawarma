@@ -19,6 +19,13 @@ foreach ($envCandidates as $envFile) {
             [$key, $val] = explode('=', $line, 2);
             $key = trim($key);
             $val = trim($val);
+            // Strip inline comments if they exist
+            if (($pos = strpos($val, '#')) !== false) {
+                // simple hack: if # exists, and we don't have quotes, strip it
+                if (!str_starts_with($val, '"') && !str_starts_with($val, "'")) {
+                    $val = trim(substr($val, 0, $pos));
+                }
+            }
 
             // Strip quotes from value
             if (str_starts_with($val, '"') && str_ends_with($val, '"')) {

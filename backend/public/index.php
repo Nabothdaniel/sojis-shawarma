@@ -6,6 +6,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+header('X-Bamzy-Debug: Workspace-Active-' . time());
 
 $base = file_exists(__DIR__ . '/src/bootstrap.php') ? __DIR__ : __DIR__ . '/..';
 require_once $base . '/src/bootstrap.php';
