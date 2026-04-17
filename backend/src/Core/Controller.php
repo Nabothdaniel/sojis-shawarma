@@ -31,11 +31,13 @@ class Controller {
                 if (is_string($decrypted) && $decrypted !== $data[$field]) {
                     // Success, trim any binary padding
                     $decrypted = trim($decrypted, "\x00..\x1F");
-                    $data[$field] = $decrypted;
-                } else {
-                    // Optimization: if it looks like base64-encrypted-blob, but decryption failed, log it
-                    if (is_string($data[$field]) && (strlen($data[$field]) > 40)) {
-                        error_log("[DECRYPT_FAILURE] Failed to decrypt field: $field. Verify PLATFORM_ENCRYPTION_KEY.");
+                    
+                    // Basic sanity check: if the decrypted text looks like binary/garbage 
+                    // (e.g. contains many non-printable characters), it might be a key mismatch.
+                    if (preg_match('/[^\x20-\x7E\t\r\n]/', $decrypted)) {
+                        error_log("[DECRYPT_FAILURE] Decrypted value for $field contains non-printable characters. Key mismatch suspected.");
+                    } else {
+                        $data[$field] = $decrypted;
                     }
                 }
             }

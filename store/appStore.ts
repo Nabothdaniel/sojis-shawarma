@@ -50,6 +50,31 @@ export const useAppStore = create<AppState>()(
       },
       removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
+      // Notifications
+      notifications: [],
+      unreadCount: 0,
+      addNotification: (notification) => {
+        set((s) => ({
+          notifications: [notification, ...s.notifications].slice(0, 30),
+          unreadCount: notification.is_read ? s.unreadCount : s.unreadCount + 1
+        }));
+      },
+      setNotifications: (notifications, unreadCount) => {
+        set({ notifications, unreadCount });
+      },
+      markRead: (id) => {
+        set((s) => {
+          const newNotifications = s.notifications.map((n) => {
+            if (id === undefined || n.id === id) {
+              return { ...n, is_read: true };
+            }
+            return n;
+          });
+          const newUnreadCount = id === undefined ? 0 : Math.max(0, s.unreadCount - 1);
+          return { notifications: newNotifications, unreadCount: newUnreadCount };
+        });
+      },
+
       // Nav
       activeSection: 'home',
       setActiveSection: (section) => set({ activeSection: section }),

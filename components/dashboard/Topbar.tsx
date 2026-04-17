@@ -11,6 +11,7 @@ import {
 import { useAppStore } from '@/store/appStore';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatMoney } from '@/lib/utils';
+import NotificationDropdown from '@/components/dashboard/NotificationDropdown';
 
 export default function Topbar({ title }: { title?: string }) {
   const { toggleSidebar, user, logout } = useAppStore();
@@ -87,14 +88,7 @@ export default function Topbar({ title }: { title?: string }) {
         )}
 
         {/* Notifications */}
-        <button style={{
-          width: 34, height: 34, borderRadius: 9, border: '1px solid var(--color-border)',
-          background: 'none', cursor: 'pointer', color: 'var(--color-text-muted)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <RiNotificationLine size={17} />
-        </button>
+        <NotificationDropdown />
 
         {/* Avatar + Dropdown */}
         <div ref={dropRef} style={{ position: 'relative' }}>

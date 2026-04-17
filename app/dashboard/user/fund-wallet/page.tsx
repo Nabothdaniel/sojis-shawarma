@@ -141,7 +141,7 @@ export default function FundWalletPage() {
               {accounts.length > 1 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                   {accounts.map((acct, i) => {
-                    const meta = BANK_LOGOS[acct.bankName] ?? { color: 'var(--color-primary)', short: acct.bankName.slice(0, 2) };
+                    const meta = BANK_LOGOS[acct.bankName] ?? { color: 'var(--color-primary)', short: (acct.bankName || 'BK').slice(0, 2) };
                     return (
                       <button
                         key={i}
@@ -163,7 +163,7 @@ export default function FundWalletPage() {
 
               {/* Account Card */}
               {(() => {
-                const meta = BANK_LOGOS[activeAccount.bankName] ?? { color: 'var(--color-primary)', short: activeAccount.bankName.slice(0, 2).toUpperCase() };
+                const meta = BANK_LOGOS[activeAccount.bankName] ?? { color: 'var(--color-primary)', short: (activeAccount.bankName || 'BK').slice(0, 2).toUpperCase() };
                 return (
                   <div style={{
                     background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', padding: '24px',

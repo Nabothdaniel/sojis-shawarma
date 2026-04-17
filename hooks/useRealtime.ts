@@ -48,6 +48,15 @@ export function useRealtime() {
         }
         if (data.message) {
           addToast(data.message, 'success');
+          // Also add to notifications list
+          const { addNotification } = useAppStore.getState();
+          addNotification({
+            id: Date.now(),
+            event_type: 'balance_updated',
+            payload: e.data,
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
         }
       } catch (err) {
         console.error('Real-time: Error parsing balance_updated event', err);
@@ -60,6 +69,15 @@ export function useRealtime() {
         const data = JSON.parse(e.data);
         if (data.message) {
           addToast(data.message, data.type || 'info');
+          // Also add to notifications list
+          const { addNotification } = useAppStore.getState();
+          addNotification({
+            id: Date.now(),
+            event_type: data.type || 'info',
+            payload: e.data,
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
         }
       } catch (err) {
         console.error('Real-time: Error parsing notification event', err);

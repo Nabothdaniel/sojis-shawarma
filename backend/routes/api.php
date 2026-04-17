@@ -72,6 +72,8 @@ $router->add('POST', '/webhook/payment',          'WebhookController',     'hand
 $router->add('POST', '/webhook/paymentpoint',     'WebhookController',     'handlePaymentPoint');
 $router->add('GET',  '/webhook/paymentpoint',     'WebhookController',     'checkPaymentPoint');
 $router->add('GET',  '/events/stream',            'EventController',       'stream');
+$router->add('GET',  '/notifications',            'EventController',       'getNotifications');
+$router->add('POST', '/notifications/mark-read',  'EventController',       'markRead');
 
 // Utils
 $router->add('GET',  '/utils/server-ip',      'UtilsController',       'getServerIp');

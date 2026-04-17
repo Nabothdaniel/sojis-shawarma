@@ -43,4 +43,39 @@ class SystemEvent {
 
         return $events;
     }
+
+    /**
+     * Get unread count for a user.
+     */
+    public function getUnreadCount($userId) {
+        $sql = "SELECT COUNT(*) FROM system_events WHERE user_id = ? AND is_read = 0";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Get recent notifications for the dropdown.
+     */
+    public function getRecent($userId, $limit = 20) {
+        $sql = "SELECT * FROM system_events WHERE user_id = ? ORDER BY created_at DESC LIMIT " . (int)$limit;
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Mark notifications as read.
+     */
+    public function markAsRead($userId, $eventId = null) {
+        if ($eventId) {
+            $sql = "UPDATE system_events SET is_read = 1 WHERE user_id = ? AND id = ?";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([$userId, $eventId]);
+        } else {
+            $sql = "UPDATE system_events SET is_read = 1 WHERE user_id = ? AND is_read = 0";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([$userId]);
+        }
+    }
 }

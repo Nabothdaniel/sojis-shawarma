@@ -146,6 +146,7 @@ class AuthController extends Controller {
         }
 
         if ($password !== $confirmPassword) {
+            error_log("[DIAG] Password Mismatch - P1 length: " . strlen($password) . ", P2 length: " . strlen($confirmPassword));
             return $this->json(['status' => 'error', 'message' => 'Passwords do not match'], 400);
         }
 

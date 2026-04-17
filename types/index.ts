@@ -15,6 +15,14 @@ export interface User {
   hasPin: boolean;
 }
 
+export interface Notification {
+  id: number;
+  event_type: string;
+  payload: string; // JSON string
+  is_read: boolean;
+  created_at: string;
+}
+
 export interface AppState {
   // UI
   mobileMenuOpen: boolean;
@@ -37,6 +45,13 @@ export interface AppState {
   toasts: ToastMessage[];
   addToast: (message: string, type: ToastMessage['type']) => void;
   removeToast: (id: string) => void;
+
+  // Notifications
+  notifications: Notification[];
+  unreadCount: number;
+  addNotification: (notification: Notification) => void;
+  setNotifications: (notifications: Notification[], unreadCount: number) => void;
+  markRead: (id?: number) => void;
 
   // Active nav (landing)
   activeSection: string;

@@ -3,6 +3,7 @@
 namespace BamzySMS\Services;
 
 use Exception;
+use BamzySMS\Core\Logger;
 
 /**
  * PaymentPoint Service
@@ -39,10 +40,12 @@ class PaymentPointService {
     public function createVirtualAccount(string $customerName, string $customerEmail, string $customerPhone): array {
         $endpoint = $this->baseUrl . '/createVirtualAccount';
 
+        $normalizedPhone = $this->normalizePhoneNumber($customerPhone);
+
         $payload = json_encode([
             'email'       => $customerEmail,
             'name'        => $customerName,
-            'phoneNumber' => $customerPhone,
+            'phoneNumber' => $normalizedPhone,
             'bankCode'    => $this->bankCodes,
             'businessId'  => $this->businessId,
         ]);
@@ -55,8 +58,10 @@ class PaymentPointService {
         ];
 
         Logger::info('PAYMENTPOINT_API_REQUEST', [
-            'endpoint' => $endpoint,
-            'customer' => $customerEmail
+            'endpoint'   => $endpoint,
+            'customer'   => $customerEmail,
+            'businessId' => $this->businessId,
+            'bankCodes'  => $this->bankCodes
         ]);
 
         $response = $this->httpPost($endpoint, $payload, $headers);
@@ -90,6 +95,19 @@ class PaymentPointService {
 
         $calculated = hash_hmac('sha256', $rawPayload, $this->webhookSecretKey);
         return hash_equals($calculated, $signatureHeader);
+    }
+
+    private function normalizePhoneNumber(string $phone): string {
+        // Strip non-numeric
+        $digits = preg_replace('/[^0-9]/', '', $phone);
+        
+        // Handle +234 or 234 prefix
+        if (str_starts_with($digits, '234') && strlen($digits) > 10) {
+            $digits = '0' . substr($digits, 3);
+        }
+        
+        // Return exactly 11 digits or fallback if still invalid
+        return (strlen($digits) === 11) ? $digits : '08000000000';
     }
 
     // ─── Internal HTTP Helper ─────────────────────────────────────────────────

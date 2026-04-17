@@ -105,10 +105,40 @@ class EventController extends Controller {
                 exit;
             }
 
-            header('HTTP/1.1 500 Internal Server Error');
             header('Content-Type: application/json');
             echo json_encode(['error' => 'Fatal SSE Error', 'message' => $t->getMessage()]);
             exit;
         }
+    }
+
+    /**
+     * Get recent notifications
+     */
+    public function getNotifications() {
+        $userId = AuthMiddleware::handle();
+        $notifications = $this->eventModel->getRecent($userId);
+        $unreadCount = $this->eventModel->getUnreadCount($userId);
+
+        return $this->json([
+            'status' => 'success',
+            'notifications' => $notifications,
+            'unreadCount' => $unreadCount
+        ]);
+    }
+
+    /**
+     * Mark notifications as read
+     */
+    public function markRead() {
+        $userId = AuthMiddleware::handle();
+        $data = $this->getPostData();
+        $eventId = $data['id'] ?? null;
+
+        $this->eventModel->markAsRead($userId, $eventId);
+
+        return $this->json([
+            'status' => 'success',
+            'message' => 'Notifications marked as read'
+        ]);
     }
 }
