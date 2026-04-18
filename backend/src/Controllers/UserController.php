@@ -8,9 +8,11 @@ use BamzySMS\Middleware\AuthMiddleware;
 
 class UserController extends Controller {
     private $userModel;
+    private $verificationModel;
 
     public function __construct() {
         $this->userModel = new User();
+        $this->verificationModel = new \BamzySMS\Models\Verification();
     }
 
     public function getProfile() {
@@ -72,5 +74,46 @@ class UserController extends Controller {
         }
 
         return $this->json(['status' => 'error', 'message' => 'Invalid transaction PIN'], 401);
+    }
+
+    public function getSecurityInfo() {
+        $userId = AuthMiddleware::handle();
+        $user = $this->userModel->findById($userId);
+        
+        if (!$user) return $this->json(['status' => 'error', 'message' => 'User not found'], 404);
+
+        $verifications = $this->verificationModel->getRecentForUser($user['username']);
+
+        return $this->json([
+            'status' => 'success',
+            'data' => [
+                'recovery_key_saved' => (bool)$user['recovery_key_saved'],
+                'whatsapp_notifications' => (bool)$user['whatsapp_notifications'],
+                'whatsapp_number' => $user['whatsapp_number'],
+                'recent_verifications' => $verifications
+            ]
+        ]);
+    }
+
+    public function updateSecuritySettings() {
+        $userId = AuthMiddleware::handle();
+        $data = $this->getPostData();
+
+        $whatsappNotifications = isset($data['whatsapp_notifications']) ? (bool)$data['whatsapp_notifications'] : false;
+        $whatsappNumber = $data['whatsapp_number'] ?? null;
+
+        if ($this->userModel->updateWhatsappSettings($userId, $whatsappNotifications, $whatsappNumber)) {
+            return $this->json(['status' => 'success', 'message' => 'Security settings updated']);
+        }
+
+        return $this->json(['status' => 'error', 'message' => 'Failed to update security settings'], 500);
+    }
+
+    public function confirmRecoveryKeySaved() {
+        $userId = AuthMiddleware::handle();
+        if ($this->userModel->markKeyAsSaved($userId)) {
+            return $this->json(['status' => 'success', 'message' => 'Recovery key marked as saved']);
+        }
+        return $this->json(['status' => 'error', 'message' => 'Failed to update recovery key status'], 500);
     }
 }

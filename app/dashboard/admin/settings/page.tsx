@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService, AdminSettings } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
-import { RiSave3Line, RiInformationLine, RiPulseLine } from 'react-icons/ri';
+import { RiSave3Line, RiInformationLine, RiPulseLine, RiQuestionLine, RiNodeTree } from 'react-icons/ri';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function AdminSettingsPage() {
   const { addToast, hasHydrated, user } = useAppStore();
@@ -40,133 +41,243 @@ export default function AdminSettingsPage() {
     setSettings({ ...settings, [key]: value });
   };
 
-  if (loading) return <AdminLayout><div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div></AdminLayout>;
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="admin-content" style={{ padding: '32px' }}>
+          <Skeleton height={40} width={300} style={{ marginBottom: 16 }} />
+          <Skeleton height={20} width={500} style={{ marginBottom: 40 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            <Skeleton height={300} style={{ borderRadius: 20 }} />
+            <Skeleton height={300} style={{ borderRadius: 20 }} />
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
       <div className="admin-content" style={{ padding: '32px' }}>
         <div style={{ marginBottom: '40px' }}>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0 0 8px' }}>Global Settings</h1>
-          <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500 }}>Configure platform-wide financial rules and provider connectivity.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <RiNodeTree size={32} color="var(--color-primary)" />
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: 0 }}>System Control Center</h1>
+          </div>
+          <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500, maxWidth: 700, lineHeight: 1.6 }}>
+            Manage the core business logic of BamzySMS. These settings influence pricing calculations, 
+            profit margins, and how the platform communicates with external services.
+          </p>
         </div>
 
         <form onSubmit={handleUpdate}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px', marginBottom: '40px' }}>
             
-            {/* FINANCIAL CONFIGURATION */}
-            <div className="stat-card" style={{ padding: '32px', background: 'var(--color-bg-2)', border: '1px solid #333', borderRadius: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '24px' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* FINANCIAL STRATEGY */}
+            <div className="settings-card shadow-premium">
+              <div className="card-header">
+                <div className="icon-box green">
                    <RiPulseLine size={24} />
                 </div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Financial Parameters</h3>
+                <div>
+                  <h3 className="card-title">Profit & Currency Strategy</h3>
+                  <p className="card-subtitle">Control your revenue multipliers and base rates.</p>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div>
-                  <label className="label-style">Global Price Markup (e.g. 1.5)</label>
-                  <div style={{ position: 'relative' }}>
+              <div className="input-group">
+                <div className="field">
+                  <div className="label-with-tooltip">
+                    <label>Global Markup Multiplier</label>
+                    <RiQuestionLine className="tooltip-trigger" />
+                  </div>
+                  <div className="input-with-affix">
                     <input 
-                      type="number" step="0.01" className="high-contrast-input"
+                      type="number" step="0.01" className="premium-input"
                       value={settings?.price_markup_multiplier || ''}
                       onChange={(e) => handleChange('price_markup_multiplier', e.target.value)}
+                      placeholder="e.g. 1.25"
                     />
-                    <span style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3, fontWeight: 700 }}>x</span>
+                    <span className="affix">x</span>
                   </div>
-                  <p className="helper-text">Applied to base cost if no service override exists.</p>
+                  <p className="field-desc">
+                    Every service purchase cost (USD) is multiplied by this value. 
+                    Example: <b>1.5</b> adds a 50% profit margin to the base cost.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="label-style">USD to NGN Exchange Rate</label>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }}>₦</span>
+                <div className="field">
+                  <div className="label-with-tooltip">
+                    <label>Internal Exchange Rate (₦/$)</label>
+                    <RiQuestionLine className="tooltip-trigger" />
+                  </div>
+                  <div className="input-with-affix">
+                    <span className="prefix">₦</span>
                     <input 
-                      type="number" className="high-contrast-input" style={{ paddingLeft: '34px' }}
+                      type="number" className="premium-input" style={{ paddingLeft: '40px' }}
                       value={settings?.usd_to_ngn_rate || ''}
                       onChange={(e) => handleChange('usd_to_ngn_rate', e.target.value)}
+                      placeholder="e.g. 1550"
                     />
                   </div>
-                  <p className="helper-text">Our system-wide conversion rate for all provider costs.</p>
+                  <p className="field-desc">
+                    The rate used to calculate costs in Naira. Update this when the market fluctuates
+                    to protect your margins.
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* PLATFORM NOTIFICATIONS */}
-            <div className="stat-card" style={{ padding: '32px', background: 'var(--color-bg-2)', border: '1px solid #333', borderRadius: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '24px' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* COMMUNICATIONS */}
+            <div className="settings-card shadow-premium">
+              <div className="card-header">
+                <div className="icon-box blue">
                    <RiInformationLine size={24} />
                 </div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Notification System</h3>
+                <div>
+                  <h3 className="card-title">Administrative Alerts</h3>
+                  <p className="card-subtitle">Keep the right people informed.</p>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div>
-                  <label className="label-style">Admin Alert Email</label>
+              <div className="input-group">
+                <div className="field">
+                  <label>Operations Notification Email</label>
                   <input 
-                    type="email" className="high-contrast-input"
+                    type="email" className="premium-input"
                     value={settings?.admin_email_notifications || ''}
                     onChange={(e) => handleChange('admin_email_notifications', e.target.value)}
-                    placeholder="admin@example.com"
+                    placeholder="ops@bamzysms.com"
                   />
-                  <p className="helper-text">Where to send platform alerts and critical logs.</p>
+                  <p className="field-desc">
+                    Critical system alerts, low provider balance warnings, and priority
+                    support notifications will be routed here.
+                  </p>
                 </div>
 
-                <div style={{ 
-                  marginTop: '12px', padding: '16px', background: 'rgba(255,255,255,0.02)', 
-                  borderRadius: '12px', border: '1px dashed #333', fontSize: '0.8rem', color: 'var(--color-text-faint)' 
-                }}>
-                  <RiInformationLine style={{ marginBottom: -3, marginRight: 6 }} color="var(--color-primary)" />
-                  API Keys and Provider Credentials are managed via secure environment variables.
+                <div className="info-block">
+                  <RiInformationLine className="info-icon" />
+                  <div>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>Security Note</div>
+                    API secrets and direct provider keys are managed via secure environment 
+                    variables for maximum protection against leakage.
+                  </div>
                 </div>
               </div>
             </div>
 
           </div>
 
-          <div style={{ 
-            marginTop: '32px', display: 'flex', justifyContent: 'flex-end', 
-            paddingTop: '24px', borderTop: '1px solid #333', position: 'sticky', bottom: '24px' 
-          }}>
+          <div className="form-actions">
             <button 
-              type="submit" className="btn-primary" disabled={saving}
-              style={{ padding: '14px 40px', display: 'flex', alignItems: 'center', gap: 12, borderRadius: '12px', fontSize: '1rem', boxShadow: '0 10px 20px rgba(0, 229, 255, 0.2)' }}
+              type="submit" className="btn-primary glow-btn" disabled={saving}
+              style={{ padding: '16px 48px', borderRadius: '14px', fontSize: '1.05rem', fontWeight: 800 }}
             >
-              {saving ? 'Processing...' : <><RiSave3Line size={20} /> Deploy All Settings</>}
+              {saving ? 'Synchronizing...' : <><RiSave3Line size={22} style={{ marginRight: 10 }} /> Update Core Systems</>}
             </button>
           </div>
         </form>
 
         <style jsx>{`
-          .high-contrast-input {
+          .settings-card {
+            background: var(--color-bg-2);
+            border: 1px solid var(--color-border);
+            border-radius: 24px;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .settings-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+          }
+          .card-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+          }
+          .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .icon-box.green { background: rgba(16, 185, 129, 0.1); color: #10B981; }
+          .icon-box.blue { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
+          
+          .card-title { margin: 0; fontSize: 1.15rem; fontWeight: 800; color: var(--color-text); }
+          .card-subtitle { margin: 4px 0 0; fontSize: 0.85rem; color: var(--color-text-faint); fontWeight: 500; }
+
+          .input-group { display: flex; flex-direction: column; gap: 24px; }
+          .field { display: flex; flex-direction: column; gap: 10px; }
+          .label-with-tooltip { display: flex; align-items: center; gap: 8px; }
+          .label-with-tooltip label { font-size: 0.85rem; fontWeight: 700; color: var(--color-text); }
+          .tooltip-trigger { cursor: help; color: var(--color-text-faint); fontSize: 14px; transition: color 0.2s; }
+          .tooltip-trigger:hover { color: var(--color-primary); }
+
+          .input-with-affix { position: relative; }
+          .premium-input {
             width: 100%;
-            background: transparent !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--color-border);
             border-radius: 12px;
             padding: 14px 16px;
-            color: #fff;
+            color: var(--color-text);
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             outline: none;
             transition: all 0.2s;
           }
-          .high-contrast-input:focus {
-            border-color: var(--color-primary) !important;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
+          .premium-input:focus {
+            border-color: var(--color-primary);
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 0 4px var(--color-primary-dim);
           }
-          .label-style {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 10px;
+          .affix, .prefix {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-faint);
+            font-weight: 800;
+            pointer-events: none;
           }
-          .helper-text {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.3);
-            margin-top: 8px;
+          .affix { right: 16px; }
+          .prefix { left: 16px; }
+
+          .field-desc {
+            margin: 0;
+            font-size: 0.78rem;
+            color: var(--color-text-faint);
+            line-height: 1.5;
             font-weight: 500;
           }
+
+          .info-block {
+            padding: 18px;
+            background: var(--color-bg-hover);
+            border-radius: 16px;
+            display: flex;
+            gap: 14px;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--color-text-muted);
+            border: 1px solid var(--color-border);
+          }
+          .info-icon { color: var(--color-primary); flex-shrink: 0; marginTop: 2px; }
+
+          .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 40px;
+            padding-top: 32px;
+            border-top: 1px solid var(--color-border);
+          }
+
           @media (max-width: 1024px) {
             .admin-content { padding: 20px 16px !important; }
             form > div { grid-template-columns: 1fr !important; }

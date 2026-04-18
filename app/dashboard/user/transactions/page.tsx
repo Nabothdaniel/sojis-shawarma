@@ -52,11 +52,15 @@ export default function TransactionsPage() {
                   <tr key={tx.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <td style={{ padding: '16px 20px' }}>
                       <span style={{ 
-                        padding: '4px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600,
-                        background: tx.type === 'credit' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                        color: tx.type === 'credit' ? '#10B981' : '#EF4444'
+                        padding: '6px 14px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: 900,
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        background: tx.type === 'credit' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                        color: tx.type === 'credit' ? '#10B981' : '#EF4444',
+                        border: `1.2px solid ${tx.type === 'credit' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
                       }}>
-                        {tx.type.toUpperCase()}
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
+                        {tx.type}
                       </span>
                     </td>
                     <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 500 }}>{tx.description}</td>

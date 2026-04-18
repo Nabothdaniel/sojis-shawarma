@@ -37,36 +37,40 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function FundWalletPage() {
-  const { user, addToast } = useAppStore();
-  const [accounts, setAccounts]     = useState<VirtualAccount[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const { user, addToast, virtualAccounts, setVirtualAccounts } = useAppStore();
+  const [loading, setLoading]       = useState(virtualAccounts.length === 0);
   const [error, setError]           = useState<string | null>(null);
   const [activeBank, setActiveBank] = useState(0);
 
   const loadVirtualAccount = useCallback(async () => {
-    setLoading(true);
+    if (virtualAccounts.length === 0) setLoading(true);
     setError(null);
     try {
       const res = await paymentService.getVirtualAccount();
       if (res.status === 'success' && res.bankAccounts?.length > 0) {
-        setAccounts(res.bankAccounts);
+        setVirtualAccounts(res.bankAccounts);
       } else {
-        setError('No virtual account available. Please try again.');
+        if (virtualAccounts.length === 0) {
+          setError('No virtual account available. Please reload or contact support.');
+        }
       }
     } catch (err: any) {
       const msg = err?.message || 'Failed to load virtual account details.';
-      setError(msg);
+      if (virtualAccounts.length === 0) {
+        setError(msg);
+      }
       addToast(msg, 'error');
     } finally {
-      setLoading(false);
+      if (virtualAccounts.length === 0) setLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, virtualAccounts.length, setVirtualAccounts]);
 
   useEffect(() => {
+    // Only load if we don't have them yet, or to sync background
     loadVirtualAccount();
   }, [loadVirtualAccount]);
 
-  const activeAccount = accounts[activeBank] ?? null;
+  const activeAccount = virtualAccounts[activeBank] ?? null;
 
   return (
     <DashboardLayout>
@@ -138,9 +142,9 @@ export default function FundWalletPage() {
           ) : activeAccount ? (
             <>
               {/* Bank tab switcher (if multiple banks) */}
-              {accounts.length > 1 && (
+              {virtualAccounts.length > 1 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                  {accounts.map((acct, i) => {
+                  {virtualAccounts.map((acct, i) => {
                     const meta = BANK_LOGOS[acct.bankName] ?? { color: 'var(--color-primary)', short: (acct.bankName || 'BK').slice(0, 2) };
                     return (
                       <button
@@ -283,30 +287,6 @@ export default function FundWalletPage() {
           </Link>
         </div>
 
-        {/* Other methods */}
-        <div className="stat-card">
-          <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 16 }}>Other Methods</h2>
-          <button
-            disabled
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 16px', borderRadius: 'var(--radius-md)',
-              background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)',
-              cursor: 'not-allowed', opacity: 0.55, textAlign: 'left',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 9, background: 'rgba(37,99,235,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                <RiBankCardLine size={18} />
-              </div>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--color-text)', marginBottom: 2 }}>USDT / Crypto</div>
-                <div style={{ color: 'var(--color-text-faint)', fontSize: '0.78rem' }}>Pay using USDT TRC20 — Coming Soon</div>
-              </div>
-            </div>
-            <RiArrowRightLine size={16} color="var(--color-text-faint)" />
-          </button>
-        </div>
       </main>
 
       <style jsx>{`

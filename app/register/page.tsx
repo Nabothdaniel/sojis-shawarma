@@ -53,8 +53,9 @@ export default function RegisterPage() {
         confirm_password: form.confirm
       });
       login(response.data.user, response.data.token);
+      const key = response.data.recovery_key;
       addToast('Welcome home!', 'success');
-      router.push('/onboarding');
+      router.push(`/onboarding?key=${key}`);
     } catch (error: any) {
       addToast(error.message || 'Registration failed', 'error');
     } finally {

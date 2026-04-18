@@ -13,12 +13,12 @@ import {
 import { useAppStore } from '@/store/appStore';
 import { userService, smsService } from '@/lib/api';
 import PinModal from '@/components/ui/PinModal';
-import { RiShieldKeyholeLine } from 'react-icons/ri';
+import { RiShieldKeyholeLine, RiEyeLine, RiEyeOffLine } from 'react-icons/ri';
 import { formatMoney } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, login, addToast } = useAppStore();
+  const { user, login, addToast, balanceHidden, setBalanceHidden } = useAppStore();
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   
@@ -119,13 +119,28 @@ export default function DashboardPage() {
                  </button>
                </Link>
             </div>
-            <div>
-              <div style={{ color: 'var(--color-text-faint)', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Wallet Balance
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <div>
+                <div style={{ color: 'var(--color-text-faint)', fontSize: '0.8rem', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Wallet Balance
+                </div>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.8rem', color: 'var(--color-text)' }}>
+                  {balanceHidden ? '••••••' : formatMoney(user?.balance)}
+                </div>
               </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.8rem', color: 'var(--color-text)' }}>
-                {formatMoney(user?.balance)}
-              </div>
+              <button
+                onClick={() => setBalanceHidden(!balanceHidden)}
+                style={{
+                  background: 'none', border: 'none', padding: 8, cursor: 'pointer',
+                  color: 'var(--color-text-faint)', display: 'flex', alignItems: 'center',
+                  opacity: 0.5, transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = '1')}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = '0.5')}
+                title={balanceHidden ? "Show balance" : "Hide balance"}
+              >
+                {balanceHidden ? <RiEyeLine size={20} /> : <RiEyeOffLine size={20} />}
+              </button>
             </div>
           </div>
 

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService, AdminUser } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
-import { RiSearchLine, RiPhoneLine, RiWalletLine, RiTimeLine, RiEdit2Line, RiDeleteBinLine, RiAddLine, RiExchangeFundsLine, RiCloseLine } from 'react-icons/ri';
+import { RiSearchLine, RiPhoneLine, RiWalletLine, RiTimeLine, RiEdit2Line, RiDeleteBinLine, RiAddLine, RiExchangeFundsLine, RiCloseLine, RiLockLine } from 'react-icons/ri';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatMoney } from '@/lib/utils';
 
@@ -20,6 +20,8 @@ export default function AdminUsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
 
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
@@ -179,6 +181,27 @@ export default function AdminUsersPage() {
     }
   };
 
+  const openReset = (u: AdminUser) => {
+    setSelectedUser(u);
+    const newPass = Math.random().toString(36).slice(-8);
+    setTempPassword(newPass);
+    setResetOpen(true);
+  };
+
+  const onConfirmReset = async () => {
+    if (!selectedUser) return;
+    setBusy(true);
+    try {
+      await adminService.sudoResetPassword(selectedUser.id, tempPassword);
+      addToast(`Password reset successfully for @${selectedUser.username}`, 'success');
+      setResetOpen(false);
+    } catch (err: any) {
+      addToast(err.message || 'Failed to reset password', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="admin-content" style={{ padding: '32px' }}>
@@ -282,6 +305,9 @@ export default function AdminUsersPage() {
                             <button className="btn-ghost" style={iconBtnStyle} onClick={() => openTopup(u)} title="Top-up / debit">
                               <RiExchangeFundsLine size={16} />
                             </button>
+                            <button className="btn-ghost" style={iconBtnStyle} onClick={() => openReset(u)} title="Reset Password">
+                              <RiLockLine size={16} />
+                            </button>
                             <button className="btn-ghost" style={iconBtnStyle} onClick={() => openEdit(u)} title="Edit user">
                               <RiEdit2Line size={16} />
                             </button>
@@ -363,6 +389,34 @@ export default function AdminUsersPage() {
                 <input className="input-field" placeholder="Note (optional)" value={topupForm.note} onChange={(e) => setTopupForm((s) => ({ ...s, note: e.target.value }))} />
                 <button className="btn-primary" type="submit" disabled={busy}>{busy ? 'Processing...' : 'Apply'}</button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {resetOpen && selectedUser && (
+          <div className="modal-overlay" onClick={() => !busy && setResetOpen(false)}>
+            <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, textAlign: 'center' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                <RiLockLine size={32} color="var(--color-primary)" />
+              </div>
+              <h3 style={modalTitleStyle}>Reset Password</h3>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', marginBottom: 24 }}>
+                Generate a new temporary password for <strong>{selectedUser.name}</strong> (@{selectedUser.username})
+              </p>
+              
+              <div style={{ background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Temporary Password</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-primary)', letterSpacing: '0.1em' }}>{tempPassword}</div>
+              </div>
+
+              <div style={{ display: 'grid', gap: 12 }}>
+                <button className="btn-primary" onClick={onConfirmReset} disabled={busy}>
+                  {busy ? 'Saving...' : 'Confirm & Save New Password'}
+                </button>
+                <button className="btn-ghost" onClick={() => setResetOpen(false)} disabled={busy} style={{ fontWeight: 600 }}>
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         )}

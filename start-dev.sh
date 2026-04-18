@@ -22,7 +22,14 @@ export PHP_CLI_SERVER_WORKERS=5
 # We use the XAMPP PHP binary for consistency
 /opt/lampp/bin/php -S localhost:8000 -t backend/public &
 
-# 3. Start Next.js Frontend
+# 3. Start Migration Watcher
+echo ""
+echo "------------------------------------------"
+echo "Starting Migration Watcher..."
+echo "------------------------------------------"
+/opt/lampp/bin/php watch_migrations.php &
+
+# 4. Start Next.js Frontend
 echo ""
 echo "------------------------------------------"
 echo "Starting Next.js Frontend Developer Server..."

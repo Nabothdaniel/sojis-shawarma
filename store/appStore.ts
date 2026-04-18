@@ -44,6 +44,10 @@ export const useAppStore = create<AppState>()(
       // Toasts
       toasts: [],
       addToast: (message, type) => {
+        // Avoid duplicate toasts with the same message
+        const existing = get().toasts.find(t => t.message === message && t.type === type);
+        if (existing) return;
+
         const id = generateId();
         set((s) => ({ toasts: [...s.toasts, { id, message, type }] }));
         setTimeout(() => get().removeToast(id), 4000);
@@ -54,10 +58,18 @@ export const useAppStore = create<AppState>()(
       notifications: [],
       unreadCount: 0,
       addNotification: (notification) => {
-        set((s) => ({
-          notifications: [notification, ...s.notifications].slice(0, 30),
-          unreadCount: notification.is_read ? s.unreadCount : s.unreadCount + 1
-        }));
+        set((s) => {
+          // Avoid duplicate notifications with same payload
+          const isDuplicate = s.notifications.some(
+            (n) => n.event_type === notification.event_type && n.payload === notification.payload
+          );
+          if (isDuplicate) return s;
+
+          return {
+            notifications: [notification, ...s.notifications].slice(0, 30),
+            unreadCount: notification.is_read ? s.unreadCount : s.unreadCount + 1
+          };
+        });
       },
       setNotifications: (notifications, unreadCount) => {
         set({ notifications, unreadCount });
@@ -86,6 +98,14 @@ export const useAppStore = create<AppState>()(
       // Hydration
       hasHydrated: false,
       setHasHydrated: (state: boolean) => set({ hasHydrated: state }),
+
+      // Privacy
+      balanceHidden: false,
+      setBalanceHidden: (hidden) => set({ balanceHidden: hidden }),
+
+      // Payments
+      virtualAccounts: [],
+      setVirtualAccounts: (accounts) => set({ virtualAccounts: accounts }),
     }),
     {
       name: 'bamzysms-storage',
@@ -93,6 +113,9 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         welcomeModalSeen: state.welcomeModalSeen,
+        virtualAccounts: state.virtualAccounts,
+        balanceHidden: state.balanceHidden,
+
       }),
       onRehydrateStorage: (state) => {
         return () => state.setHasHydrated(true);

@@ -5,14 +5,17 @@ namespace BamzySMS\Controllers;
 use BamzySMS\Core\Controller;
 use BamzySMS\Models\User;
 use BamzySMS\Models\Verification;
+use BamzySMS\Services\WhatsAppService;
 
 class AuthController extends Controller {
     private $userModel;
     private $verificationModel;
+    private $whatsappService;
 
-    public function __construct($userModel = null, $verificationModel = null) {
+    public function __construct($userModel = null, $verificationModel = null, $whatsappService = null) {
         $this->userModel = $userModel ?? new User();
         $this->verificationModel = $verificationModel ?? new Verification();
+        $this->whatsappService = $whatsappService ?? new WhatsAppService();
     }
 
     private function sanitizeUsername($username) {
@@ -49,9 +52,22 @@ class AuthController extends Controller {
         // Store in DB
         $this->verificationModel->create($username, $otp, $type);
 
-        // Simulation/Logging only (since email is gone)
-        error_log("OTP_SIMULATION: OTP for $username is $otp");
-        return $this->json(['status' => 'success', 'message' => 'Verification code generated (Check logs in simulation mode)']);
+        // Handle delivery
+        $user = $this->userModel->findByUsername($username);
+        $deliveredVia = 'logs';
+
+        if ($user && !empty($user['whatsapp_number']) && !empty($user['whatsapp_notifications'])) {
+            $this->whatsappService->sendOtp($user['whatsapp_number'], $otp);
+            $deliveredVia = 'WhatsApp';
+        }
+
+        error_log("OTP_SIMULATION: OTP for $username is $otp (Delivered via $deliveredVia)");
+        
+        $msg = $deliveredVia === 'WhatsApp' 
+            ? 'Verification code sent to your WhatsApp!' 
+            : 'Verification code generated (Check logs in simulation mode)';
+
+        return $this->json(['status' => 'success', 'message' => $msg]);
     }
 
     public function verifyOtp() {
@@ -91,6 +107,40 @@ class AuthController extends Controller {
         }
 
         return $this->json(['status' => 'error', 'message' => 'Invalid or expired verification session'], 400);
+    }
+
+    /**
+     * POST /api/auth/reset-with-key
+     * The "Proper" forgot password without email.
+     */
+    public function resetWithRecoveryKey() {
+        $data = $this->getPostData();
+        $username = $this->sanitizeUsername($data['username'] ?? '');
+        $key = strtoupper(trim((string)($data['recovery_key'] ?? '')));
+        $password = trim((string)($data['password'] ?? ''));
+
+        if (!$username || !$key || !$password) {
+            return $this->json(['status' => 'error', 'message' => 'Username, Recovery Key, and new Password are required.'], 400);
+        }
+
+        if (strlen($password) < 6) {
+            return $this->json(['status' => 'error', 'message' => 'Password must be at least 6 characters.'], 400);
+        }
+
+        $user = $this->userModel->findByUsername($username);
+        if (!$user) {
+            return $this->json(['status' => 'error', 'message' => 'User not found.'], 404);
+        }
+
+        // Verify key
+        if (!isset($user['recovery_key']) || !password_verify($key, $user['recovery_key'])) {
+            return $this->json(['status' => 'error', 'message' => 'Invalid Recovery Key.'], 401);
+        }
+
+        // Update password
+        $this->userModel->updatePassword($username, $password);
+
+        return $this->json(['status' => 'success', 'message' => 'Password reset successfully using Recovery Key.']);
     }
 
     public function login() {
@@ -163,12 +213,16 @@ class AuthController extends Controller {
         }
 
         try {
-            $userId = $this->userModel->create([
+            $result = $this->userModel->create([
                 'username' => $username,
                 'name' => $name ?: $username,
                 'phone' => $phone ?: null,
                 'password' => $password
             ]);
+            
+            $userId = $result['id'];
+            $recoveryKey = $result['recovery_key'];
+            
             $userData = $this->userModel->findById($userId);
             
             $token = \BamzySMS\Core\JwtHelper::generate([
@@ -181,7 +235,8 @@ class AuthController extends Controller {
                 'status' => 'success',
                 'data' => [
                     'token' => $token,
-                    'user' => $userData
+                    'user' => $userData,
+                    'recovery_key' => $recoveryKey
                 ]
             ], 201);
         } catch (\Exception $e) {

@@ -108,10 +108,14 @@ class SMSController extends Controller {
         $purchases = $this->purchaseModel->getByUserPaginated($userId, $limit, $offset);
         $total     = $this->purchaseModel->countByUser($userId);
 
-        // Simple mapping
+        // Mask sensitive data for the list view
         foreach ($purchases as &$p) {
-            if ($p['phone_number']) {
-                $p['phone_masked'] = substr($p['phone_number'], 0, 4) . '****' . substr($p['phone_number'], -4);
+            if (!empty($p['phone_number'])) {
+                $p['phone_masked'] = substr($p['phone_number'], 0, 4) . '****' . substr($p['phone_number'], -2);
+                $p['phone_number'] = $p['phone_masked']; // Overwrite to ensure frontend shows masked by default
+            }
+            if (!empty($p['otp_code'])) {
+                $p['otp_code'] = '****';
             }
         }
 
@@ -188,17 +192,14 @@ class SMSController extends Controller {
         $activationId = (int)($data['activationId'] ?? 0);
         $pin          = trim($data['pin'] ?? '');
 
-        if (!$activationId || !$pin) {
+        if (!$activationId) {
             return $this->json(['status' => 'error', 'message' => 'Required fields missing.'], 400);
         }
 
-        // 1. Verify PIN
-        if (!$this->userModel->verifyPin($userId, $pin)) {
-            return $this->json(['status' => 'error', 'message' => 'Invalid transaction PIN.'], 401);
-        }
+        // 1. Fetch purchase (PIN verification removed as per user request)
 
-        // 2. Fetch purchase
-        $purchase = $this->purchaseModel->getByActivationId($activationId, $userId);
+        // 2. Fetch purchase using database ID
+        $purchase = $this->purchaseModel->getById($activationId, $userId);
         if (!$purchase) {
             return $this->json(['status' => 'error', 'message' => 'Activation not found.'], 404);
         }

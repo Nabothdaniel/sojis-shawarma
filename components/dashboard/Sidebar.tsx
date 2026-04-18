@@ -7,8 +7,8 @@ import {
   RiDashboardLine, RiWalletLine, RiShoppingBag3Line,
   RiPhoneLine, RiGlobalLine, RiUserSharedLine,
   RiQuestionLine, RiHistoryLine, RiExchangeLine,
-  RiLogoutBoxLine, RiSignalTowerFill,
-  RiUserSettingsLine,
+  RiLogoutBoxLine, RiSignalTowerFill, RiShieldKeyholeLine, RiAlertLine,
+  RiUserSettingsLine, RiExchangeFundsLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 import UserAvatar from '@/components/ui/UserAvatar';
@@ -20,11 +20,13 @@ const NAV_ITEMS = [
   { href: '/dashboard/user/usa-numbers', icon: <RiPhoneLine size={18} />, label: 'USA Numbers' },
   { href: '/dashboard/user/all-countries', icon: <RiGlobalLine size={18} />, label: 'All Countries Numbers' },
   { href: '/dashboard/user/refer', icon: <RiUserSharedLine size={18} />, label: 'Refer & Earn' },
+  { href: '/dashboard/user/security', icon: <RiShieldKeyholeLine size={18} />, label: 'Security & API' },
   { href: '/dashboard/user/faqs', icon: <RiQuestionLine size={18} />, label: 'FAQs' },
 ];
 
 const HISTORY_ITEMS = [
   { href: '/dashboard/user/numbers-history', icon: <RiHistoryLine size={18} />, label: 'Numbers History' },
+  { href: '/dashboard/user/funding', icon: <RiExchangeFundsLine size={18} />, label: 'Funding History' },
   { href: '/dashboard/user/transactions', icon: <RiExchangeLine size={18} />, label: 'Transaction History' },
 ];
 
@@ -91,10 +93,17 @@ export default function Sidebar() {
       <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }} onClick={handleNavClick}>
+            <Link key={item.href} href={item.href} style={{ textDecoration: 'none', position: 'relative' }} onClick={handleNavClick}>
               <div className={`sidebar-item ${pathname === item.href ? 'active' : ''}`}>
                 {item.icon}
                 {item.label}
+                {item.href === '/dashboard/user/security' && user && !user.recovery_key_saved && (
+                  <div style={{ 
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    width: 8, height: 8, borderRadius: '50%', background: '#F59E0B',
+                    boxShadow: '0 0 6px rgba(245, 158, 11, 0.6)'
+                  }} />
+                )}
               </div>
             </Link>
           ))}

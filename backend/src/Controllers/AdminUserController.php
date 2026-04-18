@@ -244,6 +244,30 @@ class AdminUserController extends AdminBaseController {
      * GET /api/admin/promote-me
      * Temporary route to promote current user to admin.
      */
+    /**
+     * GET /api/admin/transactions
+     * Returns all transactions from all users, most recent first.
+     */
+    public function getAllTransactions() {
+        $adminId = AuthMiddleware::handle();
+        $this->checkAdmin($adminId);
+
+        $stmt = $this->db->prepare("
+            SELECT t.*, u.name as user_name, u.username as user_username
+            FROM transactions t
+            JOIN users u ON t.user_id = u.id
+            ORDER BY t.created_at DESC
+            LIMIT 500
+        ");
+        $stmt->execute();
+        $transactions = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        return $this->json([
+            'status' => 'success',
+            'data' => $transactions
+        ]);
+    }
+
     public function promoteToAdmin() {
         $userId = AuthMiddleware::handle();
         if (!$userId) return $this->json(['status' => 'error', 'message' => 'Not logged in'], 401);
@@ -252,5 +276,39 @@ class AdminUserController extends AdminBaseController {
         $stmt->execute([$userId]);
 
         return $this->json(['status' => 'success', 'message' => 'Account promoted to Admin. Please refresh the page.']);
+    }
+
+    /**
+     * POST /api/admin/user/reset-password
+     */
+    public function sudoResetPassword() {
+        $adminId = AuthMiddleware::handle();
+        $this->checkAdmin($adminId);
+
+        $data = $this->getPostData();
+        $targetUserId = (int)($data['userId'] ?? 0);
+        $newPassword = (string)($data['password'] ?? '');
+
+        if (!$targetUserId || strlen($newPassword) < 6) {
+            return $this->json(['status' => 'error', 'message' => 'Valid User ID and password (min 6 chars) required.'], 400);
+        }
+
+        $targetUser = $this->userModel->findById($targetUserId);
+        if (!$targetUser) {
+            return $this->json(['status' => 'error', 'message' => 'User not found.'], 404);
+        }
+
+        $this->userModel->updatePassword($targetUser['username'], $newPassword);
+
+        // Log the action
+        error_log("ADMIN_ACTION: Admin $adminId manually reset password for User $targetUserId ({$targetUser['username']})");
+
+        // Notify user via system event
+        $this->eventModel->log($targetUserId, 'security_alert', [
+            'message' => 'Your password was reset by an administrator.',
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+
+        return $this->json(['status' => 'success', 'message' => "Password for {$targetUser['username']} has been reset successfully."]);
     }
 }

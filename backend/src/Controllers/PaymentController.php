@@ -55,9 +55,27 @@ class PaymentController extends Controller {
                 $accountsStmt->execute([$userId]);
                 $accounts = $accountsStmt->fetchAll(\PDO::FETCH_ASSOC);
 
+                // Map snake_case database fields to camelCase for the frontend
+                $formattedAccounts = [];
+                $uniqueBanks = [];
+
+                foreach ($accounts as $row) {
+                    $bn = $row['bank_name'] ?? 'Unknown';
+                    if (!in_array($bn, $uniqueBanks)) {
+                        $uniqueBanks[] = $bn;
+                        $formattedAccounts[] = [
+                            'bankCode'      => $row['bank_code'],
+                            'accountNumber' => $row['account_number'],
+                            'accountName'   => $row['account_name'],
+                            'bankName'      => $bn,
+                            'Reserved_Account_Id' => $row['reserved_account_id']
+                        ];
+                    }
+                }
+
                 return $this->json([
                     'status'       => 'success',
-                    'bankAccounts' => $accounts,
+                    'bankAccounts' => $formattedAccounts,
                     'customer'     => [
                         'customer_name'         => $user['name'],
                         'customer_email'        => $user['username'] . '@bamzysms.com',
@@ -83,6 +101,18 @@ class PaymentController extends Controller {
 
             $bankAccounts = $response['bankAccounts'] ?? [];
             $customer     = $response['customer']     ?? [];
+
+            // Filter to ensure uniqueness by bankName (preventing 2x Palmpay)
+            $uniqueBanks = [];
+            $filteredAccounts = [];
+            foreach ($bankAccounts as $acct) {
+                $bn = $acct['bankName'] ?? 'Unknown';
+                if (!in_array($bn, $uniqueBanks)) {
+                    $uniqueBanks[] = $bn;
+                    $filteredAccounts[] = $acct;
+                }
+            }
+            $bankAccounts = $filteredAccounts;
 
             // Persist the accounts so we don't call the API again
             foreach ($bankAccounts as $acct) {

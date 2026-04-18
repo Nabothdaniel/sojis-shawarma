@@ -62,6 +62,20 @@ class SMSPurchase {
     }
 
     /**
+     * Find a specific purchase by its primary key ID, scoped to a user.
+     */
+    public function getById(int $id, int $userId): ?array {
+        $stmt = $this->db->prepare("
+            SELECT * FROM sms_purchases
+            WHERE id = ? AND user_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$id, $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    /**
      * Find a specific activation by activation_id (global search for internal reconciliation).
      */
     public function findByActivationId(int $activationId): ?array {

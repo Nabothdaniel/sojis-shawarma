@@ -59,6 +59,14 @@ export const adminService = {
   updateUserBalance: (userId: number, balance: number): Promise<{ status: string; message: string }> =>
     apiClient.post('/admin/user/balance', { userId, balance }),
 
+  // Sudo Reset Password
+  sudoResetPassword: (userId: number, password: string): Promise<{ status: string; message: string }> =>
+    apiClient.post('/admin/user/reset-password', { userId, password }),
+
+  // Get all transactions (for history/funding pages)
+  getTransactions: (): Promise<{ status: string; data: any[] }> =>
+    apiClient.get('/admin/transactions'),
+
   // Get system settings (markup, etc.)
   getSettings: (): Promise<{ status: string; data: AdminSettings }> =>
     apiClient.get('/admin/settings'),

@@ -107,6 +107,12 @@ export function useBuyNumbers(defaultCountry: string) {
   const handlePinSuccess = async (pin: string) => {
     setPinLoading(true);
     try {
+      // If user doesn't have a PIN, set it first
+      if (!user?.hasPin) {
+        await userService.updatePin(pin);
+        addToast('Transaction PIN set successfully!', 'success');
+      }
+
       await smsService.buyNumber({
         serviceCode: selectedServiceCode,
         serviceName: chosenService!.name,
@@ -137,7 +143,7 @@ export function useBuyNumbers(defaultCountry: string) {
 
   return {
     // Data
-    countries, services, filteredServices, country, chosenService, priceInfo,
+    countries, services, filteredServices, country, chosenService, priceInfo, user,
     // State
     search, setSearch,
     dropOpen, setDropOpen,

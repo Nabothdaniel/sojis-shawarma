@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RiLockPasswordLine, RiCloseLine, RiInformationLine } from 'react-icons/ri';
+import { RiLockPasswordLine, RiCloseLine, RiInformationLine, RiEyeLine, RiEyeOffLine } from 'react-icons/ri';
 
 interface PinModalProps {
   isOpen: boolean;
@@ -22,6 +22,7 @@ export default function PinModal({
 }: PinModalProps) {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [step, setStep] = useState(1); // 1: entry, 2: confirmation (only used in setup)
   const isSetup = title.toLowerCase().includes('set');
 
@@ -87,20 +88,33 @@ export default function PinModal({
             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-faint)', marginBottom: 8, textTransform: 'uppercase' }}>
               {isSetup && step === 2 ? 'Confirm 4-Digit PIN' : 'Enter 4-Digit PIN'}
             </label>
-            <input 
-              type="password"
-              className="input-field"
-              placeholder="••••"
-              maxLength={4}
-              value={isSetup && step === 2 ? confirmPin : pin}
-              autoFocus
-              onChange={e => {
-                const val = e.target.value.replace(/\D/g, '');
-                if (isSetup && step === 2) setConfirmPin(val);
-                else setPin(val);
-              }}
-              style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5em', fontWeight: 800 }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input 
+                type={showPin ? "text" : "password"}
+                className="input-field"
+                placeholder="••••"
+                maxLength={4}
+                value={isSetup && step === 2 ? confirmPin : pin}
+                autoFocus
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  if (isSetup && step === 2) setConfirmPin(val);
+                  else setPin(val);
+                }}
+                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5em', fontWeight: 800, paddingRight: 45 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin(!showPin)}
+                style={{
+                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: 'var(--color-text-faint)', 
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 8
+                }}
+              >
+                {showPin ? <RiEyeOffLine size={20} /> : <RiEyeLine size={20} />}
+              </button>
+            </div>
           </div>
 
           <div style={{ 

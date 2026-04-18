@@ -14,8 +14,8 @@ interface UserAvatarProps {
  * Style: 'avataaars' (tunable via seed which is the username).
  */
 export default function UserAvatar({ seed, size = 34, className, style }: UserAvatarProps) {
-  // Use 'avataaars' style from Dicebear for a modern look
-  const avatarUrl = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+  // Use 'pixel-art' style from Dicebear for a unique pixelated look
+  const avatarUrl = `https://api.dicebear.com/9.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
 
   return (
     <div 

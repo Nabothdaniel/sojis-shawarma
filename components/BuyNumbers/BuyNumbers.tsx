@@ -44,8 +44,11 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
         onClose={() => logic.setPinModalOpen(false)}
         onSuccess={logic.handlePinSuccess}
         isLoading={logic.pinLoading}
-        title="Confirm Purchase"
-        description={`Please enter your 4-digit transaction PIN to purchase ${logic.quantity} x ${logic.chosenService?.name} number(s) for ${formatMoney((logic.priceInfo?.price || 0) * logic.quantity)}.`}
+        title={!logic.user?.hasPin ? "Set Your Transaction PIN" : "Confirm Purchase"}
+        description={!logic.user?.hasPin 
+          ? "You haven't set a transaction PIN yet. Please create a 4-digit PIN to secure your purchases."
+          : `Please enter your 4-digit transaction PIN to purchase ${logic.quantity} x ${logic.chosenService?.name} number(s) for ${formatMoney((logic.priceInfo?.price || 0) * logic.quantity)}.`
+        }
       />
 
       <div className="stat-card">

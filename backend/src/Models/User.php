@@ -13,17 +13,28 @@ class User {
     }
 
     public function create($data) {
-        $sql = "INSERT INTO users (username, name, phone, password, referral_code) VALUES (?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO users (username, name, phone, whatsapp_number, password, referral_code, recovery_key) VALUES (?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->db->prepare($sql);
         $username = strtolower($data['username'] ?? preg_replace('/[^a-zA-Z0-9]/', '', $data['name'] ?? 'user' . rand(100, 999)));
+        
+        // Generate a plain recovery key to show the user, but store the hash
+        $plainKey = 'BAMZY-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4)) . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4));
+        $hashedKey = password_hash($plainKey, PASSWORD_DEFAULT);
+
         $stmt->execute([
             $username,
             $data['name'] ?? $username,
             $data['phone'] ?? null,
+            $data['phone'] ?? null, // Default whatsapp_number to phone if provided
             password_hash($data['password'], PASSWORD_DEFAULT),
-            'BAMZY' . strtoupper(substr(uniqid(), -6))
+            'BAMZY' . strtoupper(substr(uniqid(), -6)),
+            $hashedKey
         ]);
-        return $this->db->lastInsertId();
+        
+        return [
+            'id' => $this->db->lastInsertId(),
+            'recovery_key' => $plainKey
+        ];
     }
 
     public function findByUsername($username) {
@@ -34,7 +45,7 @@ class User {
     }
 
     public function findById($id) {
-        $sql = "SELECT id, username, name, phone, balance, role, created_at FROM users WHERE id = ?";
+        $sql = "SELECT id, username, name, phone, balance, role, recovery_key_saved, whatsapp_notifications, whatsapp_number, created_at FROM users WHERE id = ?";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -54,7 +65,7 @@ class User {
      * List all users for administrative purposes.
      */
     public function getAllUsers(): array {
-        $stmt = $this->db->query("SELECT id, username, name, phone, balance, role, created_at FROM users ORDER BY id DESC");
+        $stmt = $this->db->query("SELECT id, username, name, phone, balance, role, recovery_key_saved, whatsapp_notifications, whatsapp_number, created_at FROM users ORDER BY id DESC");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -119,5 +130,16 @@ class User {
         $stmt->execute([$hashedToken]);
         $user = $stmt->fetch();
         return $user ? $user['id'] : null;
+    }
+
+    public function markKeyAsSaved($userId) {
+        $stmt = $this->db->prepare("UPDATE users SET recovery_key_saved = 1 WHERE id = ?");
+        return $stmt->execute([$userId]);
+    }
+
+    public function updateWhatsappSettings($userId, $enabled, $number = null) {
+        $sql = "UPDATE users SET whatsapp_notifications = ?, whatsapp_number = ? WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([(int)$enabled, $number, $userId]);
     }
 }

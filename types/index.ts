@@ -5,6 +5,7 @@ export interface ToastMessage {
 }
 
 export interface User {
+  id: number;
   username: string;
   name: string;
   phone?: string;
@@ -13,6 +14,9 @@ export interface User {
   referralCode: string;
   role: 'user' | 'admin';
   hasPin: boolean;
+  recovery_key_saved: boolean;
+  whatsapp_notifications: boolean;
+  whatsapp_number?: string;
 }
 
 export interface Notification {
@@ -21,6 +25,14 @@ export interface Notification {
   payload: string; // JSON string
   is_read: boolean;
   created_at: string;
+}
+
+export interface VirtualAccount {
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  bankName: string;
+  Reserved_Account_Id?: string;
 }
 
 export interface AppState {
@@ -41,6 +53,10 @@ export interface AppState {
   logout: () => void;
   updateUserBalance: (balance: number) => void;
 
+  // Payments
+  virtualAccounts: VirtualAccount[];
+  setVirtualAccounts: (accounts: VirtualAccount[]) => void;
+
   // Toasts
   toasts: ToastMessage[];
   addToast: (message: string, type: ToastMessage['type']) => void;
@@ -60,6 +76,10 @@ export interface AppState {
   // Welcome modal
   welcomeModalSeen: boolean;
   setWelcomeModalSeen: () => void;
+
+  // Privacy
+  balanceHidden: boolean;
+  setBalanceHidden: (hidden: boolean) => void;
 
   // Hydration
   hasHydrated: boolean;

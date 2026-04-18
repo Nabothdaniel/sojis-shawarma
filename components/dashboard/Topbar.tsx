@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   RiMenu2Line, RiNotificationLine,
   RiCoinLine, RiUserSettingsLine, RiShoppingCartLine, RiLogoutBoxLine,
-  RiSignalTowerFill,
+  RiSignalTowerFill, RiEyeLine, RiEyeOffLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 import UserAvatar from '@/components/ui/UserAvatar';
@@ -14,7 +14,7 @@ import { formatMoney } from '@/lib/utils';
 import NotificationDropdown from '@/components/dashboard/NotificationDropdown';
 
 export default function Topbar({ title }: { title?: string }) {
-  const { toggleSidebar, user, logout } = useAppStore();
+  const { toggleSidebar, user, logout, balanceHidden, setBalanceHidden } = useAppStore();
   const router = useRouter();
   const [dropOpen, setDropOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -75,15 +75,30 @@ export default function Topbar({ title }: { title?: string }) {
         {user?.role !== 'admin' && (
           <div className="balance-chip" style={{
             display: 'flex', alignItems: 'center', gap: 5,
-            padding: '5px 10px', borderRadius: 999,
+            padding: '5px 8px 5px 12px', borderRadius: 12,
             background: 'var(--color-primary-dim)',
             border: '1px solid var(--color-primary-glow)',
-            fontSize: '0.78rem', fontWeight: 600,
+            fontSize: '0.82rem', fontWeight: 700,
             color: 'var(--color-primary)',
             fontFamily: 'var(--font-display)',
           }}>
-            <RiCoinLine size={13} />
-            {formatMoney(user?.balance)}
+            <RiCoinLine size={14} style={{ opacity: 0.8 }} />
+            <span style={{ minWidth: balanceHidden ? '60px' : 'auto', transition: 'all 0.2s' }}>
+              {balanceHidden ? '••••••' : formatMoney(user?.balance)}
+            </span>
+            <button
+              onClick={() => setBalanceHidden(!balanceHidden)}
+              style={{
+                background: 'none', border: 'none', padding: 4, cursor: 'pointer',
+                color: 'var(--color-primary)', display: 'flex', alignItems: 'center',
+                opacity: 0.6, transition: 'opacity 0.15s', marginLeft: 4
+              }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = '1')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = '0.6')}
+              title={balanceHidden ? "Show balance" : "Hide balance"}
+            >
+              {balanceHidden ? <RiEyeLine size={14} /> : <RiEyeOffLine size={14} />}
+            </button>
           </div>
         )}
 

@@ -13,6 +13,7 @@ $router->add('POST', '/auth/register',        'AuthController',        'register
 $router->add('POST', '/auth/send-otp',        'AuthController',        'sendOtp');
 $router->add('POST', '/auth/verify-otp',      'AuthController',        'verifyOtp');
 $router->add('POST', '/auth/reset-password',  'AuthController',        'resetPassword');
+$router->add('POST', '/auth/reset-with-key',  'AuthController',        'resetWithRecoveryKey');
 $router->add('GET',  '/auth/me',             'AuthController',        'getMe');
 
 // User
@@ -44,6 +45,7 @@ $router->add('PUT',    '/admin/users',          'AdminUserController',   'update
 $router->add('DELETE', '/admin/users',          'AdminUserController',   'deleteUser');
 $router->add('POST',   '/admin/user/topup',     'AdminUserController',   'topUpUserBalance');
 $router->add('POST',   '/admin/user/balance',   'AdminUserController',   'updateUserBalance');
+$router->add('GET',    '/admin/transactions',   'AdminUserController',   'getAllTransactions');
 $router->add('GET',    '/admin/promote-me',     'AdminUserController',   'promoteToAdmin');
 
 // Admin - Pricing & Services

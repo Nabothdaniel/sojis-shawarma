@@ -50,13 +50,35 @@ export default function HistoryTable({ items, onReveal, onUnreveal, onHide, onCo
                         <button onClick={() => onCopy(revealedData[item.id].phone)} className="btn-ghost" style={{ padding: 4, minWidth: 'auto' }}>
                           <RiFileCopyLine size={14} />
                         </button>
-                        <button onClick={() => onUnreveal(item.id)} className="btn-ghost" style={{ padding: 4, minWidth: 'auto', color: '#EF4444' }}>
-                          <RiEyeOffLine size={14} />
+                        <button 
+                          onClick={() => onUnreveal(item.id)} 
+                          className="btn-ghost" 
+                          style={{ 
+                            padding: 6, 
+                            minWidth: 'auto', 
+                            color: 'var(--color-text-faint)',
+                            background: 'rgba(0,0,0,0.05)',
+                            borderRadius: 6
+                          }}
+                          title="Hide details"
+                        >
+                          <RiEyeOffLine size={16} />
                         </button>
                       </div>
                     ) : (
-                      <button onClick={() => onReveal(item.id)} className="btn-ghost" style={{ padding: 4, minWidth: 'auto', color: 'var(--color-primary)' }}>
-                        <RiEyeLine size={14} />
+                      <button 
+                        onClick={() => onReveal(item.id)} 
+                        className="btn-ghost" 
+                        style={{ 
+                          padding: 6, 
+                          minWidth: 'auto', 
+                          color: 'var(--color-primary)',
+                          background: 'var(--color-primary-dim)',
+                          borderRadius: 6
+                        }}
+                        title="Reveal details"
+                      >
+                        <RiEyeLine size={16} />
                       </button>
                     )}
                   </div>

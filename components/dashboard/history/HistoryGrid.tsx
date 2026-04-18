@@ -111,11 +111,33 @@ export default function HistoryGrid({
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {revealedData[item.id] ? (
-                  <button onClick={() => onUnreveal(item.id)} className="btn-ghost" style={{ padding: 8, minWidth: 'auto', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>
+                  <button 
+                    onClick={() => onUnreveal(item.id)} 
+                    className="btn-ghost" 
+                    style={{ 
+                      padding: 8, 
+                      minWidth: 'auto', 
+                      background: 'rgba(55, 65, 81, 0.1)', // Neutral dark
+                      color: 'var(--color-text-muted)',
+                      borderRadius: 12
+                    }}
+                    title="Hide details"
+                  >
                     <RiEyeOffLine size={18} />
                   </button>
                 ) : (
-                  <button onClick={() => onReveal(item.id)} className="btn-ghost" style={{ padding: 8, minWidth: 'auto', background: 'var(--color-primary-dim)', color: 'var(--color-primary)' }}>
+                  <button 
+                    onClick={() => onReveal(item.id)} 
+                    className="btn-ghost" 
+                    style={{ 
+                      padding: 8, 
+                      minWidth: 'auto', 
+                      background: 'var(--color-primary-dim)', 
+                      color: 'var(--color-primary)',
+                      borderRadius: 12
+                    }}
+                    title="Reveal details"
+                  >
                     <RiEyeLine size={18} />
                   </button>
                 )}

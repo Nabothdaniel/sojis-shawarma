@@ -12,20 +12,25 @@ import AuthLayout from '@/components/auth/AuthLayout';
 import { authService } from '@/lib/api/auth.service';
 import { useAppStore } from '@/store/appStore';
 
+
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const { addToast } = useAppStore();
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
-  const [showPass, setShowPass] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  
-  const [form, setForm] = useState({ 
-    username: '', 
+  const [recoveryMode, setRecoveryMode] = useState<'otp' | 'key'>('otp');
+  const [form, setForm] = useState({
+    username: '',
     otp: '',
-    password: '', 
+    recovery_key: '',
+    password: '',
     confirm: ''
   });
+
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const addToast = useAppStore((s) => s.addToast);
+
 
   const [resendTimer, setResendTimer] = useState(0);
 
@@ -63,20 +68,9 @@ export default function ForgotPasswordPage() {
       addToast('Please enter a valid 6-digit code.', 'error');
       return;
     }
-    // We don't necessarily need to call verifyOtp separately if we submit it all at once, 
-    // but verifying it now gives better UX.
     setLoading(true);
     try {
       await authService.verifyOtp(form.username, form.otp, 'reset');
-      // We don't actually want to delete the OTP yet because resetPassword needs it.
-      // Wait, my verify() deletes it. I should probably NOT delete it if we need it for the next step, 
-      // OR I should return a temporary "reset_token".
-      // Let's assume for now I'll just skip verify() here and do it in the next step, 
-      // OR I'll modify the backend to verify without deleting.
-      // Actually, I'll just proceed to step 3 after a "success" verify.
-      // But wait, if I delete it, I can't verify it again in the resetPassword call.
-      // I'll update the backend to NOT delete if type is reset... or just verify only in the final step.
-      // For now, let's just go to step 3.
       setStep(3);
     } catch (error: any) {
       addToast(error.message || 'Invalid or expired code', 'error');
@@ -99,18 +93,23 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      // THE PROBLEM: verifyOtp() already deleted the OTP.
-      // WORKAROUND: In resetPassword, I'll allow it if verified recently? No.
-      // BETTER: I'll just comment out the delete in Verification model for now or handle it.
-      await authService.resetPassword({
-        username: form.username,
-        otp: form.otp,
-        password: form.password
-      });
+      if (recoveryMode === 'key') {
+        await authService.resetWithKey({
+          username: form.username,
+          recovery_key: form.recovery_key,
+          password: form.password
+        });
+      } else {
+        await authService.resetPassword({
+          username: form.username,
+          otp: form.otp,
+          password: form.password
+        });
+      }
       addToast('Password updated successfully!', 'success');
       router.push('/login');
     } catch (error: any) {
-      addToast(error.message || 'Reset failed. Please try again.', 'error');
+      addToast(error.message || 'Reset failed. Please verify your details.', 'error');
     } finally {
       setLoading(false);
     }
@@ -121,7 +120,7 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       {loading && <PageLoader />}
-      
+
       <div style={{ paddingBottom: 24 }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
@@ -138,31 +137,81 @@ export default function ForgotPasswordPage() {
           </span>
         </div>
 
-        {/* Step-less header */}
-
         <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '2rem', marginBottom: 8 }}>
           {step === 1 ? 'Forgot Password?' : step === 2 ? 'Enter Reset Code' : 'Set New Password'}
         </h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem', marginBottom: 32 }}>
-          {step === 1 ? 'Enter your username to receive a password reset code' : step === 2 ? `Check logs for the 6-digit code for ${form.username}` : 'Choose a strong new password for your account'}
+          {step === 1
+            ? 'Choose a method to regain access to your account'
+            : step === 2
+              ? `Check logs for the 6-digit code for ${form.username}`
+              : 'Choose a strong new password for your account'}
         </p>
 
         {step === 1 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>Username</label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', display: 'flex' }}>
-                  <RiUserLine size={18} />
-                </span>
-                <input name="username" type="text" className="input-field" placeholder="Enter your username"
-                  value={form.username} onChange={handleChange} style={{ paddingLeft: 44 }} />
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', background: 'var(--color-bg-hover)', padding: 4, borderRadius: 12 }}>
+              <button
+                onClick={() => setRecoveryMode('otp')}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                  background: recoveryMode === 'otp' ? 'var(--color-bg)' : 'transparent',
+                  color: recoveryMode === 'otp' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  fontWeight: 700, fontSize: '0.85rem', transition: 'all 0.2s'
+                }}
+              >
+                Verification Code
+              </button>
+              <button
+                onClick={() => setRecoveryMode('key')}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                  background: recoveryMode === 'key' ? 'var(--color-bg)' : 'transparent',
+                  color: recoveryMode === 'key' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                  fontWeight: 700, fontSize: '0.85rem', transition: 'all 0.2s'
+                }}
+              >
+                Recovery Key
+              </button>
             </div>
-            <button type="button" onClick={handleSendOtp} className="btn-primary"
-              style={{ padding: '15px', width: '100%', fontSize: '1rem', marginTop: 10 }}>
-              Send Reset Code <RiArrowRightLine size={18} />
-            </button>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>Username</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', display: 'flex' }}>
+                    <RiUserLine size={18} />
+                  </span>
+                  <input name="username" type="text" className="input-field" placeholder="Enter your username"
+                    value={form.username} onChange={handleChange} style={{ paddingLeft: 44 }} />
+                </div>
+              </div>
+
+              {recoveryMode === 'key' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>Recovery Key</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', display: 'flex' }}>
+                      <RiLockLine size={18} />
+                    </span>
+                    <input name="recovery_key" type="text" className="input-field" placeholder="BAMZY-XXXX-XXXX"
+                      value={form.recovery_key} onChange={handleChange} style={{ paddingLeft: 44, textTransform: 'uppercase' }} />
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', marginTop: 8 }}>
+                    Enter the secret key given to you during registration.
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={recoveryMode === 'key' ? () => setStep(3) : handleSendOtp}
+                className="btn-primary"
+                style={{ padding: '15px', width: '100%', fontSize: '1rem', marginTop: 10 }}
+              >
+                {recoveryMode === 'key' ? 'Continue' : 'Send Reset Code'} <RiArrowRightLine size={18} />
+              </button>
+            </div>
           </div>
         )}
 

@@ -64,7 +64,7 @@ export const smsService = {
     apiClient.post('/sms/buy', payload),
 
   // Reveal plain-text phone number and OTP using PIN
-  revealPlainNumber: (activationId: number, pin: string): Promise<{ status: string; data: { phoneNumber: string; otpCode: string } }> =>
+  revealPlainNumber: (activationId: number, pin?: string): Promise<{ status: string; data: { phoneNumber: string; otpCode: string } }> =>
     apiClient.post('/sms/reveal', { activationId, pin }),
 
   // Poll OTP status for an activation

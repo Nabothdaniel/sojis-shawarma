@@ -6,15 +6,16 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   RiDashboardLine, RiMoneyDollarCircleLine, RiSettings4Line, 
   RiGroupLine, RiLogoutBoxRLine, RiShieldUserLine,
-  RiHistoryLine
+  RiHistoryLine, RiExchangeFundsLine
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/dashboard/admin/dashboard', icon: RiDashboardLine },
+  { name: 'User Management', href: '/dashboard/admin/users', icon: RiGroupLine },
+  { name: 'Funding History', href: '/dashboard/admin/funding', icon: RiExchangeFundsLine },
   { name: 'Price Management', href: '/dashboard/admin/prices', icon: RiMoneyDollarCircleLine },
   { name: 'Global Settings', href: '/dashboard/admin/settings', icon: RiSettings4Line },
-  { name: 'User Management', href: '/dashboard/admin/users', icon: RiGroupLine },
   { name: 'System Logs', href: '/dashboard/admin/logs', icon: RiHistoryLine },
 ];
 

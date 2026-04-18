@@ -37,4 +37,10 @@ class Verification {
 
         return false;
     }
+
+    public function getRecentForUser($username) {
+        $stmt = $this->db->prepare("SELECT otp, type, created_at, expires_at FROM verifications WHERE username = ? ORDER BY created_at DESC LIMIT 5");
+        $stmt->execute([$username]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

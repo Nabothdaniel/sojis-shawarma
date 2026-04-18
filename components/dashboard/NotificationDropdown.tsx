@@ -7,6 +7,7 @@ import {
   RiInboxLine
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
+import apiClient from '@/lib/api/client';
 
 function timeAgo(date: Date) {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
@@ -42,15 +43,10 @@ export default function NotificationDropdown() {
   // Fetch initial notifications when opening
   const toggleDropdown = async () => {
     if (!isOpen) {
-      // Reload from server to be sure
       try {
-        const token = sessionStorage.getItem('bamzysms-token') || localStorage.getItem('bamzysms-token');
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/notifications`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-          setNotifications(data.notifications, data.unreadCount);
+        const data: any = await apiClient.get('/notifications');
+        if (data && data.status === 'success') {
+          setNotifications(data.notifications || [], data.unreadCount || 0);
         }
       } catch (err) {
         console.error('Failed to fetch notifications', err);
@@ -61,12 +57,7 @@ export default function NotificationDropdown() {
 
   const handleMarkAllRead = async () => {
     try {
-      const token = sessionStorage.getItem('bamzysms-token') || localStorage.getItem('bamzysms-token');
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/notifications/mark-read`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      });
+      await apiClient.post('/notifications/mark-read', {});
       markRead();
     } catch (err) {
       console.error('Failed to mark all read', err);
@@ -75,12 +66,7 @@ export default function NotificationDropdown() {
 
   const handleMarkOneRead = async (id: number) => {
     try {
-      const token = sessionStorage.getItem('bamzysms-token') || localStorage.getItem('bamzysms-token');
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/notifications/mark-read`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
+      await apiClient.post('/notifications/mark-read', { id });
       markRead(id);
     } catch (err) {
       console.error('Failed to mark notification read', err);
