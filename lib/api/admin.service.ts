@@ -115,4 +115,8 @@ export const adminService = {
   // Get provider status
   getProviderStatus: (): Promise<{ status: string; data: any }> =>
     apiClient.get('/admin/provider/status'),
+
+  // Reset a user's recovery key
+  resetUserRecoveryKey: (userId: number): Promise<{ status: string; data: { recovery_key: string }; message: string }> =>
+    apiClient.post('/admin/user/reset-recovery-key', { userId }),
 };

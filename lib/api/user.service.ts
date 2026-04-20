@@ -10,4 +10,5 @@ export const userService = {
   updateSecuritySettings: (data: { whatsapp_notifications: boolean; whatsapp_number?: string }) => 
     apiClient.post('/user/security', data),
   confirmRecoveryKeySaved: () => apiClient.post('/user/confirm-key-saved'),
+  regenerateRecoveryKey: () => apiClient.post('/user/regenerate-recovery-key'),
 };

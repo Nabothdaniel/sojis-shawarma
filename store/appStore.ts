@@ -27,12 +27,14 @@ export const useAppStore = create<AppState>()(
           sessionStorage.setItem('bamzysms-token', token);
           localStorage.setItem('bamzysms-token', token); // Optional: redundant but keeps session on reload
         }
-        set({ user, isAuthenticated: true });
+        // Ensure virtual accounts are reset for the new login session
+        set({ user, isAuthenticated: true, virtualAccounts: [] });
       },
       logout: () => {
         sessionStorage.removeItem('bamzysms-token');
         localStorage.removeItem('bamzysms-token');
-        set({ user: null, isAuthenticated: false });
+        localStorage.removeItem('bamzysms-storage');
+        set({ user: null, isAuthenticated: false, virtualAccounts: [] });
       },
       updateUserBalance: (balance: number) => {
         set((s) => {
@@ -113,7 +115,6 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         welcomeModalSeen: state.welcomeModalSeen,
-        virtualAccounts: state.virtualAccounts,
         balanceHidden: state.balanceHidden,
 
       }),

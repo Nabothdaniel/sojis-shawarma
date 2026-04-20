@@ -11,14 +11,14 @@ import {
   RiArrowRightLine, RiInboxLine, RiBankLine, RiHistoryLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
-import { userService, smsService } from '@/lib/api';
+import { userService, smsService, paymentService } from '@/lib/api';
 import PinModal from '@/components/ui/PinModal';
 import { RiShieldKeyholeLine, RiEyeLine, RiEyeOffLine } from 'react-icons/ri';
 import { formatMoney } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, login, addToast, balanceHidden, setBalanceHidden } = useAppStore();
+  const { user, login, addToast, balanceHidden, setBalanceHidden, virtualAccounts, setVirtualAccounts } = useAppStore();
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   
@@ -33,9 +33,22 @@ export default function DashboardPage() {
     }).catch(err => console.error('Failed to fetch profile', err));
 
     // 2. Get recent activity
-    smsService.getPurchases().then(res => setRecentPurchases(res.data.slice(0, 5)));
-    userService.getTransactions().then(res => setRecentTransactions(res.data.slice(0, 5)));
-  }, [login]);
+    smsService.getPurchases().then(res => {
+      setRecentPurchases(res?.data?.slice(0, 5) || []);
+    }).catch(err => console.error('Failed to fetch purchases', err));
+
+    userService.getTransactions().then(res => {
+      setRecentTransactions(res?.data?.slice(0, 5) || []);
+    }).catch(err => console.error('Failed to fetch transactions', err));
+    // 3. Get virtual account if not present
+    if (virtualAccounts.length === 0) {
+      paymentService.getVirtualAccount().then(res => {
+        if (res.status === 'success' && res.bankAccounts?.length > 0) {
+          setVirtualAccounts(res.bankAccounts);
+        }
+      }).catch(err => console.error('Failed to fetch virtual account', err));
+    }
+  }, [login, virtualAccounts.length, setVirtualAccounts]);
 
   const handleSetPin = async (pin: string) => {
     setPinLoading(true);
@@ -66,7 +79,7 @@ export default function DashboardPage() {
           <span style={{ color: 'var(--color-primary)' }}>Home</span>
         </div>
 
-        {/* Security Banner */}
+        {/* Security Banner (PIN) */}
         {!user?.hasPin && (
           <div className="security-banner" style={{ 
             background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)', 
@@ -97,6 +110,38 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Recovery Key Banner */}
+        {!user?.recovery_key_saved && (
+          <div className="security-banner" style={{ 
+            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', 
+            borderRadius: 20, color: '#fff', border: 'none', 
+            marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '32px', position: 'relative', overflow: 'hidden',
+            boxShadow: '0 10px 30px rgba(245, 158, 11, 0.2)'
+          }}>
+            <div style={{ position: 'absolute', right: '-20px', top: '-20px', opacity: 0.1 }}>
+               <RiShieldKeyholeLine size={180} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, position: 'relative', zIndex: 1 }}>
+              <div style={{ width: 60, height: 60, borderRadius: 16, background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <RiShieldKeyholeLine size={32} />
+              </div>
+              <div className="banner-text">
+                <h3 style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 800, marginBottom: 4 }}>Unsaved Recovery Key</h3>
+                <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', margin: 0, maxWidth: 450 }}>You haven't confirmed saving your recovery key. This is the only way to regain access if you forget your password.</p>
+              </div>
+            </div>
+            <Link href="/dashboard/user/security">
+              <button 
+                className="btn-primary banner-btn" 
+                style={{ background: '#fff', color: '#D97706', fontWeight: 800, padding: '14px 28px', border: 'none', borderRadius: 12, cursor: 'pointer', transition: 'transform 0.2s', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              >
+                Secure Key Now
+              </button>
+            </Link>
+          </div>
+        )}
+
         {/* Stat cards */}
         <div className="stat-grid" style={{
           display: 'grid',
@@ -113,7 +158,7 @@ export default function DashboardPage() {
                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--color-primary-dim)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <RiWalletLine size={24} />
                </div>
-               <Link href="/dashboard/fund-wallet">
+               <Link href="/dashboard/user/fund-wallet">
                  <button className="btn-primary" style={{ padding: '8px 12px', fontSize: '0.75rem', borderRadius: 8, height: 'auto' }}>
                     <RiAddLine size={14} /> Recharge
                  </button>
@@ -157,7 +202,7 @@ export default function DashboardPage() {
                 Virtual Account
               </div>
               <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.4rem', color: 'var(--color-text)', letterSpacing: '0.05em' }}>
-                {user?.phone ? `0${user.phone.slice(-9)}` : '7049283741'}
+                 {virtualAccounts[0] ? virtualAccounts[0].accountNumber : (user?.phone ? `0${user.phone.slice(-9)}` : 'Generating...')}
               </div>
             </div>
           </div>

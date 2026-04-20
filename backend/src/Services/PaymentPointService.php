@@ -105,6 +105,16 @@ class PaymentPointService {
         if (str_starts_with($digits, '234') && strlen($digits) > 10) {
             $digits = '0' . substr($digits, 3);
         }
+
+        // If it starts with 8 and has 10 digits, add leading 0
+        if (strlen($digits) === 10 && str_starts_with($digits, '8')) {
+            $digits = '0' . $digits;
+        }
+
+        // If it starts with 7, 8 or 9 and has 10 digits (common Nigerian numbers without 0)
+        if (strlen($digits) === 10 && preg_match('/^[789]/', $digits)) {
+            $digits = '0' . $digits;
+        }
         
         // Return exactly 11 digits or fallback if still invalid
         return (strlen($digits) === 11) ? $digits : '08000000000';

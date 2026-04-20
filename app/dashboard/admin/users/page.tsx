@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService, AdminUser } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
-import { RiSearchLine, RiPhoneLine, RiWalletLine, RiTimeLine, RiEdit2Line, RiDeleteBinLine, RiAddLine, RiExchangeFundsLine, RiCloseLine, RiLockLine } from 'react-icons/ri';
+import { RiSearchLine, RiPhoneLine, RiWalletLine, RiTimeLine, RiEdit2Line, RiDeleteBinLine, RiAddLine, RiExchangeFundsLine, RiCloseLine, RiLockLine, RiShieldKeyholeLine, RiFileCopyLine } from 'react-icons/ri';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatMoney } from '@/lib/utils';
 
@@ -21,7 +21,9 @@ export default function AdminUsersPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [resetKeyOpen, setResetKeyOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
+  const [tempRecoveryKey, setTempRecoveryKey] = useState('');
 
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
@@ -202,6 +204,25 @@ export default function AdminUsersPage() {
     }
   };
 
+  const openResetKey = (u: AdminUser) => {
+    setSelectedUser(u);
+    setResetKeyOpen(true);
+  };
+
+  const onConfirmResetKey = async () => {
+    if (!selectedUser) return;
+    setBusy(true);
+    try {
+      const res = await adminService.resetUserRecoveryKey(selectedUser.id);
+      setTempRecoveryKey(res.data.recovery_key);
+      addToast(`Recovery Key reset successfully for @${selectedUser.username}`, 'success');
+    } catch (err: any) {
+      addToast(err.message || 'Failed to reset recovery key', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="admin-content" style={{ padding: '32px' }}>
@@ -307,6 +328,9 @@ export default function AdminUsersPage() {
                             </button>
                             <button className="btn-ghost" style={iconBtnStyle} onClick={() => openReset(u)} title="Reset Password">
                               <RiLockLine size={16} />
+                            </button>
+                            <button className="btn-ghost" style={iconBtnStyle} onClick={() => openResetKey(u)} title="Reset Recovery Key">
+                              <RiShieldKeyholeLine size={16} />
                             </button>
                             <button className="btn-ghost" style={iconBtnStyle} onClick={() => openEdit(u)} title="Edit user">
                               <RiEdit2Line size={16} />
@@ -417,6 +441,54 @@ export default function AdminUsersPage() {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {resetKeyOpen && selectedUser && (
+          <div className="modal-overlay" onClick={() => !busy && setResetKeyOpen(false)}>
+            <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, textAlign: 'center' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                <RiShieldKeyholeLine size={32} color="#F59E0B" />
+              </div>
+              <h3 style={modalTitleStyle}>Reset Recovery Key</h3>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', marginBottom: 24 }}>
+                Generate a fresh recovery key for <strong>{selectedUser.name}</strong> (@{selectedUser.username}).
+                This will invalidate their old key.
+              </p>
+              
+              {tempRecoveryKey ? (
+                <>
+                  <div style={{ background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 16, marginBottom: 24, position: 'relative' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>New Recovery Key</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--color-primary)', letterSpacing: '0.1em' }}>{tempRecoveryKey}</div>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(tempRecoveryKey);
+                        addToast('Key copied!', 'success');
+                      }}
+                      style={{ marginTop: 8, background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, margin: '8px auto 0' }}
+                    >
+                      <RiFileCopyLine /> Copy Key
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', marginBottom: 24 }}>
+                    Copy this key and send it to the user. It won&apos;t be shown again.
+                  </p>
+                  <button className="btn-primary" onClick={() => { setResetKeyOpen(false); setTempRecoveryKey(''); }} style={{ width: '100%' }}>
+                    Done
+                  </button>
+                </>
+              ) : (
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <button className="btn-primary" onClick={onConfirmResetKey} disabled={busy} style={{ background: '#F59E0B' }}>
+                    {busy ? 'Processing...' : 'Generate New Recovery Key'}
+                  </button>
+                  <button className="btn-ghost" onClick={() => setResetKeyOpen(false)} disabled={busy} style={{ fontWeight: 600 }}>
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -20,7 +20,9 @@ class Database {
         ];
 
         try {
-            $this->pdo = new PDO($dsn, $config['user'], $config['pass'], $options);
+            $this->pdo = new PDO($dsn, $config['user'], $config['pass'], array_merge($options, [
+                PDO::ATTR_PERSISTENT => true
+            ]));
         } catch (PDOException $e) {
             header('HTTP/1.1 500 Internal Server Error');
             echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);

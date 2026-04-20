@@ -99,20 +99,39 @@ class PaymentController extends Controller {
                 $customerPhone
             );
 
-            $bankAccounts = $response['bankAccounts'] ?? [];
-            $customer     = $response['customer']     ?? [];
+            // Handle potential 'data' wrapper from PaymentPoint API
+            $dataResp = $response['data'] ?? $response;
+            $bankAccounts = $dataResp['bankAccounts'] ?? $dataResp['accounts'] ?? [];
+            $customer     = $dataResp['customer']     ?? [];
+
+            if (empty($bankAccounts)) {
+                 \BamzySMS\Core\Logger::warning('VIRTUAL_ACCOUNT_EMPTY_RESPONSE', [
+                     'userId'   => $userId,
+                     'response' => $response
+                 ]);
+                 // If we have a message but no accounts, throw it
+                 if (!empty($response['message'])) {
+                     throw new \Exception("PaymentPoint API: " . $response['message']);
+                 }
+                 throw new \Exception("The payment provider did not return any bank accounts. Please contact support.");
+            }
 
             // Filter to ensure uniqueness by bankName (preventing 2x Palmpay)
             $uniqueBanks = [];
             $filteredAccounts = [];
             foreach ($bankAccounts as $acct) {
-                $bn = $acct['bankName'] ?? 'Unknown';
+                $bn = $acct['bankName'] ?? $acct['bank_name'] ?? 'Unknown';
                 if (!in_array($bn, $uniqueBanks)) {
                     $uniqueBanks[] = $bn;
                     $filteredAccounts[] = $acct;
                 }
             }
             $bankAccounts = $filteredAccounts;
+
+            \BamzySMS\Core\Logger::info('VIRTUAL_ACCOUNT_CREATED', [
+                'userId' => $userId,
+                'banks'  => array_column($bankAccounts, 'bankName') ?: array_column($bankAccounts, 'bank_name')
+            ]);
 
             // Persist the accounts so we don't call the API again
             foreach ($bankAccounts as $acct) {
@@ -122,14 +141,23 @@ class PaymentController extends Controller {
                             (user_id, bank_code, account_number, account_name, bank_name, reserved_account_id, provider_customer_id)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ");
+                    
+                    // Normalize keys (handle PascalCase, camelCase, snake_case)
+                    $bCode  = $acct['bankCode'] ?? $acct['bank_code'] ?? '';
+                    $accNum = $acct['accountNumber'] ?? $acct['account_number'] ?? '';
+                    $accName = $acct['accountName'] ?? $acct['account_name'] ?? '';
+                    $bName  = $acct['bankName'] ?? $acct['bank_name'] ?? '';
+                    $resId  = $acct['Reserved_Account_Id'] ?? $acct['reserved_account_id'] ?? $acct['reservedAccountId'] ?? '';
+                    $pCustId = $customer['customer_id'] ?? $customer['id'] ?? '';
+
                     $insertStmt->execute([
                         $userId,
-                        $acct['bankCode']             ?? '',
-                        $acct['accountNumber']        ?? '',
-                        $acct['accountName']          ?? '',
-                        $acct['bankName']             ?? '',
-                        $acct['Reserved_Account_Id']  ?? '',
-                        $customer['customer_id']      ?? '',
+                        $bCode,
+                        $accNum,
+                        $accName,
+                        $bName,
+                        $resId,
+                        $pCustId,
                     ]);
                 } catch (\PDOException $e) {
                     // Log but don't crash — the response is still valid

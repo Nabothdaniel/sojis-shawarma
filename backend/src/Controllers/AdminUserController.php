@@ -311,4 +311,38 @@ class AdminUserController extends AdminBaseController {
 
         return $this->json(['status' => 'success', 'message' => "Password for {$targetUser['username']} has been reset successfully."]);
     }
+
+    /**
+     * POST /api/admin/user/reset-recovery-key
+     */
+    public function resetUserRecoveryKey() {
+        $adminId = AuthMiddleware::handle();
+        $this->checkAdmin($adminId);
+
+        $data = $this->getPostData();
+        $targetUserId = (int)($data['userId'] ?? 0);
+
+        if (!$targetUserId) {
+            return $this->json(['status' => 'error', 'message' => 'Valid User ID required.'], 400);
+        }
+
+        $targetUser = $this->userModel->findById($targetUserId);
+        if (!$targetUser) {
+            return $this->json(['status' => 'error', 'message' => 'User not found.'], 404);
+        }
+
+        $key = $this->userModel->regenerateRecoveryKey($targetUserId);
+        if ($key) {
+            // Log the action
+            error_log("ADMIN_ACTION: Admin $adminId reset recovery key for User $targetUserId ({$targetUser['username']})");
+
+            return $this->json([
+                'status' => 'success',
+                'data' => ['recovery_key' => $key],
+                'message' => "New recovery key for {$targetUser['username']} generated successfully."
+            ]);
+        }
+
+        return $this->json(['status' => 'error', 'message' => 'Failed to reset recovery key'], 500);
+    }
 }

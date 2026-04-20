@@ -142,4 +142,19 @@ class User {
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([(int)$enabled, $number, $userId]);
     }
+
+    /**
+     * Generate a new recovery key for a user.
+     * Returns the plain-text key (which should only be shown once).
+     */
+    public function regenerateRecoveryKey($userId) {
+        $plainKey = 'BAMZY-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4)) . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 4));
+        $hashedKey = password_hash($plainKey, PASSWORD_DEFAULT);
+
+        $stmt = $this->db->prepare("UPDATE users SET recovery_key = ?, recovery_key_saved = 0 WHERE id = ?");
+        if ($stmt->execute([$hashedKey, $userId])) {
+            return $plainKey;
+        }
+        return false;
+    }
 }

@@ -7,8 +7,8 @@ import {
   RiDashboardLine, RiWalletLine, RiShoppingBag3Line,
   RiPhoneLine, RiGlobalLine, RiUserSharedLine,
   RiQuestionLine, RiHistoryLine, RiExchangeLine,
-  RiLogoutBoxLine, RiSignalTowerFill, RiShieldKeyholeLine, RiAlertLine,
-  RiUserSettingsLine, RiExchangeFundsLine,
+  RiLogoutBoxLine, RiSignalTowerFill, RiShieldKeyholeLine,
+  RiExchangeFundsLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 import UserAvatar from '@/components/ui/UserAvatar';
@@ -16,7 +16,7 @@ import UserAvatar from '@/components/ui/UserAvatar';
 const NAV_ITEMS = [
   { href: '/dashboard/user', icon: <RiDashboardLine size={18} />, label: 'Dashboard' },
   { href: '/dashboard/user/fund-wallet', icon: <RiWalletLine size={18} />, label: 'Fund Wallet' },
-  { href: 'https://bamzymedia.com/', icon: <RiShoppingBag3Line size={18} />, label: 'Buy Logs' },
+  { href: 'https://Bamzystore.org/', icon: <RiShoppingBag3Line size={18} />, label: 'Buy Logs' },
   { href: '/dashboard/user/usa-numbers', icon: <RiPhoneLine size={18} />, label: 'USA Numbers' },
   { href: '/dashboard/user/all-countries', icon: <RiGlobalLine size={18} />, label: 'All Countries Numbers' },
   { href: '/dashboard/user/refer', icon: <RiUserSharedLine size={18} />, label: 'Refer & Earn' },
@@ -98,7 +98,7 @@ export default function Sidebar() {
                 {item.icon}
                 {item.label}
                 {item.href === '/dashboard/user/security' && user && !user.recovery_key_saved && (
-                  <div style={{ 
+                  <div style={{
                     position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                     width: 8, height: 8, borderRadius: '50%', background: '#F59E0B',
                     boxShadow: '0 0 6px rgba(245, 158, 11, 0.6)'

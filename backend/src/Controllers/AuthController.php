@@ -162,12 +162,17 @@ class AuthController extends Controller {
                 'role' => $user['role']
             ]);
 
-            $userData = $this->userModel->findById($user['id']);
+            // Re-use fetched data, just remove sensitive fields
+            unset($user['password']);
+            unset($user['transaction_pin']);
+            unset($user['recovery_key']);
+            unset($user['token']);
+
             return $this->json([
                 'status' => 'success',
                 'data' => [
                     'token' => $token,
-                    'user' => $userData
+                    'user' => $user
                 ]
             ]);
         }

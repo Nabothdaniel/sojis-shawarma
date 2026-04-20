@@ -116,4 +116,19 @@ class UserController extends Controller {
         }
         return $this->json(['status' => 'error', 'message' => 'Failed to update recovery key status'], 500);
     }
+
+    public function regenerateRecoveryKey() {
+        $userId = AuthMiddleware::handle();
+        $key = $this->userModel->regenerateRecoveryKey($userId);
+        
+        if ($key) {
+            return $this->json([
+                'status' => 'success', 
+                'data' => ['recovery_key' => $key],
+                'message' => 'New recovery key generated successfully.'
+            ]);
+        }
+        
+        return $this->json(['status' => 'error', 'message' => 'Failed to regenerate recovery key'], 500);
+    }
 }

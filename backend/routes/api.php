@@ -21,6 +21,10 @@ $router->add('GET',  '/user/profile',         'UserController',        'getProfi
 $router->add('GET',  '/user/balance',         'UserController',        'getBalance');
 $router->add('POST', '/user/update-pin',      'UserController',        'updatePin');
 $router->add('POST', '/user/verify-pin',      'UserController',        'verifyPin');
+$router->add('GET',  '/user/security',        'UserController',        'getSecurityInfo');
+$router->add('POST', '/user/security',        'UserController',        'updateSecuritySettings');
+$router->add('POST', '/user/confirm-key-saved','UserController',        'confirmRecoveryKeySaved');
+$router->add('POST', '/user/regenerate-recovery-key', 'UserController',      'regenerateRecoveryKey');
 $router->add('GET',  '/transactions',         'TransactionController', 'getHistory');
 $router->add('POST', '/purchase',             'TransactionController', 'purchase');
 
@@ -46,6 +50,8 @@ $router->add('DELETE', '/admin/users',          'AdminUserController',   'delete
 $router->add('POST',   '/admin/user/topup',     'AdminUserController',   'topUpUserBalance');
 $router->add('POST',   '/admin/user/balance',   'AdminUserController',   'updateUserBalance');
 $router->add('GET',    '/admin/transactions',   'AdminUserController',   'getAllTransactions');
+$router->add('POST',   '/admin/user/reset-password', 'AdminUserController', 'sudoResetPassword');
+$router->add('POST',   '/admin/user/reset-recovery-key', 'AdminUserController', 'resetUserRecoveryKey');
 $router->add('GET',    '/admin/promote-me',     'AdminUserController',   'promoteToAdmin');
 
 // Admin - Pricing & Services

@@ -4974,3 +4974,19 @@ xÝþvÊâ]Þ._ÑÚt²E‹AYü€JµçX´ŒDn
 [2026-04-12 12:43:40] CURL ERROR (28)
 [2026-04-12 12:48:33] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getPricesV2&service=go&country=187&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
 [2026-04-12 12:48:36] RAW RESPONSE: {"187":{"go":{"0.094":1,"0.108":5841,"0.163":1000,"0.196":1,"0.491":5076,"0.538":24906,"0.625":3003,"0.659":5066,"0.934":94,"0.976":2329,"1.334":7,"1.4":635}}}
+[2026-04-19 09:19:23] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getServicesList&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:19:23] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getCountries&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:19:23] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getServicesList&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:19:23] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getCountries&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:19:23] CURL ERROR (6)
+[2026-04-19 09:19:23] CURL ERROR (6)
+[2026-04-19 09:19:23] CURL ERROR (6)
+[2026-04-19 09:19:23] CURL ERROR (6)
+[2026-04-19 09:20:26] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getCountries&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:20:26] CURL ERROR (6)
+[2026-04-19 09:20:26] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getServicesList&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:20:26] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getCountries&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:20:26] CURL ERROR (6)
+[2026-04-19 09:20:26] CURL ERROR (6)
+[2026-04-19 09:20:26] OUTBOUND REQUEST: https://smsbower.page/stubs/handler_api.php?action=getServicesList&api_key=Wxh8jpx398LjVCCQh37KLP9CEoUV9RMZ
+[2026-04-19 09:20:26] CURL ERROR (6)
