@@ -15,12 +15,14 @@ sudo /opt/lampp/lampp start
 # This is required because the frontend expects the API at localhost:8000
 echo ""
 echo "------------------------------------------"
+echo "Freeing port 8000 to prevent startup conflicts..."
+fuser -k 8000/tcp 2>/dev/null || true
 echo "Starting PHP Backend Server (Port 8000)..."
 echo "------------------------------------------"
 # Enable multi-processing for SSE support
-export PHP_CLI_SERVER_WORKERS=5
+export PHP_CLI_SERVER_WORKERS=10
 # We use the XAMPP PHP binary for consistency
-/opt/lampp/bin/php -S localhost:8000 -t backend/public &
+/opt/lampp/bin/php -S 127.0.0.1:8000 -t backend/public backend/public/index.php &
 
 # 3. Start Migration Watcher
 echo ""

@@ -34,16 +34,19 @@ class EventController extends Controller {
             set_time_limit(0);
             ignore_user_abort(true);
 
-            // Set headers for SSE
-            header('Content-Type: text/event-stream');
-            header('Cache-Control: no-cache');
-            header('Connection: keep-alive');
-            header('X-Accel-Buffering: no'); // Disable buffering for Nginx
-
-            // Clear any existing output buffers
+            // Clear any existing output buffers before sending headers
             while (ob_get_level() > 0) {
                 ob_end_clean();
             }
+
+            // Set headers for SSE
+            header('Content-Type: text/event-stream');
+            header('Cache-Control: no-cache, no-transform');
+            header('Connection: keep-alive');
+            header('X-Accel-Buffering: no');
+            
+            // Explicitly flush headers
+            flush();
 
             // Initial heartbeat
             echo "retry: 5000\n";

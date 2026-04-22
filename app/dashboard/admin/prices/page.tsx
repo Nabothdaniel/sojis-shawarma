@@ -7,7 +7,8 @@ import PricingSkeleton from '@/components/admin/PricingSkeleton';
 import { 
   RiDeleteBinLine, 
   RiInformationLine, RiPulseLine, RiArrowLeftSLine, 
-  RiArrowRightSLine, RiSave3Line, RiEditLine, RiQuestionLine, RiBookOpenLine, RiCloseLine
+  RiArrowRightSLine, RiSave3Line, RiEditLine, RiQuestionLine, RiBookOpenLine, RiCloseLine,
+  RiRefreshLine, RiDashboardLine, RiPercentLine, RiMoneyDollarCircleLine
 } from 'react-icons/ri';
 import SearchableDropdown from '@/components/admin/SearchableDropdown';
 import Tooltip from '@/components/ui/Tooltip';
@@ -52,7 +53,7 @@ export default function AdminPricePage() {
     handleSaveAllChanges, updateLocalValue, 
     formData, hasUnsavedChanges, globalSettings,
     countries, selectedCountry, setSelectedCountry,
-    applyBulkMarkup, updateGlobalSettings
+    applyBulkMarkup, updateGlobalSettings, refreshLiveRate, busy
   } = usePricing();
 
   React.useEffect(() => {
@@ -141,6 +142,22 @@ export default function AdminPricePage() {
                 <span style={{ display: 'inline-flex', color: 'var(--color-text-faint)', cursor: 'help' }}><RiQuestionLine size={14} /></span>
               </Tooltip>
            </div>
+           
+           <div style={{ height: '16px', width: '1px', background: 'var(--color-border)' }} />
+           
+           <button 
+             onClick={refreshLiveRate}
+             disabled={busy}
+             style={{
+               background: 'transparent', color: 'var(--color-text)',
+               border: '1px solid var(--color-border)', padding: '6px 12px', borderRadius: '8px', 
+               fontSize: '0.75rem', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
+               display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s'
+             }}
+           >
+             <RiRefreshLine size={14} className={busy ? 'spin-icon' : ''} />
+             {busy ? 'UPDATING...' : 'REFRESH EXCHANGE RATE'}
+           </button>
 
            <button 
              onClick={() => setIsSettingsModalOpen(true)}
@@ -168,11 +185,12 @@ export default function AdminPricePage() {
 
            <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
               <button 
-                onClick={applyBulkMarkup}
+                onClick={() => applyBulkMarkup()}
                 className="btn-secondary"
-                style={{ scale: '0.9', padding: '8px 16px', borderRadius: '10px' }}
+                style={{ scale: '0.9', padding: '8px 16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                Auto-fill Markup
+                <RiPercentLine />
+                Set Page to Default Markup
               </button>
               
               {hasUnsavedChanges && (
@@ -218,10 +236,10 @@ export default function AdminPricePage() {
                           </Tooltip>
                         </span>
                       </th>
-                      <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, width: '200px' }}>
+                      <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, width: '220px' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          Selling Price (NGN)
-                          <Tooltip content="The amount customers see and pay after markup or override.">
+                          Selling Strategy / Price
+                          <Tooltip content="Set a Fixed Amount or a Multiplier. Multipliers adjust automatically if costs change.">
                             <span style={{ display: 'inline-flex', cursor: 'help' }}><RiQuestionLine size={14} /></span>
                           </Tooltip>
                         </span>
@@ -229,7 +247,7 @@ export default function AdminPricePage() {
                       <th style={{ padding: '20px 24px', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, width: '150px' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           Profit Margin
-                          <Tooltip content="Selling price minus provider cost. If it is negative, that row is losing money.">
+                          <Tooltip content="Selling price minus provider cost. Target > 30% for safety.">
                             <span style={{ display: 'inline-flex', cursor: 'help' }}><RiQuestionLine size={14} /></span>
                           </Tooltip>
                         </span>
@@ -246,12 +264,11 @@ export default function AdminPricePage() {
                       </tr>
                     ) : (
                       services.map(s => {
-                        const rowForm = formData[s.code] || { fixedPrice: '' };
-                        const isDirty = s.override?.fixed_price?.toString() !== rowForm.fixedPrice;
-                        const profit = calculateProfit(s);
-                        const userPrice = calculateUserPrice(s);
+                        const rowForm = formData[s.code] || { fixedPrice: '', multiplier: '' };
+                        const isDirty = s.override?.fixed_price?.toString() !== rowForm.fixedPrice || s.override?.multiplier?.toString() !== rowForm.multiplier;
+                        const profit = calculateProfit(s, rowForm);
+                        const userPrice = calculateUserPrice(s, rowForm);
                         const costPrice = s.base_cost_ngn || 320;
-                        const hasOverride = !!s.override || isDirty;
 
                         return (
                           <tr key={s.code} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }}>
@@ -276,37 +293,55 @@ export default function AdminPricePage() {
                                </div>
                             </td>
                             {/* SELLING PRICE INPUT */}
-                            <td style={{ padding: '16px 24px' }}>
-                               <div style={{ position: 'relative', width: '160px' }}>
-                                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.85rem', color: 'var(--color-text)' }}>₦</span>
-                                  <input 
-                                    type="number"
-                                    value={rowForm.fixedPrice}
-                                    placeholder={formatNumber(userPrice)}
-                                    onChange={(e) => updateLocalValue(s.code, e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSave(s.code)}
-                                    className="input-field"
-                                    style={{ 
-                                      width: '100%', 
-                                      border: profit <= 0 ? '1.5px solid var(--color-error)' : (isDirty ? '1.5px solid var(--color-primary)' : '1.5px solid var(--color-border)'),
-                                      padding: '10px 10px 10px 28px', borderRadius: '10px', fontSize: '0.95rem', fontWeight: 700,
-                                      outline: 'none', transition: 'all 0.2s',
-                                      background: '#fff', color: 'var(--color-text)'
-                                    }}
-                                  />
-                                  {!hasOverride && (
+                             <td style={{ padding: '16px 24px' }}>
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                  {/* Multiplier Option */}
+                                  <div style={{ position: 'relative', width: '180px' }}>
+                                      <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5, fontSize: '0.75rem', fontWeight: 800 }}>X</span>
+                                      <input 
+                                        type="number"
+                                        step="0.01"
+                                        value={rowForm.multiplier || ''}
+                                        placeholder={`${s.effective_multiplier}x`}
+                                        onChange={(e) => updateLocalValue(s.code, 'multiplier', e.target.value)}
+                                        className="input-field-sm"
+                                        style={priceInputStyle(isDirty, profit)}
+                                      />
+                                      <label style={{ position: 'absolute', left: '-10px', top: '-10px', fontSize: '8px', background: 'var(--color-bg-2)', padding: '2px 4px', borderRadius: '4px', border: '1px solid var(--color-border)', fontWeight: 800 }}>MULT</label>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '12px', width: '180px' }}>
+                                    <div style={{ height: '1px', width: '100%', background: 'var(--color-border)', opacity: 0.5 }} />
+                                    <span style={{ fontSize: '8px', padding: '0 8px', color: 'var(--color-text-faint)', fontWeight: 800 }}>OR FIXED</span>
+                                    <div style={{ height: '1px', width: '100%', background: 'var(--color-border)', opacity: 0.5 }} />
+                                  </div>
+
+                                  {/* Fixed Price Option */}
+                                  <div style={{ position: 'relative', width: '180px' }}>
+                                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.85, fontSize: '0.85rem' }}>₦</span>
+                                      <input 
+                                        type="number"
+                                        value={rowForm.fixedPrice || ''}
+                                        placeholder={formatNumber(userPrice)}
+                                        onChange={(e) => updateLocalValue(s.code, 'fixedPrice', e.target.value)}
+                                        className="input-field-sm"
+                                        style={priceInputStyle(isDirty, profit)}
+                                      />
+                                  </div>
+                               </div>
+                               
+                               {!s.override && !isDirty && (
                                     <div style={{ 
-                                      position: 'absolute', top: '-8px', right: '-8px', 
+                                      marginTop: 8,
                                       background: 'var(--color-primary-dim)', color: 'var(--color-primary)', 
                                       fontSize: '9px', padding: '2px 6px', borderRadius: '4px', fontWeight: 800, 
-                                      textTransform: 'uppercase', border: '1px solid var(--color-primary-glow)',
-                                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                                      textTransform: 'uppercase', width: 'fit-content'
                                     }}>
-                                      Global
+                                      Following Global Rule
                                     </div>
                                   )}
-                               </div>
-                            </td>
+                             </td>
+
                             {/* PROFIT MARGIN */}
                             <td style={{ padding: '16px 24px' }}>
                                 <div style={{ 
@@ -467,11 +502,17 @@ export default function AdminPricePage() {
         }
         .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(0, 229, 255, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
+        .user-row:hover { background: var(--color-bg-hover) !important; }
+        .spin-icon { animation: spin 2s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        .input-field-sm {
+          width: 100%; height: 38px; padding: 8px 12px;
+          border-radius: 10px; font-size: 0.95rem; font-weight: 700;
+          outline: none; transition: all 0.2s;
+          background: #fff; color: var(--color-text);
         }
+        .input-field-sm:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-glow); }
 
         @media (max-width: 1024px) {
           .admin-content { padding: 20px 16px !important; }
@@ -483,3 +524,8 @@ export default function AdminPricePage() {
     </AdminLayout>
   );
 }
+
+const priceInputStyle = (isDirty: boolean, profit: number): React.CSSProperties => ({
+  border: profit <= 0 ? '1.5px solid var(--color-error)' : (isDirty ? '1.5px solid var(--color-primary)' : '1.5px solid var(--color-border)'),
+  paddingLeft: '28px',
+});

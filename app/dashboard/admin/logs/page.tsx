@@ -5,25 +5,38 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
 import { RiHistoryLine, RiRefreshLine, RiUserLine, RiPulseLine } from 'react-icons/ri';
+import AdminPagination from '@/components/admin/AdminPagination';
 
 export default function AdminLogsPage() {
   const { addToast, hasHydrated, user } = useAppStore();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 20;
+
   const canLoadAdminData = hasHydrated && user?.role === 'admin';
+
 
   const fetchLogs = useCallback(async () => {
     if (!canLoadAdminData) return;
     setLoading(true);
     try {
-      const res = await adminService.getSystemLogs();
-      setLogs(res.data);
+      const res: any = await adminService.getSystemLogs({ page, limit });
+      setLogs(res.data || []);
+      if (res.pagination) {
+        setTotalPages(res.pagination.pages);
+        setTotalItems(res.pagination.total);
+      }
     } catch (err: any) {
       addToast(err.message || 'Failed to fetch logs', 'error');
     } finally {
       setLoading(false);
     }
-  }, [addToast, canLoadAdminData]);
+  }, [addToast, canLoadAdminData, page]);
+
 
   useEffect(() => {
     if (!canLoadAdminData) return;
@@ -158,6 +171,17 @@ export default function AdminLogsPage() {
             </div>
           </div>
         )}
+
+        {!loading && (
+          <AdminPagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            limit={limit}
+            onPageChange={setPage}
+          />
+        )}
+
 
         <style jsx>{`
           .log-row:hover { background: var(--color-bg-hover); }

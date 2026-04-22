@@ -2,11 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { 
   RiDashboardLine, RiMoneyDollarCircleLine, RiSettings4Line, 
   RiGroupLine, RiLogoutBoxRLine, RiShieldUserLine,
-  RiHistoryLine, RiExchangeFundsLine
+  RiHistoryLine, RiExchangeFundsLine, RiSimCardLine
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { name: 'User Management', href: '/dashboard/admin/users', icon: RiGroupLine },
   { name: 'Funding History', href: '/dashboard/admin/funding', icon: RiExchangeFundsLine },
   { name: 'Price Management', href: '/dashboard/admin/prices', icon: RiMoneyDollarCircleLine },
+  { name: 'Telegram Inventory', href: '/dashboard/admin/telegram-numbers', icon: RiSimCardLine },
   { name: 'Global Settings', href: '/dashboard/admin/settings', icon: RiSettings4Line },
   { name: 'System Logs', href: '/dashboard/admin/logs', icon: RiHistoryLine },
 ];
@@ -25,7 +26,6 @@ interface AdminSidebarProps {
 
 export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const { logout } = useAppStore();
 
   const handleNavClick = (href: string) => {
@@ -33,8 +33,7 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   };
 
   const handleLogout = () => {
-    logout();
-    router.push('/login');
+    logout(); // redirect to /login is handled inside logout()
     if (onClose) onClose();
   };
 

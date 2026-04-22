@@ -13,9 +13,24 @@ class AdminUserController extends AdminBaseController {
         $userId = AuthMiddleware::handle();
         $this->checkAdmin($userId);
         
-        $users = $this->userModel->getAllUsers();
-        return $this->json(['status' => 'success', 'data' => $users]);
+        $page   = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit  = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+        $role   = isset($_GET['role']) ? trim($_GET['role']) : '';
+        
+        $result = $this->userModel->getPaginatedUsers($page, $limit, $search, ['role' => $role]);
+        return $this->json([
+            'status' => 'success', 
+            'data' => $result['data'],
+            'pagination' => [
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'limit' => $result['limit'],
+                'pages' => $result['pages']
+            ]
+        ]);
     }
+
 
     /**
      * POST /api/admin/users
@@ -179,15 +194,18 @@ class AdminUserController extends AdminBaseController {
             return $this->json(['status' => 'error', 'message' => 'Insufficient user balance for debit.'], 400);
         }
 
-        $this->userModel->updateBalance($targetUserId, $newBalance);
         $desc = $type === 'credit'
             ? "Admin Top-up: +₦{$amount}" . ($note ? " ({$note})" : '')
             : "Admin Debit: -₦{$amount}" . ($note ? " ({$note})" : '');
         $this->transactionModel->create($targetUserId, $amount, $type, $desc);
 
+        // Fetch user again to get the authoritative new balance from DB (after transaction commit)
+        $latestUser = $this->userModel->findById($targetUserId);
+        $authoritativeBalance = (float)$latestUser['balance'];
+
         // Log real-time event
         $this->eventModel->log($targetUserId, 'balance_updated', [
-            'new_balance' => $newBalance,
+            'new_balance' => $authoritativeBalance,
             'message'     => $type === 'credit' ? "Account Credited: +₦$amount" : "Account Debited: -₦$amount"
         ]);
 
@@ -196,7 +214,7 @@ class AdminUserController extends AdminBaseController {
             'message' => $type === 'credit' ? 'Balance topped up successfully.' : 'Balance debited successfully.',
             'data' => [
                 'oldBalance' => $oldBalance,
-                'newBalance' => $newBalance
+                'newBalance' => $authoritativeBalance
             ]
         ]);
     }
@@ -222,16 +240,21 @@ class AdminUserController extends AdminBaseController {
         }
 
         $oldBalance = (float)$targetUser['balance'];
-        if ($this->userModel->updateBalance($targetUserId, $newBalance)) {
-            // Log transaction
-            $diff = $newBalance - $oldBalance;
-            $desc = "Admin Adjustment: Set from ₦$oldBalance to ₦$newBalance";
-            $this->transactionModel->create($targetUserId, abs($diff), $diff >= 0 ? 'credit' : 'debit', $desc);
+        
+        // Log transaction (this atomically updates the balance)
+        $diff = $newBalance - $oldBalance;
+        $desc = "Admin Adjustment: Set from ₦$oldBalance to ₦$newBalance";
+        $success = $this->transactionModel->create($targetUserId, abs($diff), $diff >= 0 ? 'credit' : 'debit', $desc);
+
+        if ($success) {
+            // Fetch authoritative balance from DB
+            $latestUser = $this->userModel->findById($targetUserId);
+            $authoritativeBalance = (float)$latestUser['balance'];
 
             // Log real-time event
             $this->eventModel->log($targetUserId, 'balance_updated', [
-                'new_balance' => $newBalance,
-                'message'     => "Balance Adjusted by Admin to ₦$newBalance"
+                'new_balance' => $authoritativeBalance,
+                'message'     => "Balance Adjusted by Admin to ₦$authoritativeBalance"
             ]);
 
             return $this->json(['status' => 'success', 'message' => 'Balance updated.']);
@@ -252,21 +275,25 @@ class AdminUserController extends AdminBaseController {
         $adminId = AuthMiddleware::handle();
         $this->checkAdmin($adminId);
 
-        $stmt = $this->db->prepare("
-            SELECT t.*, u.name as user_name, u.username as user_username
-            FROM transactions t
-            JOIN users u ON t.user_id = u.id
-            ORDER BY t.created_at DESC
-            LIMIT 500
-        ");
-        $stmt->execute();
-        $transactions = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $page  = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $type  = isset($_GET['type']) ? trim($_GET['type']) : null;
+
+        $result = $this->transactionModel->getAllPaginated($page, $limit, $type);
 
         return $this->json([
             'status' => 'success',
-            'data' => $transactions
+            'data' => $result['data'],
+            'pagination' => [
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'limit' => $result['limit'],
+                'pages' => $result['pages']
+            ]
         ]);
     }
+
+
 
     public function promoteToAdmin() {
         $userId = AuthMiddleware::handle();
@@ -333,16 +360,55 @@ class AdminUserController extends AdminBaseController {
 
         $key = $this->userModel->regenerateRecoveryKey($targetUserId);
         if ($key) {
+            $encryptionKey = env_or_default('PLATFORM_ENCRYPTION_KEY', 'BAMZY-DEFAULT-KEY-2026');
+            $maskedKey = \BamzySMS\Core\EncryptionHelper::encrypt($key, $encryptionKey);
+
             // Log the action
             error_log("ADMIN_ACTION: Admin $adminId reset recovery key for User $targetUserId ({$targetUser['username']})");
 
             return $this->json([
                 'status' => 'success',
-                'data' => ['recovery_key' => $key],
+                'data' => ['recovery_key' => $maskedKey],
                 'message' => "New recovery key for {$targetUser['username']} generated successfully."
             ]);
         }
 
-        return $this->json(['status' => 'error', 'message' => 'Failed to reset recovery key'], 500);
+        return $this->json(['status' => 'error', 'message' => 'Failed to generate recovery key.'], 500);
+    }
+
+    /**
+     * POST /api/admin/user/reveal-recovery-key
+     */
+    public function revealUserRecoveryKey() {
+        $adminId = AuthMiddleware::handle();
+        $this->checkAdmin($adminId);
+
+        $data = $this->getPostData();
+        $targetUserId = (int)($data['userId'] ?? 0);
+
+        if (!$targetUserId) {
+            return $this->json(['status' => 'error', 'message' => 'Valid User ID required.'], 400);
+        }
+
+        $targetUser = $this->userModel->findById($targetUserId);
+        if (!$targetUser) {
+            return $this->json(['status' => 'error', 'message' => 'User not found.'], 404);
+        }
+
+        $key = $this->userModel->getRecoveryKey($targetUserId);
+        if ($key) {
+            $encryptionKey = env_or_default('PLATFORM_ENCRYPTION_KEY', 'BAMZY-DEFAULT-KEY-2026');
+            $maskedKey = \BamzySMS\Core\EncryptionHelper::encrypt($key, $encryptionKey);
+
+            // Log the sensitive access
+            error_log("ADMIN_SECURITY: Admin $adminId REVEALED recovery key for User $targetUserId ({$targetUser['username']})");
+
+            return $this->json([
+                'status' => 'success',
+                'data' => ['recovery_key' => $maskedKey]
+            ]);
+        }
+
+        return $this->json(['status' => 'error', 'message' => 'No recovery key found or legacy key requires regeneration.'], 404);
     }
 }

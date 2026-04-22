@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { RiShoppingCartLine, RiInformationLine } from 'react-icons/ri';
+import { RiShoppingCartLine, RiInformationLine, RiAddLine, RiSubtractLine } from 'react-icons/ri';
 import PinModal from '@/components/ui/PinModal';
 import Tooltip from '@/components/ui/Tooltip';
 import { formatMoney } from '@/lib/utils';
@@ -112,20 +112,47 @@ export default function BuyNumbers({ defaultCountry = 'USA', lockCountry = false
           {logic.priceInfo?.available && (
             <div style={{ 
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-              padding: '8px 14px', background: 'var(--color-bg-1)', borderRadius: 10, border: '1px solid var(--color-border)' 
+              padding: '12px 14px', background: 'var(--color-bg-1)', borderRadius: 12, border: '1px solid var(--color-border)' 
             }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>Quantity:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="20" 
-                  value={logic.quantity} 
-                  onChange={(e) => logic.setQuantity(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))} 
-                  className="input-field" 
-                  style={{ width: '60px', padding: '6px', textAlign: 'center', margin: 0 }} 
-                />
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)' }}>Max 20</span>
+              <label style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Quantity</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <button 
+                  onClick={logic.decrementQuantity}
+                  disabled={logic.quantity <= 1}
+                  style={{ 
+                    width: 32, height: 32, borderRadius: 8, border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-2)', color: 'var(--color-text)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: logic.quantity <= 1 ? 'not-allowed' : 'pointer',
+                    opacity: logic.quantity <= 1 ? 0.4 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => logic.quantity > 1 && (e.currentTarget.style.borderColor = 'var(--color-primary)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                >
+                  <RiSubtractLine size={16} />
+                </button>
+                
+                <div style={{ width: 30, textAlign: 'center', fontWeight: 800, fontSize: '1.1rem', color: 'var(--color-primary)', fontFamily: 'var(--font-display)' }}>
+                  {logic.quantity}
+                </div>
+
+                <button 
+                  onClick={logic.incrementQuantity}
+                  disabled={logic.quantity >= 20}
+                  style={{ 
+                    width: 32, height: 32, borderRadius: 8, border: '1px solid var(--color-border)',
+                    background: 'var(--color-bg-2)', color: 'var(--color-text)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: logic.quantity >= 20 ? 'not-allowed' : 'pointer',
+                    opacity: logic.quantity >= 20 ? 0.4 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => logic.quantity < 20 && (e.currentTarget.style.borderColor = 'var(--color-primary)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--color-border)')}
+                >
+                  <RiAddLine size={16} />
+                </button>
               </div>
             </div>
           )}

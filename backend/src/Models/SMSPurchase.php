@@ -136,11 +136,16 @@ class SMSPurchase {
     public function getByUserPaginated(int $userId, int $limit, int $offset): array {
         $stmt = $this->db->prepare("
             SELECT * FROM sms_purchases
-            WHERE user_id = ? AND is_hidden = 0
+            WHERE user_id = :userId AND is_hidden = 0
             ORDER BY created_at DESC
-            LIMIT ? OFFSET ?
+            LIMIT :limit OFFSET :offset
         ");
-        $stmt->execute([$userId, $limit, $offset]);
+        
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit',  (int)$limit,  PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+        
+        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

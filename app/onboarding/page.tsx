@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -92,7 +94,7 @@ function OnboardingContent() {
           </div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: 12 }}>Your Recovery Key</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.5 }}>
-            Since we don't use email, this key is the <strong>only way</strong> to recover your account if you forget your password.
+            Since we don&apos;t use email, this key is the <strong>only way</strong> to recover your account if you forget your password.
           </p>
         </div>
 

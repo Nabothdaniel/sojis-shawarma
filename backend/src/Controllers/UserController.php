@@ -88,6 +88,7 @@ class UserController extends Controller {
             'status' => 'success',
             'data' => [
                 'recovery_key_saved' => (bool)$user['recovery_key_saved'],
+                'has_recovery_key' => (bool)$user['has_recovery_key'],
                 'whatsapp_notifications' => (bool)$user['whatsapp_notifications'],
                 'whatsapp_number' => $user['whatsapp_number'],
                 'recent_verifications' => $verifications
@@ -100,10 +101,24 @@ class UserController extends Controller {
         $data = $this->getPostData();
 
         $whatsappNotifications = isset($data['whatsapp_notifications']) ? (bool)$data['whatsapp_notifications'] : false;
-        $whatsappNumber = $data['whatsapp_number'] ?? null;
+        $whatsappNumber = isset($data['whatsapp_number']) ? trim((string)$data['whatsapp_number']) : null;
+
+        if ($whatsappNotifications && $whatsappNumber === '') {
+            return $this->json([
+                'status' => 'error',
+                'message' => 'WhatsApp number is required when notifications are enabled'
+            ], 400);
+        }
 
         if ($this->userModel->updateWhatsappSettings($userId, $whatsappNotifications, $whatsappNumber)) {
-            return $this->json(['status' => 'success', 'message' => 'Security settings updated']);
+            return $this->json([
+                'status' => 'success',
+                'message' => 'Security settings updated',
+                'data' => [
+                    'whatsapp_notifications' => $whatsappNotifications,
+                    'whatsapp_number' => $whatsappNotifications ? $whatsappNumber : null,
+                ]
+            ]);
         }
 
         return $this->json(['status' => 'error', 'message' => 'Failed to update security settings'], 500);
@@ -119,16 +134,48 @@ class UserController extends Controller {
 
     public function regenerateRecoveryKey() {
         $userId = AuthMiddleware::handle();
+        $data = $this->getPostData();
+        $pin = $data['pin'] ?? '';
+
+        if (!$this->userModel->verifyPin($userId, $pin)) {
+            return $this->json(['status' => 'error', 'message' => 'Invalid transaction PIN'], 401);
+        }
+
         $key = $this->userModel->regenerateRecoveryKey($userId);
-        
         if ($key) {
+            $encryptionKey = env_or_default('PLATFORM_ENCRYPTION_KEY', 'BAMZY-DEFAULT-KEY-2026');
+            $maskedKey = \BamzySMS\Core\EncryptionHelper::encrypt($key, $encryptionKey);
+
             return $this->json([
                 'status' => 'success', 
-                'data' => ['recovery_key' => $key],
+                'data' => ['recovery_key' => $maskedKey],
                 'message' => 'New recovery key generated successfully.'
             ]);
         }
         
         return $this->json(['status' => 'error', 'message' => 'Failed to regenerate recovery key'], 500);
+    }
+
+    public function revealRecoveryKey() {
+        $userId = AuthMiddleware::handle();
+        $data = $this->getPostData();
+        $pin = $data['pin'] ?? '';
+
+        if (!$this->userModel->verifyPin($userId, $pin)) {
+            return $this->json(['status' => 'error', 'message' => 'Invalid transaction PIN'], 401);
+        }
+
+        $key = $this->userModel->getRecoveryKey($userId);
+        if ($key) {
+            $encryptionKey = env_or_default('PLATFORM_ENCRYPTION_KEY', 'BAMZY-DEFAULT-KEY-2026');
+            $maskedKey = \BamzySMS\Core\EncryptionHelper::encrypt($key, $encryptionKey);
+
+            return $this->json([
+                'status' => 'success', 
+                'data' => ['recovery_key' => $maskedKey]
+            ]);
+        }
+        
+        return $this->json(['status' => 'error', 'message' => 'No recovery key found or legacy key requires regeneration.'], 404);
     }
 }

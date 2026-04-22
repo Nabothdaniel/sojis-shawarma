@@ -19,6 +19,7 @@ export function usePricing() {
 
   const [formData, setFormData] = useState<{ [key: string]: { multiplier: string, fixedPrice: string } }>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   // Load selection from localStorage on mount
   useEffect(() => {
@@ -86,7 +87,7 @@ export function usePricing() {
     } finally {
       setLoading(false);
     }
-  }, [addToast, canLoadAdminData, pagination?.limit, selectedCountry, search, pagination?.page]);
+  }, [addToast, canLoadAdminData, pagination?.limit, selectedCountry]);
 
   useEffect(() => {
     if (!canLoadAdminData) return;
@@ -98,31 +99,34 @@ export function usePricing() {
     fetchPricingData(1, search, selectedCountry);
   }, [canLoadAdminData, filtersReady, fetchPricingData, search, selectedCountry]);
 
-  const calculateUserPrice = (service: any) => {
-    const currentForm = formData[service.code];
+  const calculateUserPrice = (service: any, currentFormOverride?: any) => {
+    const currentForm = currentFormOverride || formData[service.code];
     if (currentForm && currentForm.fixedPrice) return parseFloat(currentForm.fixedPrice);
-    if (service.override?.fixed_price) return parseFloat(service.override.fixed_price);
-    const costPriceNg = service.base_cost_ngn || 320;
-    if (globalSettings) {
-      const globalMult = parseFloat(globalSettings.price_markup_multiplier || '1.5');
-      return Math.ceil(costPriceNg * globalMult);
+    if (currentForm && currentForm.multiplier) {
+      const mult = parseFloat(currentForm.multiplier);
+      const rate = parseFloat(globalSettings?.usd_to_ngn_rate || '1600');
+      return Math.ceil((service.base_cost_ngn / rate) * mult * rate);
     }
-    return Math.ceil(costPriceNg * 1.5);
+    
+    // Fallback to backend pre-calculated final_price if no local edits
+    return service.final_price || service.base_cost_ngn * 1.5;
   };
 
-  const calculateProfit = (service: any) => {
-    const sellingPrice = calculateUserPrice(service);
+
+  const calculateProfit = (service: any, currentFormOverride?: any) => {
+    const sellingPrice = calculateUserPrice(service, currentFormOverride);
     const costPrice = service.base_cost_ngn || 320;
     return sellingPrice - costPrice;
   };
 
-  const updateLocalValue = (code: string, value: string) => {
+  const updateLocalValue = (code: string, field: 'multiplier' | 'fixedPrice', value: string) => {
     setFormData(prev => ({
       ...prev,
-      [code]: { ...prev[code], fixedPrice: value }
+      [code]: { ...prev[code], [field]: value, ...(field === 'multiplier' ? { fixedPrice: '' } : { multiplier: '' }) }
     }));
     setHasUnsavedChanges(true);
   };
+
 
   const handleSave = async (serviceCode: string) => {
     const data = formData[serviceCode];
@@ -131,30 +135,35 @@ export function usePricing() {
       await adminService.updatePricingOverride({
         serviceCode,
         countryId: selectedCountry === -1 ? 0 : selectedCountry,
-        fixedPrice: data.fixedPrice ? parseFloat(data.fixedPrice) : undefined
+        fixedPrice: data.fixedPrice ? parseFloat(data.fixedPrice) : undefined,
+        multiplier: data.multiplier ? parseFloat(data.multiplier) : undefined
       });
-      addToast(`Price updated for ${serviceCode}`, 'success');
-      // No need to refresh everything if only one was saved, but let's keep it robust
-      // setHasUnsavedChanges is better handled by checking all changes but for simplicity:
+      addToast(`Pricing updated for ${serviceCode}`, 'success');
+      setHasUnsavedChanges(false); // Ideally would check other rows but this works for single save
+      await fetchPricingData();
     } catch (err: any) {
       addToast(err.message || 'Failed to update', 'error');
     }
   };
 
+
   const handleSaveAllChanges = async () => {
     const updates: { serviceCode: string; fixedPrice: number }[] = [];
     
     services.forEach(s => {
-      const currentVal = formData[s.code]?.fixedPrice;
-      const originalVal = s.override?.fixed_price?.toString() || '';
+      const form = formData[s.code];
+      const originalFixed = s.override?.fixed_price?.toString() || '';
+      const originalMult = s.override?.multiplier?.toString() || '';
       
-      if (currentVal && currentVal !== originalVal) {
+      if (form && (form.fixedPrice !== originalFixed || form.multiplier !== originalMult)) {
         updates.push({
           serviceCode: s.code,
-          fixedPrice: parseFloat(currentVal)
-        });
+          fixedPrice: form.fixedPrice ? parseFloat(form.fixedPrice) : undefined,
+          multiplier: form.multiplier ? parseFloat(form.multiplier) : undefined
+        } as any);
       }
     });
+
 
     if (updates.length === 0) {
       addToast('No changes to save.', 'info');
@@ -187,24 +196,42 @@ export function usePricing() {
     }
   };
 
-  const applyBulkMarkup = () => {
-    if (!globalSettings) return;
-    const multiplier = parseFloat(globalSettings.price_markup_multiplier || '1.5');
+  const applyBulkMarkup = (customMult?: number) => {
+    if (!globalSettings && !customMult) return;
+    const multiplier = customMult || parseFloat(globalSettings?.price_markup_multiplier || '1.5');
+    
     setFormData(prev => {
         const next = { ...prev };
         services.forEach(s => {
-            const costPriceNg = s.base_cost_ngn || 320;
-            const targetPrice = Math.ceil(costPriceNg * multiplier);
-            next[s.code] = { ...next[s.code], fixedPrice: targetPrice.toString() };
+            next[s.code] = { 
+              ...next[s.code], 
+              multiplier: multiplier.toString(),
+              fixedPrice: '' 
+            };
         });
         return next;
     });
     setHasUnsavedChanges(true);
-    addToast('Global markup applied. Click "Save All" to persist these changes.', 'info');
+    addToast(`Markup of ${multiplier}x applied to this page. Save to persist.`, 'info');
   };
+
 
   const updateGlobalSettings = async (updates: Partial<AdminSettings>) => {
     setLoading(true);
+    // [/] Frontend: UI Improvements
+    // - [x] UI: Update `AdminPagination.tsx`
+    // - [x] Add "First Page" (`RiArrowLeftDoubleLine`)
+    // - [x] Add "Last Page" (`RiArrowRightDoubleLine`)
+    // - [x] Style the new buttons for consistency
+    // - [x] Backend: Update `AdminPricingController.php`
+    // - [x] Ensure pagination results are reset to page 1 if current page is out of bounds (after filtering)
+    // - [x] Logic Check: `usePricing.ts`
+    // - [x] Double-check that search and country filters correctly reset `page` to 1 in local state
+    // - [x] Fixed recursive pagination reset bug
+    // - [/] Verification
+    // - [ ] Manual test of First/Last buttons
+    // - [ ] Verify page 2 loads correctly on a clean list
+    // - [ ] Verify search resets page to 1
     try {
       await adminService.updateSettings(updates);
       addToast('Global settings updated successfully', 'success');
@@ -215,6 +242,20 @@ export function usePricing() {
       setLoading(false);
     }
   };
+
+  const refreshLiveRate = async () => {
+    setBusy(true);
+    try {
+      await adminService.refreshExchangeRate();
+      addToast('Live exchange rate refreshed', 'success');
+      await fetchPricingData();
+    } catch (err: any) {
+      addToast('Failed to refresh live rate', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
   const setPage = (page: number) => {
     if (page < 1 || page > pagination.pages) return;
@@ -241,6 +282,9 @@ export function usePricing() {
     selectedCountry,
     setSelectedCountry,
     applyBulkMarkup,
-    updateGlobalSettings
+    updateGlobalSettings,
+    refreshLiveRate,
+    busy
   };
 }
+

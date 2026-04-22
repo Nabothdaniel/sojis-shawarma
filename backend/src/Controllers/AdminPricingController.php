@@ -3,6 +3,7 @@
 namespace BamzySMS\Controllers;
 
 use BamzySMS\Middleware\AuthMiddleware;
+use BamzySMS\Services\ExchangeRateService;
 
 class AdminPricingController extends AdminBaseController {
 
@@ -95,15 +96,16 @@ class AdminPricingController extends AdminBaseController {
         try {
             $this->db->beginTransaction();
             $stmt = $this->db->prepare("
-                INSERT INTO service_overrides (service_code, country_id, fixed_price)
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE fixed_price = ?
+                INSERT INTO service_overrides (service_code, country_id, multiplier, fixed_price)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE multiplier = ?, fixed_price = ?
             ");
 
             foreach ($data['overrides'] as $ov) {
                 $code = $ov['serviceCode'];
-                $price = $ov['fixedPrice'];
-                $stmt->execute([$code, $countryId, $price, $price]);
+                $price = $ov['fixedPrice'] ?? null;
+                $multiplier = $ov['multiplier'] ?? null;
+                $stmt->execute([$code, $countryId, $multiplier, $price, $multiplier, $price]);
             }
 
             $this->db->commit();
@@ -154,6 +156,25 @@ class AdminPricingController extends AdminBaseController {
             $services = $fallback['services'] ?? [];
         }
 
+        // Normalize structure: Ensure it's always a list of ['code' => '...', 'name' => '...']
+        $normalized = [];
+        foreach ($services as $key => $val) {
+            if (is_array($val) && isset($val['name'])) {
+                // Already in {name:..., code:...} format or similar
+                $normalized[] = [
+                    'code' => $val['code'] ?? $key,
+                    'name' => $val['name']
+                ];
+            } elseif (is_string($val)) {
+                // Format was {code: name}
+                $normalized[] = [
+                    'code' => $key,
+                    'name' => $val
+                ];
+            }
+        }
+        $services = $normalized;
+
         try {
             $stmt = $this->db->prepare("SELECT * FROM service_overrides WHERE country_id = ? OR country_id = 0");
             $stmt->execute([$countryId]);
@@ -174,16 +195,25 @@ class AdminPricingController extends AdminBaseController {
             }
 
             $totalCount = count($services);
+            $totalPages = max(1, (int)ceil($totalCount / $limit));
+            
+            if ($page > $totalPages) {
+                $page = $totalPages;
+                $offset = ($page - 1) * $limit;
+            }
+
             usort($services, fn($a, $b) => strcmp($a['name'], $b['name']));
             $paginated = array_slice($services, $offset, $limit);
-
-            $settings = (new \BamzySMS\Models\Setting())->getAll();
-            $rate     = (float)($settings['usd_to_ngn_rate'] ?? 1600);
+            
+            $exchangeService = new ExchangeRateService();
+            $rate            = $exchangeService->getRate();
             
             $realPrices = [];
             if ($countryId > 0) {
                 try { $realPrices = $this->smsClient->getPricesV2(null, $countryId); } catch (\Exception $e) {}
             }
+
+            $settings = (new \BamzySMS\Models\Setting())->getAll();
 
             foreach ($paginated as &$s) {
                 $s['override'] = $overrideMap[$s['code']] ?? null;
@@ -194,7 +224,18 @@ class AdminPricingController extends AdminBaseController {
                 }
                 $s['base_cost_ngn'] = round($costUsd * $rate, 2); 
                 $s['inventory']     = isset($realPrices[$s['code']]) ? array_sum($realPrices[$s['code']]) : 0;
+
+                // Effective price calculation
+                $multiplier = $s['override']['multiplier'] ?? (float)($settings['price_markup_multiplier'] ?? 1.5);
+                $fixedPrice = $s['override']['fixed_price'] ?? null;
+                
+                $finalPrice = $fixedPrice ?: ceil($costUsd * $multiplier * $rate);
+                $s['final_price'] = $finalPrice;
+                $s['profit_margin'] = $finalPrice - $s['base_cost_ngn'];
+                $s['effective_multiplier'] = $fixedPrice ? round($fixedPrice / ($costUsd * $rate), 2) : $multiplier;
             }
+
+
 
             return $this->json([
                 'status' => 'success',
@@ -228,4 +269,22 @@ class AdminPricingController extends AdminBaseController {
             return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * POST /api/admin/exchange-rate/refresh
+     */
+    public function refreshExchangeRate() {
+        $userId = AuthMiddleware::handle();
+        $this->checkAdmin($userId);
+        
+        $service = new ExchangeRateService();
+        $newRate = $service->refreshRate();
+        
+        return $this->json([
+            'status' => 'success',
+            'rate' => $newRate
+        ]);
+    }
 }
+
+

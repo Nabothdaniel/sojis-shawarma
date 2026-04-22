@@ -12,4 +12,4 @@ echo "BamzySMS API starting at http://$host\n";
 echo "Press Ctrl+C to stop.\n";
 
 // Use the built-in PHP server
-passthru("php -S $host -t $publicDir");
+passthru("php -S $host -t $publicDir $publicDir/index.php");

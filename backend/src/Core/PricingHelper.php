@@ -4,6 +4,7 @@ namespace BamzySMS\Core;
 
 use BamzySMS\Models\Setting;
 use BamzySMS\Core\Database;
+use BamzySMS\Services\ExchangeRateService;
 
 class PricingHelper {
     /**
@@ -16,7 +17,9 @@ class PricingHelper {
     public static function calculatePrice(float $rawPriceUsd, string $serviceCode, int $countryId = 0): float {
         $settings     = (new Setting())->getAll();
         $globalMult   = (float)($settings['price_markup_multiplier'] ?? 1.5);
-        $exchangeRate = (float)($settings['usd_to_ngn_rate'] ?? 1600);
+        
+        $exchangeService = new ExchangeRateService();
+        $exchangeRate    = $exchangeService->getRate();
 
         // Check for overrides
         $db = Database::getInstance()->getConnection();

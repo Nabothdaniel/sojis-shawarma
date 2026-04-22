@@ -122,59 +122,64 @@ class ActivationService {
             'new_status' => $status
         ], $userId);
 
-        // Handle Auto-Reconciliation (Refund)
-        // Status 8 = Cancelled (by user or provider)
-        // Status 7 = Cancelled (alternate code)
         if ($status === 8 || $status === 7) {
-            $purchase = $this->purchaseModel->findByActivationId($activationId);
-
-            if ($purchase && $purchase['status'] !== 'cancelled') {
-                $refundAmount = (float)$purchase['activation_cost'];
-
-                if ($refundAmount > 0) {
-                    $this->db->beginTransaction();
-                    try {
-                        // 1. Mark as cancelled FIRST (idempotency guard).
-                        //    If two concurrent cancel requests arrive, only one will
-                        //    change a non-cancelled row; the second will affect 0 rows.
-                        $rowsAffected = $this->purchaseModel->updateStatusIfNot(
-                            $purchase['id'], 'cancelled', 'cancelled'
-                        );
-
-                        if ($rowsAffected > 0) {
-                            // 2. Credit user balance
-                            $this->userModel->addBalance($userId, $refundAmount);
-
-                            // 3. Log refund transaction
-                            $this->transactionModel->createCredit(
-                                $userId,
-                                $refundAmount,
-                                "Refund: Order #{$activationId} cancelled"
-                            );
-
-                            $this->db->commit();
-                            \BamzySMS\Core\Logger::info('REFUND_PROCESSED', [
-                                'activation_id' => $activationId,
-                                'amount'        => $refundAmount
-                            ], $userId);
-                        } else {
-                            // Already cancelled by a concurrent request — skip refund
-                            $this->db->rollBack();
-                            \BamzySMS\Core\Logger::info('REFUND_SKIPPED_DUPLICATE', [
-                                'activation_id' => $activationId,
-                            ], $userId);
-                        }
-                    } catch (\Exception $e) {
-                        $this->db->rollBack();
-                        \BamzySMS\Core\Logger::error('REFUND_FAILED', [
-                            'activation_id' => $activationId,
-                            'error'         => $e->getMessage()
-                        ], $userId);
-                    }
-                }
-            }
+            $this->reconcileCancelledActivation($userId, $activationId);
         }
 
         return $this->sms->setStatus($activationId, $status);
+    }
+
+    /**
+     * Reconcile a cancelled activation and refund the user's wallet exactly once.
+     * Returns true only when a fresh refund was actually processed.
+     */
+    public function reconcileCancelledActivation(int $userId, int $activationId): bool {
+        $purchase = $this->purchaseModel->findByActivationId($activationId);
+
+        if (!$purchase || $purchase['status'] === 'cancelled') {
+            return false;
+        }
+
+        $refundAmount = (float)$purchase['activation_cost'];
+        if ($refundAmount <= 0) {
+            return false;
+        }
+
+        $this->db->beginTransaction();
+        try {
+            // Mark as cancelled first so duplicate requests cannot double-refund.
+            $rowsAffected = $this->purchaseModel->updateStatusIfNot(
+                $purchase['id'], 'cancelled', 'cancelled'
+            );
+
+            if ($rowsAffected <= 0) {
+                $this->db->rollBack();
+                \BamzySMS\Core\Logger::info('REFUND_SKIPPED_DUPLICATE', [
+                    'activation_id' => $activationId,
+                ], $userId);
+                return false;
+            }
+
+            $this->transactionModel->createCredit(
+                $userId,
+                $refundAmount,
+                "Refund: Order #{$activationId} cancelled"
+            );
+
+            $this->db->commit();
+            \BamzySMS\Core\Logger::info('REFUND_PROCESSED', [
+                'activation_id' => $activationId,
+                'amount'        => $refundAmount
+            ], $userId);
+
+            return true;
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            \BamzySMS\Core\Logger::error('REFUND_FAILED', [
+                'activation_id' => $activationId,
+                'error'         => $e->getMessage()
+            ], $userId);
+            return false;
+        }
     }
 }

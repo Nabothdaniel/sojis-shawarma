@@ -25,6 +25,7 @@ $router->add('GET',  '/user/security',        'UserController',        'getSecur
 $router->add('POST', '/user/security',        'UserController',        'updateSecuritySettings');
 $router->add('POST', '/user/confirm-key-saved','UserController',        'confirmRecoveryKeySaved');
 $router->add('POST', '/user/regenerate-recovery-key', 'UserController',      'regenerateRecoveryKey');
+$router->add('POST', '/user/reveal-recovery-key',     'UserController',      'revealRecoveryKey');
 $router->add('GET',  '/transactions',         'TransactionController', 'getHistory');
 $router->add('POST', '/purchase',             'TransactionController', 'purchase');
 
@@ -42,6 +43,12 @@ $router->add('GET',  '/sms/status',           'SMSController',         'getStatu
 $router->add('POST', '/sms/set-status',       'SMSController',         'setActivationStatus');
 $router->add('POST', '/sms/hide',             'SMSController',         'hide');
 
+// Manual / Admin-managed numbers
+$router->add('GET',  '/manual-numbers/telegram',          'ManualNumberController',      'getAvailableTelegram');
+$router->add('GET',  '/manual-numbers/telegram/mine',     'ManualNumberController',      'getMyTelegramNumbers');
+$router->add('POST', '/manual-numbers/telegram/purchase', 'ManualNumberController',      'purchaseTelegram');
+$router->add('POST', '/manual-numbers/telegram/cancel-request', 'ManualNumberController', 'requestCancellation');
+
 // Admin - Users
 $router->add('GET',    '/admin/users',          'AdminUserController',   'getAllUsers');
 $router->add('POST',   '/admin/users',          'AdminUserController',   'createUser');
@@ -52,6 +59,7 @@ $router->add('POST',   '/admin/user/balance',   'AdminUserController',   'update
 $router->add('GET',    '/admin/transactions',   'AdminUserController',   'getAllTransactions');
 $router->add('POST',   '/admin/user/reset-password', 'AdminUserController', 'sudoResetPassword');
 $router->add('POST',   '/admin/user/reset-recovery-key', 'AdminUserController', 'resetUserRecoveryKey');
+$router->add('POST',   '/admin/user/reveal-recovery-key', 'AdminUserController', 'revealUserRecoveryKey');
 $router->add('GET',    '/admin/promote-me',     'AdminUserController',   'promoteToAdmin');
 
 // Admin - Pricing & Services
@@ -60,7 +68,13 @@ $router->add('POST',   '/admin/pricing/update',    'AdminPricingController', 'up
 $router->add('POST',   '/admin/pricing/bulk-update','AdminPricingController', 'bulkUpdatePricingOverrides');
 $router->add('DELETE', '/admin/pricing/delete',    'AdminPricingController', 'deletePricingOverride');
 $router->add('GET',    '/admin/pricing/services',  'AdminPricingController', 'getPaginatedServices');
+$router->add('POST',   '/admin/exchange-rate/refresh', 'AdminPricingController', 'refreshExchangeRate');
 $router->add('GET',    '/admin/countries',         'AdminPricingController', 'getCountries');
+$router->add('GET',    '/admin/manual-numbers',    'AdminManualNumberController', 'getPaginatedNumbers');
+$router->add('POST',   '/admin/manual-numbers',    'AdminManualNumberController', 'createNumber');
+$router->add('POST',   '/admin/manual-numbers/bulk', 'AdminManualNumberController', 'bulkCreateNumbers');
+$router->add('POST',   '/admin/manual-numbers/otp', 'AdminManualNumberController', 'updateOtpCode');
+$router->add('GET',    '/admin/manual-numbers/cancellation-requests', 'AdminManualNumberController', 'getCancellationRequests');
 
 // Admin - System
 $router->add('GET',  '/admin/settings',         'AdminSystemController', 'getSettings');

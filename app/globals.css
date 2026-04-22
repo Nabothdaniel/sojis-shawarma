@@ -186,6 +186,31 @@ h1, h2, h3, h4, h5, h6 {
 }
 .btn-primary:active { transform: translateY(0); }
 
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 22px;
+  background: #fff;
+  color: var(--color-primary);
+  border: 1.5px solid rgba(37, 99, 235, 0.18);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-secondary:hover {
+  background: #f8fbff;
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37,99,235,0.08);
+}
+
 .btn-ghost {
   display: inline-flex;
   align-items: center;

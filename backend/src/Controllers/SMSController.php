@@ -171,7 +171,14 @@ class SMSController extends Controller {
             } elseif ($status['status'] === 'CANCEL') {
                 $purchase = $this->purchaseModel->getByActivationId($activationId, $userId);
                 if ($purchase) {
-                    $this->purchaseModel->updateStatus($purchase['id'], 'cancelled', null);
+                    $refunded = $this->activationService->reconcileCancelledActivation($userId, $activationId);
+                    if ($refunded) {
+                        $updatedUser = $this->userModel->findById($userId);
+                        $this->eventModel->log($userId, 'balance_updated', [
+                            'new_balance' => $updatedUser['balance'],
+                            'message'     => 'Balance refunded after cancelled activation'
+                        ]);
+                    }
                 }
             }
 
@@ -227,6 +234,13 @@ class SMSController extends Controller {
 
         try {
             $resp = $this->activationService->setStatus($userId, $activationId, $status);
+            if ($status === 8 || $status === 7) {
+                $updatedUser = $this->userModel->findById($userId);
+                $this->eventModel->log($userId, 'balance_updated', [
+                    'new_balance' => $updatedUser['balance'],
+                    'message'     => 'Balance refunded after cancelled activation'
+                ]);
+            }
             return $this->json(['status' => 'success', 'message' => $resp]);
         } catch (\Throwable $e) {
             return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);

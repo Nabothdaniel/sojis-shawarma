@@ -11,7 +11,7 @@ import { useRealtime } from '@/hooks/useRealtime';
  * across page reloads by checking localStorage for a valid token.
  */
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, login, logout, hasHydrated } = useAppStore();
+  const { user, login, logout, setUser, hasHydrated } = useAppStore();
   
   // Initialize custom real-time event stream
   useRealtime();
@@ -19,13 +19,20 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     // Only attempt profile fetch if we have hydrated the store from localStorage
     if (hasHydrated) {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('bamzysms-token') : null;
+      const token = typeof window !== 'undefined'
+        ? localStorage.getItem('bamzysms-token') || sessionStorage.getItem('bamzysms-token')
+        : null;
       
-      // If we have a token but no user object (or if we want to refresh the user data), fetch profile
-      if (token && !user) {
+      // Always refresh profile from backend when a token exists so persisted
+      // local state does not drift from the database across reloads.
+      if (token) {
         userService.getProfile()
           .then((res) => {
-            login(res.data);
+            if (user) {
+              setUser(res.data);
+            } else {
+              login(res.data);
+            }
           })
           .catch((err) => {
             console.error('Session restoration failed:', err);
@@ -34,10 +41,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           });
       }
     }
-  }, [hasHydrated, user, login, logout]);
+  }, [hasHydrated, user, login, logout, setUser]);
 
-  // Optionally show a global loader if the store hasn't hydrated yet
-  // but we usually prefer to let components handle their own loading to avoid full-page flicker
   if (!hasHydrated) {
     return <PageLoader />;
   }

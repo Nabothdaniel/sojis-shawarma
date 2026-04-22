@@ -19,25 +19,31 @@ class Router {
 
     public function resolve() {
         $method = $_SERVER['REQUEST_METHOD'];
-        // 1. Detect base path (subdirectory where the script lives)
+        // 1. Resolve URI
+        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        // Remove quotes and semicolons that might come from malformed config
+        $uri = str_replace(['"', ';'], '', $uri);
+
+        // 2. Detect base path (subdirectory where the script lives)
         $scriptName = $_SERVER['SCRIPT_NAME'];
-        $basePath   = dirname($scriptName);
+        // In the PHP built-in server without a router script, SCRIPT_NAME might equal REQUEST_URI
+        // so we only extract a directory if it looks like an actual PHP file.
+        if (substr($scriptName, -4) === '.php') {
+            $basePath = dirname($scriptName);
+        } else {
+            $basePath = '';
+        }
+
         if ($basePath === '/' || $basePath === '\\') {
             $basePath = '';
         }
 
-        // 2. Resolve URI
-        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-        // Remove quotes and semicolons that might come from malformed config
-        $uri = str_replace(['"', ';'], '', $uri);
-        
-        // 3. Strip base path from URI (e.g. /api/user -> /user)
+        // 3. Strip base path from URI
         if ($basePath && strpos($uri, $basePath) === 0) {
             $uri = substr($uri, strlen($basePath));
         }
 
-        // 4. Fallback: Strip leading '/api' if it's still there (e.g. for some local alias setups)
-        // Only do this if uri isn't empty and the first segment is /api
+        // 4. Always strip leading '/api' for backend processing
         if (strpos($uri, '/api/') === 0) {
             $uri = substr($uri, 4);
         } elseif ($uri === '/api') {

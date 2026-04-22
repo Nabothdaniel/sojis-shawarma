@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS users (
     referral_code VARCHAR(50),
     token VARCHAR(255),
     transaction_pin VARCHAR(255),
+    recovery_key VARCHAR(255) NULL,
+    recovery_key_saved BOOLEAN DEFAULT FALSE,
+    whatsapp_notifications BOOLEAN DEFAULT FALSE,
+    whatsapp_number VARCHAR(20) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_balance_non_negative CHECK (balance >= 0)

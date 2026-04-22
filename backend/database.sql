@@ -13,6 +13,10 @@ CREATE TABLE IF NOT EXISTS users (
     referral_code VARCHAR(50),
     token VARCHAR(255),
     transaction_pin VARCHAR(255),
+    recovery_key VARCHAR(255) NULL,
+    recovery_key_saved BOOLEAN DEFAULT FALSE,
+    whatsapp_notifications BOOLEAN DEFAULT FALSE,
+    whatsapp_number VARCHAR(20) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_balance_non_negative CHECK (balance >= 0)
@@ -71,6 +75,46 @@ CREATE TABLE IF NOT EXISTS system_events (
     is_delivered BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_user_delivered (user_id, is_delivered)
+);
+
+CREATE TABLE IF NOT EXISTS manual_numbers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    phone_number VARCHAR(30) NOT NULL,
+    country_id INT DEFAULT 0,
+    country_name VARCHAR(100) NOT NULL,
+    service_code VARCHAR(20) NOT NULL DEFAULT 'tg',
+    service_name VARCHAR(100) NOT NULL DEFAULT 'Telegram',
+    cost_price DECIMAL(10,2) DEFAULT 0.00,
+    sell_price DECIMAL(10,2) NOT NULL,
+    notes VARCHAR(255) NULL,
+    otp_code_encrypted TEXT NULL,
+    upload_batch VARCHAR(80) NULL,
+    uploaded_by INT NOT NULL,
+    sold_to INT NULL,
+    status ENUM('available', 'sold', 'cancelled') DEFAULT 'available',
+    sold_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_manual_phone_number (phone_number),
+    KEY idx_manual_numbers_status_service (status, service_code),
+    KEY idx_manual_numbers_sold_to (sold_to),
+    FOREIGN KEY (uploaded_by) REFERENCES users(id),
+    FOREIGN KEY (sold_to) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS manual_number_cancellation_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    manual_number_id INT NOT NULL,
+    user_id INT NOT NULL,
+    reason TEXT NOT NULL,
+    status ENUM('pending', 'reviewed', 'resolved') DEFAULT 'pending',
+    admin_note VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_manual_cancel_status (status, created_at),
+    KEY idx_manual_cancel_user (user_id),
+    FOREIGN KEY (manual_number_id) REFERENCES manual_numbers(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- Migration: if upgrading from the old schema, run these manually:

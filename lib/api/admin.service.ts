@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { decryptSensitive } from './client';
 
 export interface AdminUser {
   id: number;
@@ -7,6 +7,7 @@ export interface AdminUser {
   phone?: string;
   balance: number;
   role: 'user' | 'admin';
+  has_recovery_key: boolean;
   created_at: string;
 }
 
@@ -34,10 +35,46 @@ export interface PricingOverride {
   updated_at: string;
 }
 
+export interface AdminManualNumber {
+  id: number;
+  phone_number: string;
+  country_id: number;
+  country_name: string;
+  service_code: string;
+  service_name: string;
+  cost_price: number;
+  sell_price: number;
+  notes?: string | null;
+  has_otp?: boolean;
+  status: 'available' | 'sold' | 'cancelled';
+  upload_batch?: string | null;
+  uploaded_by_username: string;
+  sold_to_username?: string | null;
+  sold_at?: string | null;
+  created_at: string;
+}
+
+export interface ManualNumberCancellationRequest {
+  id: number;
+  manual_number_id: number;
+  user_id: number;
+  username: string;
+  phone_number: string;
+  country_name: string;
+  reason: string;
+  status: 'pending' | 'reviewed' | 'resolved';
+  admin_note?: string | null;
+  created_at: string;
+}
+
 export const adminService = {
-  // Get all users
-  getUsers: (): Promise<{ status: string; data: AdminUser[] }> =>
-    apiClient.get('/admin/users'),
+  // Get paginated users
+  getUsers: (params: { page: number; limit: number; search?: string; role?: string }): Promise<{ 
+    status: string; 
+    data: AdminUser[];
+    pagination: { total: number; page: number; limit: number; pages: number }
+  }> =>
+    apiClient.get(`/admin/users?page=${params.page}&limit=${params.limit}&search=${params.search || ''}&role=${params.role || ''}`),
 
   // Create a user
   createUser: (payload: AdminUserPayload): Promise<{ status: string; message: string; data: AdminUser }> =>
@@ -63,9 +100,14 @@ export const adminService = {
   sudoResetPassword: (userId: number, password: string): Promise<{ status: string; message: string }> =>
     apiClient.post('/admin/user/reset-password', { userId, password }),
 
-  // Get all transactions (for history/funding pages)
-  getTransactions: (): Promise<{ status: string; data: any[] }> =>
-    apiClient.get('/admin/transactions'),
+  // Get paginated transactions (for history/funding pages)
+  getTransactions: (params: { page: number; limit: number; type?: 'credit' | 'debit' }): Promise<{ 
+    status: string; 
+    data: any[];
+    pagination: { total: number; page: number; limit: number; pages: number }
+  }> =>
+    apiClient.get(`/admin/transactions?page=${params.page}&limit=${params.limit}${params.type ? `&type=${params.type}` : ''}`),
+
 
   // Get system settings (markup, etc.)
   getSettings: (): Promise<{ status: string; data: AdminSettings }> =>
@@ -92,9 +134,13 @@ export const adminService = {
   deletePricingOverride: (serviceCode: string, countryId: number = 0): Promise<{ status: string; message: string }> =>
     apiClient.delete(`/admin/pricing/delete?serviceCode=${serviceCode}&countryId=${countryId}`),
 
-  // Audit Logs
-  getSystemLogs: (): Promise<{ status: string; data: any[] }> =>
-    apiClient.get('/admin/logs'),
+  // Paginated Audit Logs
+  getSystemLogs: (params: { page: number; limit: number }): Promise<{ 
+    status: string; 
+    data: any[];
+    pagination: { total: number; page: number; limit: number; pages: number }
+  }> =>
+    apiClient.get(`/admin/logs?page=${params.page}&limit=${params.limit}`),
 
   // Analytics
   getAnalytics: (): Promise<{ status: string; data: any }> =>
@@ -108,15 +154,73 @@ export const adminService = {
   }> =>
     apiClient.get(`/admin/pricing/services?page=${params.page}&limit=${params.limit}&search=${params.search || ''}&countryId=${params.countryId || 0}`),
 
+
   // Get countries list
   getCountries: (): Promise<{ status: string; data: any[] }> =>
     apiClient.get('/admin/countries'),
+
+  getManualNumbers: (params: { page: number; limit: number; search?: string; status?: string }): Promise<{
+    status: string;
+    data: AdminManualNumber[];
+    pagination: { total: number; page: number; limit: number; pages: number };
+  }> =>
+    apiClient.get(`/admin/manual-numbers?page=${params.page}&limit=${params.limit}&search=${encodeURIComponent(params.search || '')}&status=${params.status || ''}`),
+
+  createManualNumber: (payload: {
+    phone_number: string;
+    country_id?: number;
+    country_name: string;
+    cost_price?: number;
+    sell_price: number;
+    notes?: string;
+    otp_code?: string;
+  }): Promise<{ status: string; message: string; data: { id: number } }> =>
+    apiClient.post('/admin/manual-numbers', payload),
+
+  bulkCreateManualNumbers: (rows: Array<{
+    phone_number: string;
+    country_id?: number;
+    country_name: string;
+    cost_price?: number;
+    sell_price: number;
+    notes?: string;
+    otp_code?: string;
+  }>): Promise<{ status: string; message: string; data: { created: number; failed: number; errors: { row: number; message: string }[]; batch: string } }> =>
+    apiClient.post('/admin/manual-numbers/bulk', { rows }),
+
+  updateManualNumberOtp: (numberId: number, otp_code: string): Promise<{ status: string; message: string }> =>
+    apiClient.post('/admin/manual-numbers/otp', { numberId, otp_code }),
+
+  getManualNumberCancellationRequests: (params: { page: number; limit: number; status?: string }): Promise<{
+    status: string;
+    data: ManualNumberCancellationRequest[];
+    pagination: { total: number; page: number; limit: number; pages: number };
+  }> =>
+    apiClient.get(`/admin/manual-numbers/cancellation-requests?page=${params.page}&limit=${params.limit}&status=${params.status || ''}`),
+
+  // Refresh dynamic exchange rate
+  refreshExchangeRate: (): Promise<{ status: string; rate: number }> =>
+    apiClient.post('/admin/exchange-rate/refresh', {}),
 
   // Get provider status
   getProviderStatus: (): Promise<{ status: string; data: any }> =>
     apiClient.get('/admin/provider/status'),
 
   // Reset a user's recovery key
-  resetUserRecoveryKey: (userId: number): Promise<{ status: string; data: { recovery_key: string }; message: string }> =>
-    apiClient.post('/admin/user/reset-recovery-key', { userId }),
+  resetUserRecoveryKey: async (userId: number): Promise<{ status: string; data: { recovery_key: string }; message: string }> => {
+    const res: any = await apiClient.post('/admin/user/reset-recovery-key', { userId });
+    if (res.status === 'success' && res.data?.recovery_key) {
+      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
+    }
+    return res;
+  },
+
+  // Reveal a user's recovery key
+  revealUserRecoveryKey: async (userId: number): Promise<{ status: string; data: { recovery_key: string } }> => {
+    const res: any = await apiClient.post('/admin/user/reveal-recovery-key', { userId });
+    if (res.status === 'success' && res.data?.recovery_key) {
+      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
+    }
+    return res;
+  },
 };

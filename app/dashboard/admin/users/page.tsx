@@ -4,9 +4,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { adminService, AdminUser } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
-import { RiSearchLine, RiPhoneLine, RiWalletLine, RiTimeLine, RiEdit2Line, RiDeleteBinLine, RiAddLine, RiExchangeFundsLine, RiCloseLine, RiLockLine, RiShieldKeyholeLine, RiFileCopyLine } from 'react-icons/ri';
+import { RiSearchLine, RiPhoneLine, RiWalletLine, RiRefreshLine, RiTimeLine, RiEdit2Line, RiDeleteBinLine, RiAddLine, RiExchangeFundsLine, RiCloseLine, RiLockLine, RiShieldKeyholeLine, RiFileCopyLine, RiEyeLine, RiShoppingCartLine, RiInformationLine, RiSubtractLine } from 'react-icons/ri';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { formatMoney } from '@/lib/utils';
+import AdminPagination from '@/components/admin/AdminPagination';
 
 type RoleType = 'user' | 'admin';
 
@@ -15,7 +16,13 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState(''); // '' | 'user' | 'admin'
   const [busy, setBusy] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 20;
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -49,14 +56,27 @@ export default function AdminUsersPage() {
     note: '',
   });
 
-  const loadUsers = useCallback(async () => {
+  const loadUsers = useCallback(async (isSearch = false) => {
     try {
-      const res = await adminService.getUsers();
-      setUsers(res.data);
+      const currentPage = isSearch ? 1 : page;
+      if (isSearch) setPage(1);
+
+      const res: any = await adminService.getUsers({ 
+        page: currentPage, 
+        limit, 
+        search: search.trim(),
+        role: roleFilter
+      });
+      
+      setUsers(res.data || []);
+      if (res.pagination) {
+        setTotalPages(res.pagination.pages);
+        setTotalItems(res.pagination.total);
+      }
     } catch {
       addToast('Failed to load users', 'error');
     }
-  }, [addToast]);
+  }, [addToast, page, search]);
 
   useEffect(() => {
     if (!hasHydrated || user?.role !== 'admin') return;
@@ -68,9 +88,18 @@ export default function AdminUsersPage() {
     };
 
     bootstrap();
-  }, [hasHydrated, loadUsers, user?.role]);
+  }, [hasHydrated, user?.role, page, roleFilter]); // Reload when page or role changes
 
-  const filteredUsers = useMemo(() => users.filter((u) =>
+  // Handle search with debounce ideally, but for now simple trigger
+  useEffect(() => {
+    if (!hasHydrated) return;
+    const timer = setTimeout(() => {
+      loadUsers(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const filteredUsers = useMemo(() => (users || []).filter((u) =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.username.toLowerCase().includes(search.toLowerCase()) ||
     u.phone?.includes(search)
@@ -110,7 +139,7 @@ export default function AdminUsersPage() {
     setEditOpen(true);
   };
 
-  const onUpdateUser = async (e: React.FormEvent) => {
+  const onUpdateUser = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
 
@@ -206,16 +235,34 @@ export default function AdminUsersPage() {
 
   const openResetKey = (u: AdminUser) => {
     setSelectedUser(u);
+    setTempRecoveryKey('');
     setResetKeyOpen(true);
+  };
+
+  const onRevealKey = async () => {
+    if (!selectedUser) return;
+    setBusy(true);
+    try {
+      const res = await adminService.revealUserRecoveryKey(selectedUser.id);
+      setTempRecoveryKey(res.data.recovery_key);
+      addToast('Current recovery key revealed', 'success');
+    } catch (err: any) {
+      addToast(err.message || 'Failed to reveal recovery key', 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const onConfirmResetKey = async () => {
     if (!selectedUser) return;
+    const ok = window.confirm('Are you sure you want to REGENERATE this user\'s recovery key? The old one will immediately stop working.');
+    if (!ok) return;
+
     setBusy(true);
     try {
       const res = await adminService.resetUserRecoveryKey(selectedUser.id);
       setTempRecoveryKey(res.data.recovery_key);
-      addToast(`Recovery Key reset successfully for @${selectedUser.username}`, 'success');
+      addToast('Recovery Key reset successfully', 'success');
     } catch (err: any) {
       addToast(err.message || 'Failed to reset recovery key', 'error');
     } finally {
@@ -231,7 +278,23 @@ export default function AdminUsersPage() {
             <h1 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0 0 8px', color: 'var(--color-text)' }}>User Management</h1>
             <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500 }}>Create, update, delete users and manage wallet balances.</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="filter-container">
+              <select 
+                value={roleFilter} 
+                onChange={(e) => {
+                  setRoleFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="input-field"
+                style={{ width: '160px', padding: '12px 16px', fontWeight: 600 }}
+              >
+                <option value="">All Roles</option>
+                <option value="user">Normal Users</option>
+                <option value="admin">Administrators</option>
+              </select>
+            </div>
+            
             <div className="search-container" style={{ position: 'relative' }}>
               <RiSearchLine style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', fontSize: '1.2rem' }} />
               <input
@@ -329,7 +392,7 @@ export default function AdminUsersPage() {
                             <button className="btn-ghost" style={iconBtnStyle} onClick={() => openReset(u)} title="Reset Password">
                               <RiLockLine size={16} />
                             </button>
-                            <button className="btn-ghost" style={iconBtnStyle} onClick={() => openResetKey(u)} title="Reset Recovery Key">
+                            <button className="btn-ghost" style={iconBtnStyle} onClick={() => openResetKey(u)} title="Manage Recovery Key">
                               <RiShieldKeyholeLine size={16} />
                             </button>
                             <button className="btn-ghost" style={iconBtnStyle} onClick={() => openEdit(u)} title="Edit user">
@@ -349,6 +412,17 @@ export default function AdminUsersPage() {
           </div>
         )}
 
+        {!loading && (
+          <AdminPagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            limit={limit}
+            onPageChange={setPage}
+          />
+        )}
+
+
         {createOpen && (
           <div className="modal-overlay" onClick={() => !busy && setCreateOpen(false)}>
             <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
@@ -360,7 +434,7 @@ export default function AdminUsersPage() {
                 <input className="input-field" placeholder="Full name" value={createForm.name} onChange={(e) => setCreateForm((s) => ({ ...s, name: e.target.value }))} />
                 <input className="input-field" placeholder="Username" value={createForm.username} onChange={(e) => setCreateForm((s) => ({ ...s, username: e.target.value }))} />
                 <input className="input-field" placeholder="Phone" value={createForm.phone} onChange={(e) => setCreateForm((s) => ({ ...s, phone: e.target.value }))} />
-                <input type="password" className="input-field" placeholder="Password (min 6 chars)" value={createForm.password} onChange={(e) => setCreateForm((s) => ({ ...s, password: e.target.value }))} />
+                <input type="password" disabled={busy} className="input-field" placeholder="Password (min 6 chars)" value={createForm.password} onChange={(e) => setCreateForm((s) => ({ ...s, password: e.target.value }))} />
                 <select className="input-field" value={createForm.role} onChange={(e) => setCreateForm((s) => ({ ...s, role: e.target.value as RoleType }))}>
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -383,7 +457,7 @@ export default function AdminUsersPage() {
               <form onSubmit={onUpdateUser} style={formStyle}>
                 <input className="input-field" placeholder="Full name" value={editForm.name} onChange={(e) => setEditForm((s) => ({ ...s, name: e.target.value }))} />
                 <input className="input-field" placeholder="Phone" value={editForm.phone} onChange={(e) => setEditForm((s) => ({ ...s, phone: e.target.value }))} />
-                <input type="password" className="input-field" placeholder="New password (optional)" value={editForm.password} onChange={(e) => setEditForm((s) => ({ ...s, password: e.target.value }))} />
+                <input type="password" disabled={busy} className="input-field" placeholder="New password (optional)" value={editForm.password} onChange={(e) => setEditForm((s) => ({ ...s, password: e.target.value }))} />
                 <select className="input-field" value={editForm.role} onChange={(e) => setEditForm((s) => ({ ...s, role: e.target.value as RoleType }))}>
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -427,7 +501,7 @@ export default function AdminUsersPage() {
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', marginBottom: 24 }}>
                 Generate a new temporary password for <strong>{selectedUser.name}</strong> (@{selectedUser.username})
               </p>
-              
+
               <div style={{ background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 16, marginBottom: 24 }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Temporary Password</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-primary)', letterSpacing: '0.1em' }}>{tempPassword}</div>
@@ -451,29 +525,28 @@ export default function AdminUsersPage() {
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                 <RiShieldKeyholeLine size={32} color="#F59E0B" />
               </div>
-              <h3 style={modalTitleStyle}>Reset Recovery Key</h3>
+              <h3 style={modalTitleStyle}>Recovery Key Management</h3>
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', marginBottom: 24 }}>
-                Generate a fresh recovery key for <strong>{selectedUser.name}</strong> (@{selectedUser.username}).
-                This will invalidate their old key.
+                Manage the account recovery key for <strong>{selectedUser.name}</strong> (@{selectedUser.username}).
               </p>
-              
+
               {tempRecoveryKey ? (
                 <>
                   <div style={{ background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', borderRadius: 12, padding: 16, marginBottom: 24, position: 'relative' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>New Recovery Key</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 8 }}>Recovery Key (Copied to Clipboard)</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--color-primary)', letterSpacing: '0.1em' }}>{tempRecoveryKey}</div>
-                    <button 
+                    <button
                       onClick={() => {
                         navigator.clipboard.writeText(tempRecoveryKey);
                         addToast('Key copied!', 'success');
                       }}
-                      style={{ marginTop: 8, background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, margin: '8px auto 0' }}
+                      style={{ marginTop: 8, background: 'var(--color-primary)', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6, margin: '14px auto 0' }}
                     >
-                      <RiFileCopyLine /> Copy Key
+                      <RiFileCopyLine /> Copy Key Again
                     </button>
                   </div>
                   <p style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', marginBottom: 24 }}>
-                    Copy this key and send it to the user. It won&apos;t be shown again.
+                    Provide this key to the user. They can use it to regain access to their account.
                   </p>
                   <button className="btn-primary" onClick={() => { setResetKeyOpen(false); setTempRecoveryKey(''); }} style={{ width: '100%' }}>
                     Done
@@ -481,9 +554,26 @@ export default function AdminUsersPage() {
                 </>
               ) : (
                 <div style={{ display: 'grid', gap: 12 }}>
-                  <button className="btn-primary" onClick={onConfirmResetKey} disabled={busy} style={{ background: '#F59E0B' }}>
-                    {busy ? 'Processing...' : 'Generate New Recovery Key'}
-                  </button>
+                  {selectedUser.has_recovery_key && (
+                    <button
+                      className="btn-primary"
+                      onClick={onRevealKey}
+                      disabled={busy}
+                      style={{ background: 'var(--color-text)', color: '#fff' }}
+                    >
+                      <RiEyeLine size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+                      {busy ? 'Revealing...' : 'Reveal Current Key'}
+                    </button>
+                  )}
+
+                  <div style={{ padding: '8px', borderTop: '1px solid var(--color-border)', marginTop: 8 }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', marginBottom: 12 }}>{selectedUser.has_recovery_key ? 'OR generate a completely new key' : 'Generate an initial recovery key for this user'}</p>
+                    <button className="btn-primary" onClick={onConfirmResetKey} disabled={busy} style={{ background: '#F59E0B', width: '100%' }}>
+                      <RiRefreshLine size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+                      {busy ? 'Resetting...' : 'Regenerate New Key'}
+                    </button>
+                  </div>
+
                   <button className="btn-ghost" onClick={() => setResetKeyOpen(false)} disabled={busy} style={{ fontWeight: 600 }}>
                     Cancel
                   </button>

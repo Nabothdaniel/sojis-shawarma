@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/appStore';
 import { formatMoney } from '@/lib/utils';
 import UserAvatar from '@/components/ui/UserAvatar';
 import { RiExchangeFundsLine, RiTimeLine } from 'react-icons/ri';
+import AdminPagination from '@/components/admin/AdminPagination';
 
 export default function AdminFundingPage() {
   const [loading, setLoading] = useState(true);
@@ -14,16 +15,25 @@ export default function AdminFundingPage() {
   const [search, setSearch] = useState('');
   const { addToast } = useAppStore();
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 20;
+
   useEffect(() => {
-    adminService.getTransactions()
-      .then(res => {
-        // Filter for credits only (funding)
-        const credits = res.data.filter((t: any) => t.type === 'credit');
-        setTransactions(credits);
+    setLoading(true);
+    adminService.getTransactions({ page, limit, type: 'credit' })
+      .then((res: any) => {
+        setTransactions(res.data || []);
+        if (res.pagination) {
+          setTotalPages(res.pagination.pages);
+          setTotalItems(res.pagination.total);
+        }
       })
       .catch(err => addToast('Failed to load funding history', 'error'))
       .finally(() => setLoading(false));
-  }, [addToast]);
+  }, [addToast, page]);
+
 
   const filtered = transactions.filter(t => 
     t.user_name?.toLowerCase().includes(search.toLowerCase()) || 
@@ -33,7 +43,7 @@ export default function AdminFundingPage() {
   return (
     <AdminLayout>
       <div className="admin-content" style={{ padding: '32px' }}>
-        <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div className="admin-header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16 }}>
           <div>
             <h1 style={{ fontSize: '1.875rem', fontWeight: 800, margin: '0 0 8px' }}>Funding History</h1>
             <p style={{ color: 'var(--color-text-faint)', margin: 0, fontWeight: 500 }}>Global record of all user wallet top-ups and balance additions.</p>
@@ -44,7 +54,7 @@ export default function AdminFundingPage() {
               placeholder="Search by username..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input-field"
+              className="input-field search-input"
               style={{ width: 280, borderRadius: 12, padding: '10px 16px' }}
             />
           </div>
@@ -116,10 +126,28 @@ export default function AdminFundingPage() {
           </div>
         )}
 
+        {!loading && (
+          <AdminPagination 
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            limit={limit}
+            onPageChange={setPage}
+          />
+        )}
+
+
         <style jsx>{`
           .spinner { animation: spin 1s linear infinite; border: 3px solid var(--color-primary-dim); border-top-color: var(--color-primary); border-radius: 50%; width: 40px; height: 40px; }
           @keyframes spin { to { transform: rotate(360deg); } }
           .row-hover:hover { background: var(--color-bg-hover); }
+
+          @media (max-width: 1024px) {
+            .admin-content { padding: 20px 16px !important; }
+            .admin-header { flex-direction: column; align-items: flex-start !important; }
+            .search-box { width: 100%; }
+            .search-input { width: 100% !important; max-width: 100% !important; }
+          }
         `}</style>
       </div>
     </AdminLayout>

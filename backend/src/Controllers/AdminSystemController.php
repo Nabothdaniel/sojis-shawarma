@@ -43,19 +43,36 @@ class AdminSystemController extends AdminBaseController {
         $userId = AuthMiddleware::handle();
         $this->checkAdmin($userId);
 
+        $page  = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $offset = ($page - 1) * $limit;
+
+        // 1. Get total count
+        $stmtCount = $this->db->query("SELECT COUNT(*) FROM system_logs");
+        $total = (int)$stmtCount->fetchColumn();
+
+        // 2. Get data
         $stmt = $this->db->prepare("
             SELECT l.*, u.name as user_name, u.username as user_username
             FROM system_logs l
             LEFT JOIN users u ON l.user_id = u.id
-            ORDER BY l.id DESC LIMIT 200
+            ORDER BY l.id DESC LIMIT $limit OFFSET $offset
         ");
         $stmt->execute();
+        $logs = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         
         return $this->json([
             'status' => 'success',
-            'data' => $stmt->fetchAll(\PDO::FETCH_ASSOC)
+            'data' => $logs,
+            'pagination' => [
+                'total' => $total,
+                'page' => $page,
+                'limit' => $limit,
+                'pages' => ceil($total / $limit)
+            ]
         ]);
     }
+
 
     /**
      * GET /api/admin/analytics
@@ -64,25 +81,62 @@ class AdminSystemController extends AdminBaseController {
         $userId = AuthMiddleware::handle();
         $this->checkAdmin($userId);
 
-        // 1. Total Stats
+        // 1. Purchase and refund totals from the transactions ledger so
+        //    dashboard metrics stay accurate after cancellations/reversals.
         $stmt = $this->db->query("
             SELECT 
-                COUNT(*) as total_orders,
-                SUM(CASE WHEN status = 'received' THEN activation_cost ELSE 0 END) as total_revenue,
-                SUM(CASE WHEN status = 'received' THEN 1 ELSE 0 END) as successful_orders
-            FROM sms_purchases
+                SUM(CASE 
+                    WHEN type = 'debit' AND (description LIKE 'SMS Purchase:%' OR description LIKE 'Manual Number Purchase:%')
+                    THEN amount ELSE 0 
+                END) as gross_revenue,
+                SUM(CASE 
+                    WHEN type = 'credit' AND description LIKE 'Refund:%'
+                    THEN amount ELSE 0 
+                END) as refunded_revenue,
+                SUM(CASE 
+                    WHEN type = 'debit' AND (description LIKE 'SMS Purchase:%' OR description LIKE 'Manual Number Purchase:%')
+                    THEN 1 ELSE 0 
+                END) as total_orders,
+                SUM(CASE 
+                    WHEN type = 'credit' AND description LIKE 'Refund:%'
+                    THEN 1 ELSE 0 
+                END) as reversed_orders
+            FROM transactions
         ");
         $totals = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        // 2. Last 7 days revenue
+        $grossRevenue = (float)($totals['gross_revenue'] ?? 0);
+        $refundedRevenue = (float)($totals['refunded_revenue'] ?? 0);
+        $totalOrders = (int)($totals['total_orders'] ?? 0);
+        $reversedOrders = (int)($totals['reversed_orders'] ?? 0);
+        $successfulOrders = max(0, $totalOrders - $reversedOrders);
+
+        // 2. Last 7 days net revenue (sales less refunds by day)
         $stmt = $this->db->query("
             SELECT 
-                DATE(created_at) as date,
-                SUM(activation_cost) as daily_revenue
-            FROM sms_purchases
-            WHERE status = 'received' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-            GROUP BY DATE(created_at)
-            ORDER BY DATE(created_at) ASC
+                day_bucket.date,
+                SUM(day_bucket.amount) as daily_revenue
+            FROM (
+                SELECT 
+                    DATE(created_at) as date,
+                    amount as amount
+                FROM transactions
+                WHERE type = 'debit'
+                  AND (description LIKE 'SMS Purchase:%' OR description LIKE 'Manual Number Purchase:%')
+                  AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+
+                UNION ALL
+
+                SELECT
+                    DATE(created_at) as date,
+                    -amount as amount
+                FROM transactions
+                WHERE type = 'credit'
+                  AND description LIKE 'Refund:%'
+                  AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            ) as day_bucket
+            GROUP BY day_bucket.date
+            ORDER BY day_bucket.date ASC
         ");
         $daily = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
@@ -94,9 +148,13 @@ class AdminSystemController extends AdminBaseController {
             'status' => 'success',
             'data' => [
                 'totals' => [
-                    'revenue' => (float)($totals['total_revenue'] ?? 0),
-                    'orders' => (int)$totals['total_orders'],
-                    'success_rate' => $totals['total_orders'] > 0 ? round(($totals['successful_orders'] / $totals['total_orders']) * 100, 1) : 100,
+                    'revenue' => $grossRevenue - $refundedRevenue,
+                    'gross_revenue' => $grossRevenue,
+                    'refunded_revenue' => $refundedRevenue,
+                    'orders' => $successfulOrders,
+                    'total_orders' => $totalOrders,
+                    'reversed_orders' => $reversedOrders,
+                    'success_rate' => $totalOrders > 0 ? round(($successfulOrders / $totalOrders) * 100, 1) : 100,
                     'users' => (int)$userCount
                 ],
                 'daily' => $daily

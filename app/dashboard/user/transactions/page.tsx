@@ -1,82 +1,30 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import Topbar from '@/components/dashboard/Topbar';
+import React from 'react';
+import DashboardPageShell from '@/components/dashboard/DashboardPageShell';
 import EmptyHistory from '@/components/dashboard/EmptyHistory';
+import TransactionsTable from '@/components/dashboard/history/TransactionsTable';
 import PageLoader from '@/components/ui/PageLoader';
-import { userService } from '@/lib/api';
-import { formatMoney } from '@/lib/utils';
+import { useTransactions } from '@/hooks/useTransactions';
 
 export default function TransactionsPage() {
-  const [loading, setLoading] = useState(true);
-  const [transactions, setTransactions] = useState<any[]>([]);
-
-  useEffect(() => {
-    userService.getTransactions()
-      .then(res => {
-        setTransactions(res.data);
-      })
-      .catch(err => console.error('Failed to fetch transactions', err))
-      .finally(() => setLoading(false));
-  }, []);
+  const { loading, transactions } = useTransactions();
 
   return (
-    <DashboardLayout>
-      <Topbar title="Transaction History" />
-      <main style={{ padding: '28px', maxWidth: 1000 }}>
-        <div className="breadcrumb">
-          <Link href="/dashboard">Dashboard</Link>
-          <span>/</span>
-          <span>Transaction History</span>
-        </div>
-
-        {loading ? (
-          <PageLoader />
-        ) : transactions.length === 0 ? (
-          <EmptyHistory message="No transactions found" />
-        ) : (
-          <div className="stat-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
-                  <th style={{ padding: '16px 20px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase' }}>Type</th>
-                  <th style={{ padding: '16px 20px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase' }}>Description</th>
-                  <th style={{ padding: '16px 20px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase' }}>Amount</th>
-                  <th style={{ padding: '16px 20px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase' }}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                    <td style={{ padding: '16px 20px' }}>
-                      <span style={{ 
-                        padding: '6px 14px', borderRadius: '12px', fontSize: '0.68rem', fontWeight: 900,
-                        textTransform: 'uppercase', letterSpacing: '0.06em',
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        background: tx.type === 'credit' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                        color: tx.type === 'credit' ? '#10B981' : '#EF4444',
-                        border: `1.2px solid ${tx.type === 'credit' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
-                      }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px 20px', fontSize: '0.9rem', fontWeight: 500 }}>{tx.description}</td>
-                    <td style={{ padding: '16px 20px', fontSize: '0.95rem', fontWeight: 700 }}>
-                      {tx.type === 'credit' ? '+' : '-'}{formatMoney(tx.amount)}
-                    </td>
-                    <td style={{ padding: '16px 20px', fontSize: '0.85rem', color: 'var(--color-text-faint)' }}>
-                      {new Date(tx.created_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </main>
-    </DashboardLayout>
+    <DashboardPageShell
+      title="Transaction History"
+      breadcrumbs={[
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Transaction History' },
+      ]}
+    >
+      {loading ? (
+        <PageLoader />
+      ) : transactions.length === 0 ? (
+        <EmptyHistory message="No transactions found" />
+      ) : (
+        <TransactionsTable transactions={transactions} />
+      )}
+    </DashboardPageShell>
   );
 }

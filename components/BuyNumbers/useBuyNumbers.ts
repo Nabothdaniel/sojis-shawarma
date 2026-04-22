@@ -8,7 +8,7 @@ import { formatMoney } from '@/lib/utils';
 
 export function useBuyNumbers(defaultCountry: string) {
   const router = useRouter();
-  const { addToast, user, login } = useAppStore();
+  const { addToast, user, setUser } = useAppStore();
   
   // Data lists
   const [countries, setCountries] = useState<SmsCountry[]>([]);
@@ -129,10 +129,10 @@ export function useBuyNumbers(defaultCountry: string) {
       setQuantity(1);
       
       const profileRes = await userService.getProfile();
-      login(profileRes.data);
+      setUser(profileRes.data);
 
       addToast(`${quantity} X ${chosenService!.name} number(s) purchased successfully!`, 'success');
-      router.push('/dashboard/user/history');
+      router.push('/dashboard/user/numbers-history');
     } catch (error: any) {
       setPurchaseError(error.message || 'Purchase failed');
       addToast(error.message || 'Purchase failed', 'error');
@@ -157,6 +157,8 @@ export function useBuyNumbers(defaultCountry: string) {
     selectedServiceCode, setSelectedServiceCode,
     quantity, setQuantity,
     // Actions
-    handleBuy, handlePinSuccess
+    handleBuy, handlePinSuccess,
+    incrementQuantity: () => setQuantity(q => Math.min(20, q + 1)),
+    decrementQuantity: () => setQuantity(q => Math.max(1, q - 1))
   };
 }

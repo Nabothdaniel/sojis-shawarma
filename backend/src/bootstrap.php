@@ -61,10 +61,17 @@ if (!function_exists('env_or_default')) {
 }
 
 function determine_cors_origin(): string {
-    $allowed = env_or_default('CORS_ALLOWED_ORIGINS', '*');
-    if ($allowed === '*') return '*';
-
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $allowed = env_or_default('CORS_ALLOWED_ORIGINS', '*');
+    
+    if ($allowed === '*') {
+        // For local development, if origin is localhost/127.0.0.1, echo it back
+        if ($origin && (str_contains($origin, 'localhost') || str_contains($origin, '127.0.0.1'))) {
+            return $origin;
+        }
+        return '*';
+    }
+
     $list = array_map('trim', explode(',', (string)$allowed));
     if ($origin && in_array($origin, $list, true)) {
         return $origin;
@@ -73,11 +80,20 @@ function determine_cors_origin(): string {
 }
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-header("Access-Control-Allow-Origin: " . determine_cors_origin());
+$origin = determine_cors_origin();
+header("Access-Control-Allow-Origin: " . $origin);
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Cache-Control, Pragma");
+header("Access-Control-Expose-Headers: Content-Type, Authorization");
 header("Vary: Origin");
 
+// Handle Credentials for Axios/EventSource withCredentials
+if ($origin !== '*') {
+    header("Access-Control-Allow-Credentials: true");
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? null) === 'OPTIONS') {
+    // Some browsers require explicit 200/204 for preflight
+    http_response_code(204);
     exit;
 }

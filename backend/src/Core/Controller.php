@@ -5,6 +5,9 @@ namespace BamzySMS\Core;
 class Controller {
     protected function json($data, $status = 200) {
         header('Content-Type: application/json');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         http_response_code($status);
         echo json_encode($data);
         exit;

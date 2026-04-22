@@ -85,4 +85,47 @@ class Transaction {
         $stmt->execute([$userId]);
         return $stmt->fetchAll();
     }
+
+    /**
+     * Get paginated transactions for admin view.
+     */
+    public function getAllPaginated(int $page = 1, int $limit = 20, ?string $type = null): array {
+        $offset = ($page - 1) * $limit;
+        $params = [];
+        $where = "";
+
+        if ($type) {
+            $where = " WHERE t.type = ?";
+            $params[] = $type;
+        }
+
+        // 1. Total count
+        $sqlCount = "SELECT COUNT(*) FROM transactions t" . $where;
+        $stmtCount = $this->db->prepare($sqlCount);
+        $stmtCount->execute($params);
+        $total = (int)$stmtCount->fetchColumn();
+
+        // 2. Data
+        $sqlData = "
+            SELECT t.*, u.name as user_name, u.username as user_username
+            FROM transactions t
+            JOIN users u ON t.user_id = u.id
+            $where
+            ORDER BY t.created_at DESC
+            LIMIT $limit OFFSET $offset
+        ";
+        $stmtData = $this->db->prepare($sqlData);
+        $stmtData->execute($params);
+        $transactions = $stmtData->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'data' => $transactions,
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'pages' => ceil($total / $limit)
+        ];
+    }
+
+
 }

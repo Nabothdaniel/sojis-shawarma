@@ -31,11 +31,37 @@ export const useAppStore = create<AppState>()(
         set({ user, isAuthenticated: true, virtualAccounts: [] });
       },
       logout: () => {
-        sessionStorage.removeItem('bamzysms-token');
-        localStorage.removeItem('bamzysms-token');
-        localStorage.removeItem('bamzysms-storage');
-        set({ user: null, isAuthenticated: false, virtualAccounts: [] });
+        // 1. Wipe every storage key this app uses
+        const keys = [
+          'bamzysms-token',
+          'bamzysms-storage',
+        ];
+        keys.forEach((k) => {
+          try { localStorage.removeItem(k); } catch {}
+          try { sessionStorage.removeItem(k); } catch {}
+        });
+
+        // 2. Reset ALL in-memory state (prevents stale data showing
+        //    to the next person who logs in on mobile)
+        set({
+          user: null,
+          isAuthenticated: false,
+          virtualAccounts: [],
+          toasts: [],
+          notifications: [],
+          unreadCount: 0,
+          welcomeModalSeen: false,
+          balanceHidden: false,
+          mobileMenuOpen: false,
+        });
+
+        // 3. Hard redirect — forces a full page reload so no
+        //    React state or memory leaks across sessions
+        if (typeof window !== 'undefined') {
+          window.location.replace('/login');
+        }
       },
+      setUser: (user) => set({ user }),
       updateUserBalance: (balance: number) => {
         set((s) => {
           if (!s.user) return s;
@@ -116,7 +142,7 @@ export const useAppStore = create<AppState>()(
         isAuthenticated: state.isAuthenticated,
         welcomeModalSeen: state.welcomeModalSeen,
         balanceHidden: state.balanceHidden,
-
+        virtualAccounts: state.virtualAccounts,
       }),
       onRehydrateStorage: (state) => {
         return () => state.setHasHydrated(true);

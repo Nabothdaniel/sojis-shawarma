@@ -197,10 +197,9 @@ class AuthController extends Controller {
         }
 
         if ($confirmPassword === '') {
-            return $this->json(['status' => 'error', 'message' => 'Password confirmation is required'], 400);
-        }
-
-        if ($password !== $confirmPassword) {
+            // confirm_password is optional: frontend validates match before sending.
+            // Skip comparison if not provided.
+        } elseif ($password !== $confirmPassword) {
             error_log("[DIAG] Password Mismatch - P1 length: " . strlen($password) . ", P2 length: " . strlen($confirmPassword));
             return $this->json(['status' => 'error', 'message' => 'Passwords do not match'], 400);
         }

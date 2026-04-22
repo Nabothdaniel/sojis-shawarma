@@ -50,7 +50,7 @@ class PaymentController extends Controller {
                 // Return the cached account(s)
                 $accountsStmt = $this->db->prepare(
                     "SELECT bank_code, account_number, account_name, bank_name, reserved_account_id
-                     FROM virtual_accounts WHERE user_id = ?"
+                     FROM virtual_accounts WHERE user_id = ? ORDER BY id ASC"
                 );
                 $accountsStmt->execute([$userId]);
                 $accounts = $accountsStmt->fetchAll(\PDO::FETCH_ASSOC);

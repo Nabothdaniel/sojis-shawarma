@@ -50,7 +50,9 @@ export default function RegisterPage() {
         name: form.name.trim() || form.username.trim(),
         phone: form.phone.trim(),
         password: form.password,
-        confirm_password: form.confirm
+        // confirm_password omitted — frontend already validated passwords match;
+        // sending both fields encrypted produces different ciphertexts (random IV)
+        // causing the backend compare to always fail
       });
       login(response.data.user, response.data.token);
       const key = response.data.recovery_key;

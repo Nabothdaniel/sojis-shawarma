@@ -27,6 +27,42 @@ export interface Notification {
   created_at: string;
 }
 
+export interface Transaction {
+  id: number;
+  amount: number | string;
+  type: 'credit' | 'debit';
+  description: string;
+  status?: 'pending' | 'completed' | 'failed';
+  created_at: string;
+}
+
+export interface SmsPurchase {
+  id: number;
+  activation_id?: number;
+  phone_number: string;
+  service_name?: string;
+  country_name?: string;
+  activation_cost?: number | string;
+  otp_code?: string | null;
+  status: 'pending' | 'received' | 'completed' | 'cancelled' | 'expired';
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface TelegramNumber {
+  id: number;
+  phone_number: string;
+  country_id: number;
+  country_name: string;
+  service_code: string;
+  service_name: string;
+  sell_price: number;
+  notes?: string | null;
+  otp_code?: string;
+  sold_at?: string | null;
+  created_at: string;
+}
+
 export interface VirtualAccount {
   bankCode: string;
   accountNumber: string;
@@ -51,6 +87,7 @@ export interface AppState {
   isAuthenticated: boolean;
   login: (user: User, token?: string) => void;
   logout: () => void;
+  setUser: (user: User) => void;
   updateUserBalance: (balance: number) => void;
 
   // Payments

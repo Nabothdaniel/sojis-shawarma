@@ -17,6 +17,9 @@ const DEFAULT_STATS = {
   providerBalance: null as number | null,  // null = not loaded yet
   revenue:         0,
   orders:          0,
+  totalOrders:     0,
+  reversedOrders:  0,
+  refundedRevenue: 0,
   successRate:     0,
   users:           0,
   conversionRate:  1600,
@@ -63,6 +66,9 @@ export default function AdminDashboard() {
           ...prev,
           revenue:      parseFloat(res.data.totals.revenue      ?? 0),
           orders:       parseInt  (res.data.totals.orders       ?? 0, 10),
+          totalOrders:  parseInt  (res.data.totals.total_orders ?? 0, 10),
+          reversedOrders: parseInt(res.data.totals.reversed_orders ?? 0, 10),
+          refundedRevenue: parseFloat(res.data.totals.refunded_revenue ?? 0),
           successRate:  parseFloat(res.data.totals.success_rate ?? 0),
           users:        parseInt  (res.data.totals.users        ?? 0, 10),
           daily:        res.data.daily ?? [],
@@ -226,8 +232,8 @@ export default function AdminDashboard() {
               <span className="badge" style={{ background: 'rgba(16,185,129,0.05)', color: '#10B981', fontWeight: 700 }}>Revenue</span>
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--color-text-faint)', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-              Total Sales (NGN)
-              <Tooltip content="Gross revenue collected from completed purchases.">
+              Net Sales (NGN)
+              <Tooltip content="Purchase revenue after refunded and reversed transactions have been deducted.">
                 <span style={{ display: 'inline-flex', color: 'var(--color-text-faint)', cursor: 'help' }}><RiQuestionLine size={14} /></span>
               </Tooltip>
             </div>
@@ -343,7 +349,7 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600 }}>
                   <span>Activations</span>
-                  <span>{loadingAnalytics ? '…' : stats.orders} total</span>
+                  <span>{loadingAnalytics ? '…' : `${stats.orders} settled / ${stats.totalOrders} total`}</span>
                 </div>
                 <div style={{ height: 6, width: '100%', background: 'var(--color-bg-hover)', borderRadius: 3 }}>
                   <div style={{ height: '100%', width: `${stats.successRate}%`, background: '#10B981', borderRadius: 3, transition: 'width 0.8s ease-out' }} />
@@ -355,6 +361,9 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>
                   {loadingSettings ? 'Loading multiplier…' : `Multiplier: ${Number(globalSettings?.price_markup_multiplier ?? 1.5).toFixed(2)}x`}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-faint)', fontWeight: 500 }}>
+                  {loadingAnalytics ? 'Loading reversals…' : `Refunded: ${formatMoney(stats.refundedRevenue)} across ${formatNumber(stats.reversedOrders)} reversal(s)`}
                 </div>
               </div>
             </div>

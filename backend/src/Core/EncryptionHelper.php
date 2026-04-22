@@ -34,4 +34,20 @@ class EncryptionHelper {
             return $encryptedData; // Fallback to raw data if decryption fails
         }
     }
+
+    /**
+     * Encrypts a payload for the frontend to decrypt via SubtleCrypto (AES-CBC).
+     * Output format: base64(iv + ciphertext)
+     */
+    public static function encrypt($data, $key) {
+        if (!$data) return $data;
+
+        $ivLength = openssl_cipher_iv_length(self::$method);
+        $iv = openssl_random_pseudo_bytes($ivLength);
+        
+        $hashedKey = hash('sha256', $key, true);
+        $ciphertext = openssl_encrypt($data, self::$method, $hashedKey, OPENSSL_RAW_DATA, $iv);
+        
+        return base64_encode($iv . $ciphertext);
+    }
 }

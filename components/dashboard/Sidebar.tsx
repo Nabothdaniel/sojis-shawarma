@@ -2,13 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   RiDashboardLine, RiWalletLine, RiShoppingBag3Line,
   RiPhoneLine, RiGlobalLine, RiUserSharedLine,
   RiQuestionLine, RiHistoryLine, RiExchangeLine,
   RiLogoutBoxLine, RiSignalTowerFill, RiShieldKeyholeLine,
-  RiExchangeFundsLine,
+  RiExchangeFundsLine, RiSendPlaneLine,
 } from 'react-icons/ri';
 import { useAppStore } from '@/store/appStore';
 import UserAvatar from '@/components/ui/UserAvatar';
@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: 'https://Bamzystore.org/', icon: <RiShoppingBag3Line size={18} />, label: 'Buy Logs' },
   { href: '/dashboard/user/usa-numbers', icon: <RiPhoneLine size={18} />, label: 'USA Numbers' },
   { href: '/dashboard/user/all-countries', icon: <RiGlobalLine size={18} />, label: 'All Countries Numbers' },
+  { href: '/dashboard/user/telegram-numbers', icon: <RiSendPlaneLine size={18} />, label: 'Telegram Numbers' },
   { href: '/dashboard/user/refer', icon: <RiUserSharedLine size={18} />, label: 'Refer & Earn' },
   { href: '/dashboard/user/security', icon: <RiShieldKeyholeLine size={18} />, label: 'Security & API' },
   { href: '/dashboard/user/faqs', icon: <RiQuestionLine size={18} />, label: 'FAQs' },
@@ -32,12 +33,10 @@ const HISTORY_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { logout, user, setSidebarOpen } = useAppStore();
 
   const handleLogout = () => {
-    logout();
-    router.push('/login');
+    logout(); // redirect to /login is handled inside logout()
   };
 
   // Close sidebar on mobile after nav click

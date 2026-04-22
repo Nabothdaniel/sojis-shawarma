@@ -42,13 +42,17 @@ export default function FundWalletPage() {
   const [error, setError]           = useState<string | null>(null);
   const [activeBank, setActiveBank] = useState(0);
 
-  const loadVirtualAccount = useCallback(async () => {
-    if (virtualAccounts.length === 0) setLoading(true);
+  const loadVirtualAccount = useCallback(async (force = false) => {
+    // If we already have accounts and aren't forcing a refresh, do nothing
+    if (!force && virtualAccounts.length > 0) return;
+
+    setLoading(true);
     setError(null);
     try {
       const res = await paymentService.getVirtualAccount();
       if (res.status === 'success' && res.bankAccounts?.length > 0) {
-        setVirtualAccounts(res.bankAccounts);
+        const sorted = [...res.bankAccounts].sort((a, b) => a.bankName.localeCompare(b.bankName));
+        setVirtualAccounts(sorted);
       } else {
         if (virtualAccounts.length === 0) {
           setError('No virtual account available. Please reload or contact support.');
@@ -66,8 +70,8 @@ export default function FundWalletPage() {
   }, [addToast, virtualAccounts.length, setVirtualAccounts]);
 
   useEffect(() => {
-    // Only load if we don't have them yet, or to sync background
-    loadVirtualAccount();
+    // Only load if we don't have them yet
+    loadVirtualAccount(false);
   }, [loadVirtualAccount]);
 
   const activeAccount = virtualAccounts[activeBank] ?? null;
@@ -118,7 +122,7 @@ export default function FundWalletPage() {
               </div>
             </div>
             <button
-              onClick={loadVirtualAccount}
+              onClick={() => loadVirtualAccount(true)}
               disabled={loading}
               title="Refresh"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-faint)', display: 'flex', padding: 4 }}
@@ -135,7 +139,7 @@ export default function FundWalletPage() {
           ) : error ? (
             <div style={{ padding: '20px', textAlign: 'center', borderRadius: 'var(--radius-md)', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
               <p style={{ color: '#EF4444', fontSize: '0.875rem', marginBottom: 12 }}>{error}</p>
-              <button className="btn-primary" onClick={loadVirtualAccount} style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
+              <button className="btn-primary" onClick={() => loadVirtualAccount(true)} style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
                 Try Again
               </button>
             </div>
@@ -169,7 +173,7 @@ export default function FundWalletPage() {
               {(() => {
                 const meta = BANK_LOGOS[activeAccount.bankName] ?? { color: 'var(--color-primary)', short: (activeAccount.bankName || 'BK').slice(0, 2).toUpperCase() };
                 return (
-                  <div style={{
+                  <div className="stat-card v-card" style={{
                     background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', padding: '24px',
                     border: `1px solid ${meta.color}30`,
                   }}>
@@ -189,14 +193,14 @@ export default function FundWalletPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px' }}>
+                    <div className="acct-grid">
                       {/* Account Number */}
                       <div style={{ gridColumn: 'span 2' }}>
                         <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.08em' }}>
                           Account Number
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontWeight: 900, fontSize: '1.6rem', fontFamily: 'monospace', letterSpacing: '0.1em', color: meta.color }}>
+                          <span className="acct-num" style={{ fontWeight: 900, fontFamily: 'monospace', letterSpacing: '0.1em', color: meta.color }}>
                             {activeAccount.accountNumber}
                           </span>
                           <CopyButton text={activeAccount.accountNumber} />
@@ -208,7 +212,7 @@ export default function FundWalletPage() {
                         <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-text-faint)', textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.08em' }}>
                           Account Name
                         </div>
-                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text)' }}>
+                        <div className="acct-name" style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text)', wordBreak: 'break-word', lineHeight: 1.4 }}>
                           {activeAccount.accountName}
                         </div>
                       </div>
@@ -291,6 +295,19 @@ export default function FundWalletPage() {
 
       <style jsx>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        .acct-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+        .acct-num { font-size: 1.6rem; }
+        @media (max-width: 600px) {
+          .acct-grid { grid-template-columns: 1fr; gap: 16px; }
+          .acct-grid > div:first-child { grid-column: span 1 !important; }
+          .acct-num { font-size: 1.3rem; }
+          .v-card { padding: 18px !important; }
+          main { padding: 16px !important; }
+        }
+        @media (max-width: 380px) {
+          .acct-num { font-size: 1.15rem; }
+          .acct-name { font-size: 0.85rem !important; }
+        }
       `}</style>
     </DashboardLayout>
   );

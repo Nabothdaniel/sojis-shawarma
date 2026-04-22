@@ -1,13 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import Topbar from '@/components/dashboard/Topbar';
+import DashboardPageShell from '@/components/dashboard/DashboardPageShell';
 import { useAppStore } from '@/store/appStore';
 
 export default function ProfilePage() {
-  const { user, login } = useAppStore();
+  const { user, setUser } = useAppStore();
   const [form, setForm] = useState({
     name: user?.name ?? '',
     phone: user?.phone ?? '',
@@ -20,21 +18,20 @@ export default function ProfilePage() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    login({ ...user, name: form.name, phone: form.phone });
+    setUser({ ...user, name: form.name, phone: form.phone });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
   return (
-    <DashboardLayout>
-      <Topbar title="Profile" />
-      <main style={{ padding: '28px', maxWidth: 700 }}>
-        <div className="breadcrumb">
-          <Link href="/dashboard">Dashboard</Link>
-          <span>/</span>
-          <span>Profile</span>
-        </div>
-
+    <DashboardPageShell
+      title="Profile"
+      breadcrumbs={[
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Profile' },
+      ]}
+      maxWidth={700}
+    >
         <div className="stat-card">
           <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem', marginBottom: 28 }}>
             User Information
@@ -86,7 +83,6 @@ export default function ProfilePage() {
             </button>
           </form>
         </div>
-      </main>
-    </DashboardLayout>
+    </DashboardPageShell>
   );
 }

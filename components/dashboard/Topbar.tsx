@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   RiMenu2Line, RiNotificationLine,
   RiCoinLine, RiUserSettingsLine, RiShoppingCartLine, RiLogoutBoxLine,
@@ -15,7 +14,6 @@ import NotificationDropdown from '@/components/dashboard/NotificationDropdown';
 
 export default function Topbar({ title }: { title?: string }) {
   const { toggleSidebar, user, logout, balanceHidden, setBalanceHidden } = useAppStore();
-  const router = useRouter();
   const [dropOpen, setDropOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -31,8 +29,7 @@ export default function Topbar({ title }: { title?: string }) {
 
   const handleLogout = () => {
     setDropOpen(false);
-    logout();
-    router.push('/login');
+    logout(); // redirect to /login is handled inside logout()
   };
 
   return (

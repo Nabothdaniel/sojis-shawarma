@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { decryptSensitive } from './client';
 
 export const userService = {
   getProfile: () => apiClient.get('/user/profile'),
@@ -10,5 +10,20 @@ export const userService = {
   updateSecuritySettings: (data: { whatsapp_notifications: boolean; whatsapp_number?: string }) => 
     apiClient.post('/user/security', data),
   confirmRecoveryKeySaved: () => apiClient.post('/user/confirm-key-saved'),
-  regenerateRecoveryKey: () => apiClient.post('/user/regenerate-recovery-key'),
+  
+  regenerateRecoveryKey: async (pin: string) => {
+    const res: any = await apiClient.post('/user/regenerate-recovery-key', { pin });
+    if (res.status === 'success' && res.data?.recovery_key) {
+      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
+    }
+    return res;
+  },
+  
+  revealRecoveryKey: async (pin: string) => {
+    const res: any = await apiClient.post('/user/reveal-recovery-key', { pin });
+    if (res.status === 'success' && res.data?.recovery_key) {
+      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
+    }
+    return res;
+  },
 };
