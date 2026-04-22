@@ -234,13 +234,19 @@ class User {
         if ($number === '') {
             $number = null;
         }
-        if (!(bool)$enabled) {
-            $number = null;
+        // NOTE: we preserve the whatsapp_number even when notifications are disabled
+        // so the user doesn't have to re-type it when they re-enable.
+        if ($number !== null) {
+            // Number was explicitly provided — update both columns
+            $sql = "UPDATE users SET whatsapp_notifications = ?, whatsapp_number = ? WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([(int)$enabled, $number, $userId]);
+        } else {
+            // No number provided — only update the toggle
+            $sql = "UPDATE users SET whatsapp_notifications = ? WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([(int)$enabled, $userId]);
         }
-
-        $sql = "UPDATE users SET whatsapp_notifications = ?, whatsapp_number = ? WHERE id = ?";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([(int)$enabled, $number, $userId]);
     }
 
     /**

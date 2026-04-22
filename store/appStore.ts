@@ -144,8 +144,8 @@ export const useAppStore = create<AppState>()(
         balanceHidden: state.balanceHidden,
         virtualAccounts: state.virtualAccounts,
       }),
-      onRehydrateStorage: (state) => {
-        return () => state.setHasHydrated(true);
+      onRehydrateStorage: () => (rehydratedState) => {
+        rehydratedState?.setHasHydrated(true);
       },
     }
   )

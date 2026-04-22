@@ -111,12 +111,14 @@ class UserController extends Controller {
         }
 
         if ($this->userModel->updateWhatsappSettings($userId, $whatsappNotifications, $whatsappNumber)) {
+            // Re-fetch to get the actual stored value (number is preserved even when disabled)
+            $updatedUser = $this->userModel->findById($userId);
             return $this->json([
                 'status' => 'success',
                 'message' => 'Security settings updated',
                 'data' => [
-                    'whatsapp_notifications' => $whatsappNotifications,
-                    'whatsapp_number' => $whatsappNotifications ? $whatsappNumber : null,
+                    'whatsapp_notifications' => (bool)$updatedUser['whatsapp_notifications'],
+                    'whatsapp_number' => $updatedUser['whatsapp_number'],
                 ]
             ]);
         }

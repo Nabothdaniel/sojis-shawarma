@@ -38,6 +38,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     contentRef.current.style.marginLeft = (!isMobile && sidebarOpen) ? '260px' : '0px';
   }, [sidebarOpen]);
 
+  // While localStorage is being rehydrated, render nothing (avoids flash + race condition).
+  // After hydration, useEffect handles any redirect.
+  if (!hasHydrated) return null;
   if (!isAuthenticated) return null;
 
   return (

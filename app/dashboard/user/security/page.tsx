@@ -48,7 +48,8 @@ export default function SecurityPage() {
       if (res.status === 'success') {
         setSecurityInfo({
           ...res.data,
-          whatsapp_number: res.data?.whatsapp_number ?? user?.whatsapp_number ?? user?.phone ?? '',
+          // Use DB value; don't fall back to phone as it pre-fills unintentionally
+          whatsapp_number: res.data?.whatsapp_number ?? '',
         });
       }
     } catch (err) {
