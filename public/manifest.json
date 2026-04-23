@@ -2,10 +2,10 @@
   "name": "Soji Shawarma Spot",
   "short_name": "Soji's",
   "description": "Fast food delivery app for Lagos's juiciest shawarma.",
-  "start_url": "/menu/",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#FCF9F8",
-  "theme_color": "#745b00",
+  "background_color": "#ffffff",
+  "theme_color": "#EAB600",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",

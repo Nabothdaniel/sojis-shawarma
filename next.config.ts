@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
-const withSerwist = require("@serwist/next").default({
+import withSerwistInit from "@serwist/next";
+
+const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
-  disable: false,
+  disable: process.env.NODE_ENV === "development",
 });
 
 const nextConfig: NextConfig = {
