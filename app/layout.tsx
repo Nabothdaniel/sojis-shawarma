@@ -1,34 +1,57 @@
-/* eslint-disable @next/next/no-page-custom-font */
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import ToastContainer from '@/components/ui/Toast';
-import AuthProvider from '@/components/auth/AuthProvider';
 
 export const metadata: Metadata = {
-  title: 'BamzySMS — Virtual Phone Numbers for OTP Verification',
-  description:
-    "Buy premium virtual phone numbers for instant SMS/OTP verification on Telegram, WhatsApp, Instagram, Facebook and more. Starting from ₦2,000.",
-  keywords: ['virtual phone number', 'OTP verification', 'Nigeria', 'SMS verification', 'BamzySMS'],
-  authors: [{ name: 'BamzySMS' }],
+  title: "Soji's Shawarma Spot - Best Shawarma in Lagos",
+  description: "Authentic, juicy, and freshly grilled shawarma delivered to your doorstep. Craving? We've got you covered.",
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: "Soji's Shawarma",
+  },
 };
+
+export const viewport: Viewport = {
+  themeColor: '#F5C518',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+import { AuthProvider } from '@/context/AuthContext';
+import ToastContainer from '@/components/ui/ToastContainer';
+import SessionManager from '@/components/ui/SessionManager';
+import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="light">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body suppressHydrationWarning>
-        <AuthProvider>
-          {children}
-          <ToastContainer />
-        </AuthProvider>
+      <body className="antialiased selection:bg-primary-container selection:text-on-primary-container">
+        <ReactQueryProvider>
+          <AuthProvider>
+            <SessionManager />
+            <ToastContainer />
+            {children}
+          </AuthProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   );
 }
+
+
+

@@ -1,131 +1,138 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { RiEyeLine, RiEyeOffLine, RiUserLine, RiLockLine, RiSignalTowerFill } from 'react-icons/ri';
+import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
-import PageLoader from '@/components/ui/PageLoader';
-import AuthLayout from '@/components/auth/AuthLayout';
-import { authService } from '@/lib/api';
+
+const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, addToast } = useAppStore();
-  const [loading, setLoading] = useState(false);
-  const [showPass, setShowPass] = useState(false);
-  const [form, setForm] = useState({ username: '', password: '' });
+  const { setToken } = useAuth();
+  const { login: storeLogin, addToast } = useAppStore();
+  const [attemptsRemaining, setAttemptsRemaining] = useState(5);
+  const [isLocked, setIsLocked] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+  });
 
-  const handleSubmit = async (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    if (!form.username || !form.password) { addToast('Please fill in all fields.', 'error'); return; }
-    setLoading(true);
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setInterval(() => setCountdown(c => c - 1), 1000);
+    } else {
+      setIsLocked(false);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  const onSubmit = async (data: LoginFormValues) => {
+    if (isLocked) return;
+    setIsLoading(true);
+
     try {
-      const response = await authService.login({
-        username: form.username.trim(),
-        password: form.password
+      const res = await fetch('http://localhost:8000/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       });
-      login(response.data.user, response.data.token);
-      addToast('Welcome back!', 'success');
 
-      // Direct redirect based on role
-      if (response.data.user.role === 'admin') {
-        router.push('/dashboard/admin/dashboard');
+      const result = await res.json();
+
+      if (res.status === 200) {
+        setToken(result.token);
+        storeLogin(result.user, result.token);
+        addToast('Login successful', 'success');
+        router.push('/admin/dashboard');
+      } else if (res.status === 429) {
+        setIsLocked(true);
+        setCountdown(15 * 60);
+        addToast('Too many attempts. Locked for 15 mins.', 'error');
       } else {
-        router.push('/dashboard/user');
+        const remaining = attemptsRemaining - 1;
+        setAttemptsRemaining(remaining);
+        addToast(`Invalid credentials. ${remaining} attempts left.`, 'error');
+        if (remaining <= 0) {
+          setIsLocked(true);
+          setCountdown(15 * 60);
+        }
       }
-    } catch (error: any) {
-      addToast(error.message || 'Login failed', 'error');
+    } catch (err) {
+      addToast('Backend not responding', 'error');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <AuthLayout>
-      {loading && <PageLoader />}
-
-      <div style={{ paddingBottom: 24 }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: 'var(--color-primary)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px var(--color-primary-glow)',
-          }}>
-            <RiSignalTowerFill size={20} color="#fff" />
+    <div className="bg-surface min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-primary-container rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-container/20">
+            <span className="material-symbols-outlined text-on-primary-container text-4xl">lock</span>
           </div>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem' }}>
-            bamzy<span style={{ color: 'var(--color-primary)' }}>SMS</span>
-          </span>
+          <h1 className="font-headline font-bold text-3xl">Admin Access</h1>
+          <p className="font-body text-outline text-sm mt-2">Personal use only</p>
         </div>
 
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '2rem', marginBottom: 8 }}>
-          Welcome Back
-        </h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem', marginBottom: 32 }}>
-          Enter your details to access your account
-        </p>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>
-              Username
-            </label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', display: 'flex' }}>
-                <RiUserLine size={18} />
-              </span>
-              <input
-                name="username" type="text" className="input-field"
-                placeholder="Enter your username" value={form.username}
-                onChange={handleChange} style={{ paddingLeft: 44 }}
-              />
-            </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-1">
+            <input
+              {...register('email')}
+              type="email"
+              placeholder="Email Address"
+              disabled={isLocked || isLoading}
+              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
+            />
+            {errors.email && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.email.message}</p>}
           </div>
 
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Password</label>
-              <Link href="/forgot-password" style={{ color: 'var(--color-primary)', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 600 }}>
-                Forgot?
-              </Link>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-faint)', display: 'flex' }}>
-                <RiLockLine size={18} />
-              </span>
-              <input
-                name="password" type={showPass ? 'text' : 'password'}
-                className="input-field" placeholder="Enter password"
-                value={form.password} onChange={handleChange}
-                style={{ paddingLeft: 44, paddingRight: 44 }}
-              />
-              <button type="button" onClick={() => setShowPass(!showPass)}
-                style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-faint)', display: 'flex' }}>
-                {showPass ? <RiEyeOffLine size={18} /> : <RiEyeLine size={18} />}
-              </button>
-            </div>
+          <div className="space-y-1">
+            <input
+              {...register('password')}
+              type="password"
+              placeholder="Password"
+              disabled={isLocked || isLoading}
+              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
+            />
+            {errors.password && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.password.message}</p>}
           </div>
 
-          <button type="submit" className="btn-primary"
-            disabled={loading}
-            style={{ padding: '15px', width: '100%', fontSize: '1rem', marginTop: 10 }}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+          {isLocked ? (
+            <div className="bg-error/10 text-error p-4 rounded-2xl text-center font-label font-bold text-xs uppercase tracking-widest">
+              LOCKED: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-on-surface text-surface font-headline font-bold py-5 rounded-full shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+            >
+              {isLoading ? (
+                <span className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin"></span>
+              ) : (
+                <>Sign In <span className="material-symbols-outlined">arrow_forward</span></>
+              )}
+            </button>
+          )}
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: 32, fontSize: '0.95rem', color: 'var(--color-text-muted)' }}>
-          New to BamzySMS?{' '}
-          <Link href="/register" style={{ color: 'var(--color-primary)', fontWeight: 700, textDecoration: 'none' }}>
-            Create an account
-          </Link>
+        <p className="mt-8 text-center text-outline font-label text-[10px] uppercase tracking-widest font-bold">
+          Unauthorized access is logged
         </p>
       </div>
-    </AuthLayout>
+    </div>
   );
 }
