@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation';
 export default function RootPage() {
   const router = useRouter();
   useEffect(() => {
-    router.push('/landing');
+    const hasVisited = localStorage.getItem('soji_has_visited');
+    if (hasVisited === 'true') {
+      router.replace('/show/');
+    } else {
+      router.replace('/landing/');
+    }
   }, [router]);
   return null;
 }
