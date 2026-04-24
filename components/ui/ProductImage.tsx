@@ -13,15 +13,30 @@ interface ProductImageProps {
   priority?: boolean;
 }
 
-export default function ProductImage({ 
-  src, 
-  alt, 
-  fill, 
-  width, 
-  height, 
-  className = '', 
-  priority = false 
+export default function ProductImage({
+  src,
+  alt,
+  fill,
+  width,
+  height,
+  className = '',
+  priority = false
 }: ProductImageProps) {
+  const isSvg = src?.toLowerCase().endsWith('.svg');
+
+  if (isSvg) {
+    return (
+      <div className={`relative overflow-hidden bg-transparent ${className}`}>
+        <img
+          src={src}
+          alt={alt}
+          className="w-full h-full object-contain bg-transparent"
+          style={{ backgroundColor: 'transparent' }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`relative overflow-hidden bg-transparent ${className}`}>
       <Image
@@ -31,7 +46,7 @@ export default function ProductImage({
         width={!fill ? width : undefined}
         height={!fill ? height : undefined}
         priority={priority}
-        className="object-contain bg-transparent mix-blend-multiply" 
+        className="object-contain bg-transparent mix-blend-multiply"
         style={{ backgroundColor: 'transparent' }}
       />
     </div>

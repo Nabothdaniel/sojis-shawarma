@@ -170,7 +170,7 @@ export default function CheckoutPage() {
                 </div>
                 <textarea
                   required
-                  placeholder="Street, House No, Lagos"
+                  placeholder="Street, House No, Keffi"
                   rows={3}
                   className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none"
                   value={formData.address}

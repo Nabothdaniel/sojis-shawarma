@@ -1,38 +1,33 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import { products } from '@/lib/products';
 import ProductImage from '@/components/ui/ProductImage';
+import useInstallPrompt from '@/hooks/useInstallPrompt';
 
 export default function DeliveryMenu() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const { install, installAvailable } = useInstallPrompt();
   
   const addItem = useCartStore((state) => state.addItem);
   const totalItems = useCartStore((state) => state.totalItems());
   const addToast = useAppStore((state) => state.addToast);
 
-  useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
-  }, []);
-
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDeferredPrompt(null);
-    } else {
-      addToast('Use browser menu to "Add to Home Screen"', 'info');
-    }
+    await install({
+      onUnsupported: () => {
+        addToast('Use browser menu to "Add to Home Screen"', 'info');
+      },
+      onAccepted: () => {
+        addToast('App installed successfully!', 'success');
+      },
+    });
   };
 
   const categories = ['All', 'Shawarma', 'Drinks', 'Sides', 'Combos'];
@@ -45,12 +40,12 @@ export default function DeliveryMenu() {
     <div className="bg-surface text-on-surface min-h-screen pb-32">
       <header className="flex justify-between items-center w-full sticky top-0 z-40 bg-surface px-4 py-4 backdrop-blur-md bg-opacity-80">
         <button onClick={handleInstall} className="p-2 active:scale-95 duration-150 flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-2xl">{deferredPrompt ? 'download_for_offline' : 'install_mobile'}</span>
-          {deferredPrompt && <span className="font-label text-[10px] uppercase font-bold text-primary">Install App</span>}
+          <span className="material-symbols-outlined text-primary text-2xl">{installAvailable ? 'download_for_offline' : 'install_mobile'}</span>
+          {installAvailable && <span className="font-label text-[10px] uppercase font-bold text-primary">Install App</span>}
         </button>
         <div className="flex items-center gap-1 bg-surface-container-low px-4 py-1.5 rounded-full shadow-sm">
           <span className="material-symbols-outlined text-secondary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-          <span className="font-label text-xs font-bold tracking-tight uppercase">Lagos, NG</span>
+          <span className="font-label text-xs font-bold tracking-tight uppercase">Keffi, Nasarawa</span>
         </div>
         <div className="relative p-2 active:scale-95 duration-150">
           <span className="material-symbols-outlined text-primary text-2xl">notifications</span>

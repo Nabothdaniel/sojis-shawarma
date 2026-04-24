@@ -18,7 +18,7 @@ export const products: Product[] = [
     rating: '4.9',
     prepTime: '15 min prep',
     description: 'Loaded with tender seasoned beef slices, fresh cabbage, onions, garlic sauce, and pickles. Toasted flatbread with slight grill marks.',
-    image: '/images/beef-supreme.png'
+    image: '/images/beef-supreme.svg'
   },
   {
     id: 'chicken-shawarma',
@@ -28,7 +28,7 @@ export const products: Product[] = [
     rating: '4.8',
     prepTime: '12 min prep',
     description: 'Juicy grilled chicken, fresh lettuce, tomatoes, and creamy tahini sauce wrapped in a warm toasted bread.',
-    image: '/images/chicken-classic.png'
+    image: '/images/chicken-classic.svg'
   }
 ];
 

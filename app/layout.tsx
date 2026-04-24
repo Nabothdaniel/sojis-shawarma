@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Soji Shawarma Spot - Best Shawarma in Lagos",
-  description: "Authentic, juicy, and freshly grilled shawarma delivered to your doorstep. Craving? We've got you covered.",
+  title: "Soji Shawarma Spot - Best Shawarma in Keffi",
+  description: "Authentic shawarma from Nasarawa State University Keffi, delivered fresh and fast. Order now from the girls hostel corner.",
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

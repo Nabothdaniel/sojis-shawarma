@@ -1,27 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import useInstallPrompt from '@/hooks/useInstallPrompt';
 
 export default function DetailedLanding() {
   const router = useRouter();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
-  }, []);
+  const { install } = useInstallPrompt();
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDeferredPrompt(null);
-    } else {
-      alert('To install: Tap the browser menu and select "Add to Home Screen"');
-    }
+    await install({
+      onUnsupported: () => {
+        alert('To install: Tap the browser menu and select "Add to Home Screen"');
+      },
+    });
   };
 
   return (
@@ -49,13 +40,13 @@ export default function DetailedLanding() {
       <section className="pt-32 pb-20 px-8 text-center max-w-4xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-8">
           <span className="material-symbols-outlined text-sm">verified</span>
-          <span className="font-label font-bold text-[10px] uppercase tracking-widest">Lagos's #1 Shawarma App</span>
+          <span className="font-label font-bold text-[10px] uppercase tracking-widest">Keffi's Favorite Shawarma App</span>
         </div>
         <h1 className="font-headline font-bold text-6xl md:text-8xl leading-none mb-6">
           The Future of <br/> <span className="text-primary italic">Flavor.</span>
         </h1>
         <p className="font-body text-outline text-lg md:text-xl max-w-lg mx-auto mb-12">
-          Experience the juiciest shawarma in Lagos, delivered with surgical precision. Install our app for the fastest experience.
+          Soji's Shawarma is inside Nasarawa State University Keffi, in front of the old girls hostel. No action is required from you — we alert the admin by WhatsApp when a Telegram notification occurs, so you can focus on ordering.
         </p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center">
@@ -89,8 +80,8 @@ export default function DetailedLanding() {
             <div className="w-16 h-16 bg-tertiary/10 text-tertiary rounded-2xl flex items-center justify-center">
               <span className="material-symbols-outlined text-3xl">send</span>
             </div>
-            <h3 className="font-headline font-bold text-2xl">Telegram Tracking</h3>
-            <p className="font-body text-outline leading-relaxed">No more wondering where your food is. Get instant rich notifications via Telegram for every stage.</p>
+            <h3 className="font-headline font-bold text-2xl">Notification via WhatsApp</h3>
+            <p className="font-body text-outline leading-relaxed">This is only an admin alert. Your order is handled normally while we notify the admin by WhatsApp instead of using Telegram directly.</p>
           </div>
           <div className="space-y-4">
             <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
