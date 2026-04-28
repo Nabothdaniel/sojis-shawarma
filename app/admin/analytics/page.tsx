@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { analyticsService, AnalyticsData } from '@/lib/api';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell 
@@ -11,16 +12,15 @@ import {
 export default function AnalyticsPage() {
   const router = useRouter();
   const { token, isLoading: authLoading } = useAuth();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
+    if (!token) return;
+
     try {
-      const res = await fetch('http://localhost:8000/analytics/summary', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const json = await res.json();
-      setData(json);
+      const response = await analyticsService.getSummary();
+      setData(response.data);
     } catch (err) {
       console.error('Failed to fetch analytics');
     } finally {
@@ -41,6 +41,8 @@ export default function AnalyticsPage() {
   }, [token, authLoading, router]);
 
   if (isLoading || authLoading) return <div className="p-10 font-headline font-bold">Loading Insights...</div>;
+
+  if (!data) return <div className="p-10 font-headline font-bold">No data available</div>;
 
   const COLORS = ['#745b00', '#f5c518', '#006c45', '#a53c00', '#1c1b1b'];
 

@@ -7,7 +7,6 @@ import axiosInstance from '@/lib/axios';
 
 interface AuthContextType {
   token: string | null;
-  setToken: (token: string | null) => void;
   isLoading: boolean;
 }
 
@@ -59,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({ token, setToken, isLoading }), [token, setToken, isLoading]);
+  const contextValue = useMemo(() => ({ token, isLoading }), [token, isLoading]);
 
   return (
     <AuthContext.Provider value={contextValue}>

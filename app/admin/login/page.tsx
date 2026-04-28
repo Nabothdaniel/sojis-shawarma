@@ -1,37 +1,68 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
+import { authService } from '@/lib/api';
 
-export default function AdminLogin() {
+const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+export default function LoginPage() {
   const router = useRouter();
-  const { login, addToast } = useAppStore();
-  const [formData, setFormData] = useState({ username: '', password: '' });
+  const { setToken } = useAuth();
+  const { login: storeLogin, addToast } = useAppStore();
+  const [attemptsRemaining, setAttemptsRemaining] = useState(5);
+  const [isLocked, setIsLocked] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setInterval(() => setCountdown(c => c - 1), 1000);
+    } else {
+      setIsLocked(false);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
+
+  const onSubmit = async (data: LoginFormValues) => {
+    if (isLocked) return;
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8080/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      const data = await res.json();
-
-      if (data.status === 'success') {
-        login(data.user, data.token);
-        addToast('Welcome back, Admin', 'success');
-        router.push('/admin');
+      const result = await authService.login(data);
+      setToken(result.token);
+      storeLogin({ ...result.user, role: 'admin' }, result.token);
+      addToast('Login successful', 'success');
+      router.push('/admin/dashboard');
+    } catch (err: any) {
+      if (err.status === 429) {
+        setIsLocked(true);
+        setCountdown(15 * 60);
+        addToast('Too many attempts. Locked for 15 mins.', 'error');
       } else {
-        addToast(data.error || 'Invalid credentials', 'error');
+        const remaining = attemptsRemaining - 1;
+        setAttemptsRemaining(remaining);
+        addToast(`${err.message || 'Invalid credentials'}. ${remaining} attempts left.`, 'error');
+        if (remaining <= 0) {
+          setIsLocked(true);
+          setCountdown(15 * 60);
+        }
       }
-    } catch (err) {
-      addToast('Backend not responding', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -41,51 +72,58 @@ export default function AdminLogin() {
     <div className="bg-surface min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-primary-container rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20">
-            <span className="material-symbols-outlined text-on-background text-4xl">admin_panel_settings</span>
+          <div className="w-20 h-20 bg-primary-container rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-container/20">
+            <span className="material-symbols-outlined text-on-primary-container text-4xl">lock</span>
           </div>
-          <h1 className="font-headline font-bold text-2xl">Admin Terminal</h1>
-          <p className="text-outline font-body text-sm">Secure access only</p>
+          <h1 className="font-headline font-bold text-3xl">Admin Access</h1>
+          <p className="font-body text-outline text-sm mt-2">Personal use only</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="relative group">
-             <input 
-               required
-               type="text" 
-               placeholder="Username" 
-               className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all"
-               value={formData.username}
-               onChange={(e) => setFormData({...formData, username: e.target.value})}
-             />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-1">
+            <input
+              {...register('email')}
+              type="email"
+              placeholder="Email Address"
+              disabled={isLocked || isLoading}
+              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
+            />
+            {errors.email && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.email.message}</p>}
           </div>
-          <div className="relative group">
-             <input 
-               required
-               type="password" 
-               placeholder="Password" 
-               className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all"
-               value={formData.password}
-               onChange={(e) => setFormData({...formData, password: e.target.value})}
-             />
+
+          <div className="space-y-1">
+            <input
+              {...register('password')}
+              type="password"
+              placeholder="Password"
+              disabled={isLocked || isLoading}
+              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
+            />
+            {errors.password && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.password.message}</p>}
           </div>
-          
-          <button 
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-on-surface text-surface font-headline font-bold py-4 rounded-full shadow-xl active:scale-95 transition-transform flex justify-center items-center gap-3 disabled:opacity-50"
-          >
-            {isLoading ? 'Decrypting...' : 'Sign In'}
-            {!isLoading && <span className="material-symbols-outlined">login</span>}
-          </button>
+
+          {isLocked ? (
+            <div className="bg-error/10 text-error p-4 rounded-2xl text-center font-label font-bold text-xs uppercase tracking-widest">
+              LOCKED: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-on-surface text-surface font-headline font-bold py-5 rounded-full shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+            >
+              {isLoading ? (
+                <span className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin"></span>
+              ) : (
+                <>Sign In <span className="material-symbols-outlined">arrow_forward</span></>
+              )}
+            </button>
+          )}
         </form>
-        
-        <button 
-          onClick={() => router.push('/')}
-          className="w-full mt-6 text-outline font-label text-xs uppercase tracking-widest hover:text-primary transition-colors"
-        >
-          Back to Store
-        </button>
+
+        <p className="mt-8 text-center text-outline font-label text-[10px] uppercase tracking-widest font-bold">
+          Unauthorized access is logged
+        </p>
       </div>
     </div>
   );

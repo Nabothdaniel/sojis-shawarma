@@ -11,6 +11,6 @@ export default function RootPage() {
     } else {
       router.replace('/landing/');
     }
-  }, [router]);
+  }, []); // Empty dependency array - runs once on mount
   return null;
 }

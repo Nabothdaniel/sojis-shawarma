@@ -18,7 +18,7 @@ class AuthController {
         // Rate Limiting (Task 2)
         if ($this->isRateLimited($ip, '/auth/login')) {
             header("HTTP/1.1 429 Too Many Requests");
-            return json_encode(['error' => 'Too many attempts. Locked for 15 minutes.']);
+            return json_encode(['message' => 'Too many attempts. Locked for 15 minutes.']);
         }
 
         $stmt = $this->db->prepare("SELECT * FROM admins WHERE email = ?");
@@ -42,12 +42,17 @@ class AuthController {
             return json_encode([
                 'status' => 'success',
                 'token' => $accessToken,
-                'user' => ['id' => $user['id'], 'email' => $user['email'], 'name' => $user['name']]
+                'user' => [
+                    'id' => $user['id'],
+                    'email' => $user['email'],
+                    'name' => $user['name'],
+                    'role' => $user['role'] ?? 'admin'
+                ]
             ]);
         } else {
             $this->logAttempt($ip, '/auth/login');
             header("HTTP/1.1 401 Unauthorized");
-            return json_encode(['error' => 'Invalid email or password']);
+            return json_encode(['message' => 'Invalid email or password']);
         }
     }
 
@@ -61,7 +66,7 @@ class AuthController {
         }
         
         header("HTTP/1.1 401 Unauthorized");
-        return json_encode(['error' => 'Invalid refresh token']);
+        return json_encode(['message' => 'Invalid refresh token']);
     }
 
     public function logout() {
@@ -103,9 +108,19 @@ class AuthController {
 
     private function logAttempt($ip, $endpoint) {
         $window = time();
-        $stmt = $this->db->prepare("INSERT INTO rate_limits (ip, endpoint, attempts, window_start) 
-                                    VALUES (?, ?, 1, ?) 
-                                    ON DUPLICATE KEY UPDATE attempts = attempts + 1");
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+        if ($driver === 'sqlite') {
+            $stmt = $this->db->prepare("INSERT INTO rate_limits (ip, endpoint, attempts, window_start)
+                                        VALUES (?, ?, 1, ?)
+                                        ON CONFLICT(ip, endpoint) DO UPDATE SET attempts = attempts + 1, window_start = excluded.window_start");
+            $stmt->execute([$ip, $endpoint, $window]);
+            return;
+        }
+
+        $stmt = $this->db->prepare("INSERT INTO rate_limits (ip, endpoint, attempts, window_start)
+                                    VALUES (?, ?, 1, ?)
+                                    ON DUPLICATE KEY UPDATE attempts = attempts + 1, window_start = VALUES(window_start)");
         $stmt->execute([$ip, $endpoint, $window]);
     }
 

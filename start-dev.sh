@@ -9,6 +9,7 @@ echo "🚀 Starting Soji's Shawarma Full-stack Environment..."
 # Start XAMPP MySQL only (skip Apache since system Apache is running)
 echo "🐬 Starting XAMPP MySQL..."
 sudo /opt/lampp/lampp startmysql
+sudo /opt/lampp/lampp startapache
 
 echo "------------------------------------------"
 echo "Freeing port 8000 to prevent startup conflicts..."

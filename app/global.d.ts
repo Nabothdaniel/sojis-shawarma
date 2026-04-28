@@ -9,4 +9,4 @@ declare module '*.jpeg';
 declare module '*.gif';
 declare module '*.svg';
 
-/// <reference lib="webworker" />
+declare const self: ServiceWorkerGlobalScope;

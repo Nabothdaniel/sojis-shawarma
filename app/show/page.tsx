@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
@@ -17,7 +17,12 @@ export default function DeliveryMenu() {
   
   const addItem = useCartStore((state) => state.addItem);
   const totalItems = useCartStore((state) => state.totalItems());
-  const addToast = useAppStore((state) => state.addToast);
+  const addToast = useAppStore((state:any) => state.addToast);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleInstall = async () => {
     await install({
@@ -117,7 +122,7 @@ export default function DeliveryMenu() {
         <button className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">search</span></button>
         <Link href="/cart" className="flex flex-col items-center gap-1 text-white/50 relative">
           <span className="material-symbols-outlined">shopping_cart</span>
-          {totalItems > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-on-surface">{totalItems}</span>}
+          {isMounted && totalItems > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-on-surface">{totalItems}</span>}
         </Link>
         <button className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">person</span></button>
       </nav>

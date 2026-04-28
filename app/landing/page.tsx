@@ -23,7 +23,7 @@ export default function DetailedLanding() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg">
             <span className="material-symbols-outlined text-surface text-xl">restaurant</span>
           </div>
-          <span className="font-headline font-bold text-lg">Soji's</span>
+          <span className="font-headline font-bold text-lg">Soji&apos;s</span>
         </div>
         <button 
           onClick={() => {
@@ -40,13 +40,13 @@ export default function DetailedLanding() {
       <section className="pt-32 pb-20 px-8 text-center max-w-4xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-8">
           <span className="material-symbols-outlined text-sm">verified</span>
-          <span className="font-label font-bold text-[10px] uppercase tracking-widest">Keffi's Favorite Shawarma App</span>
+          <span className="font-label font-bold text-[10px] uppercase tracking-widest">Keffi&apos;s Favorite Shawarma App</span>
         </div>
         <h1 className="font-headline font-bold text-6xl md:text-8xl leading-none mb-6">
           The Future of <br/> <span className="text-primary italic">Flavor.</span>
         </h1>
         <p className="font-body text-outline text-lg md:text-xl max-w-lg mx-auto mb-12">
-          Soji's Shawarma is inside Nasarawa State University Keffi, in front of the old girls hostel. No action is required from you — we alert the admin by WhatsApp when a Telegram notification occurs, so you can focus on ordering.
+          Soji&apos;s Shawarma is inside Nasarawa State University Keffi, in front of the old girls hostel. No action is required from you — we alert the admin by WhatsApp when a Telegram notification occurs, so you can focus on ordering.
         </p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center">

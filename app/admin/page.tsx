@@ -12,7 +12,10 @@ export default function AdminDashboard() {
   
   const { data: orders, isLoading } = useQuery<any[]>({
     queryKey: ['orders'],
-    queryFn: () => axiosInstance.get('/orders'),
+    queryFn: async () => {
+      const response: any = await axiosInstance.get('/orders');
+      return response.data || [];
+    },
     enabled: isAuthenticated && user?.role === 'admin',
     refetchInterval: 30000, // Polling every 30s
     initialData: [],
@@ -118,7 +121,9 @@ export default function AdminDashboard() {
                   </td>
                   <td className="p-4">
                     <div className="text-[10px] font-body line-clamp-1 text-outline-variant">
-                      {JSON.parse(order.items).map((i: any) => `${i.quantity}x ${i.name}`).join(', ')}
+                      {(Array.isArray(order.items) ? order.items : JSON.parse(order.items || '[]'))
+                        .map((i: any) => `${i.quantity}x ${i.name}`)
+                        .join(', ')}
                     </div>
                   </td>
                   <td className="p-4 font-label font-bold text-sm">₦{order.total_amount.toLocaleString()}</td>
@@ -136,7 +141,7 @@ export default function AdminDashboard() {
           </table>
           {orders.length === 0 && (
             <div className="p-20 text-center text-outline font-body italic">
-              No orders yet. They'll appear here automatically.
+              No orders yet. They&apos;ll appear here automatically.
             </div>
           )}
         </div>

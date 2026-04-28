@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS orders (
     items TEXT NOT NULL, -- JSON string
     total_amount REAL NOT NULL,
     status TEXT DEFAULT 'pending',
+    payment_status TEXT DEFAULT 'pending',
+    receipt_image TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

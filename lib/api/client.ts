@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const getApiUrl = () => {
   // Use env variable if present, otherwise default to local server for development
-  const url = process.env.NEXT_PUBLIC_API_URL || 'https://bamzysms.com/api';
+  const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   // Strip quotes and semicolons
   return url.replace(/["';]/g, '');
 };
@@ -96,9 +96,9 @@ apiClient.interceptors.request.use(
     if (typeof window !== 'undefined') {
       // 1. Attach Auth Token
       // We check both storages for iOS compatibility
-      let token = sessionStorage.getItem('bamzysms-token');
+      let token = sessionStorage.getItem('soji-token');
       if (!token) {
-        token = localStorage.getItem('bamzysms-token');
+        token = localStorage.getItem('soji-token');
       }
 
       if (token) {
@@ -143,10 +143,10 @@ apiClient.interceptors.response.use(
       console.warn('API returned 401 - Session expired or invalid. Redirecting to login.');
 
       // Only clear if we actually have a token (to prevent logout loops)
-      const token = localStorage.getItem('bamzysms-token') || sessionStorage.getItem('bamzysms-token');
+      const token = localStorage.getItem('soji-token') || sessionStorage.getItem('soji-token');
 
       if (token) {
-        ['bamzysms-token', 'bamzysms-storage'].forEach((k) => {
+        ['soji-token', 'soji-storage'].forEach((k) => {
           try { localStorage.removeItem(k); } catch { }
           try { sessionStorage.removeItem(k); } catch { }
         });
@@ -158,8 +158,11 @@ apiClient.interceptors.response.use(
       return Promise.reject(new Error('Session expired. Please log in again.'));
     }
 
-    const message = error.response?.data?.message || 'Something went wrong';
-    return Promise.reject(new Error(message));
+    const message = error.response?.data?.message || error.response?.data?.error || 'Something went wrong';
+    const normalizedError: Error & { status?: number; response?: unknown } = new Error(message);
+    normalizedError.status = error.response?.status;
+    normalizedError.response = error.response;
+    return Promise.reject(normalizedError);
   }
 );
 

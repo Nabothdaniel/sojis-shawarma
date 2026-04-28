@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
+import { authService } from '@/lib/api';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -43,34 +44,29 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8000/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      const result = await authService.login(data);
 
-      const result = await res.json();
+      setToken(result.token);
+      storeLogin({ ...result.user, role: 'admin' }, result.token);
+      addToast('Login successful', 'success');
+      router.push('/admin/dashboard');
+    } catch (error: any) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || 'Login failed';
 
-      if (res.status === 200) {
-        setToken(result.token);
-        storeLogin(result.user, result.token);
-        addToast('Login successful', 'success');
-        router.push('/admin/dashboard');
-      } else if (res.status === 429) {
+      if (status === 429) {
         setIsLocked(true);
         setCountdown(15 * 60);
         addToast('Too many attempts. Locked for 15 mins.', 'error');
       } else {
         const remaining = attemptsRemaining - 1;
         setAttemptsRemaining(remaining);
-        addToast(`Invalid credentials. ${remaining} attempts left.`, 'error');
+        addToast(`${message}. ${remaining} attempts left.`, 'error');
         if (remaining <= 0) {
           setIsLocked(true);
           setCountdown(15 * 60);
         }
       }
-    } catch (err) {
-      addToast('Backend not responding', 'error');
     } finally {
       setIsLoading(false);
     }

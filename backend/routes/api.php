@@ -19,6 +19,11 @@ $router->add('GET', '/orders', function() use ($db) {
     return $controller->getAll();
 });
 
+$router->add('POST', '/orders/{id}/confirm-payment', function($id) use ($db) {
+    $controller = new OrderController($db);
+    return $controller->confirmPayment($id);
+});
+
 $router->add('POST', '/login', function() use ($db) {
     $controller = new AuthController($db);
     return $controller->login();

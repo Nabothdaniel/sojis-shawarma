@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import { analyticsService, orderService } from '@/lib/api';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -13,16 +14,14 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const summaryRes = await fetch('http://localhost:8000/analytics/summary', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const ordersRes = await fetch('http://localhost:8000/orders', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      setStats(await summaryRes.json());
-      setRecentOrders((await ordersRes.json()).slice(0, 5));
+      const [summaryResponse, ordersResponse] = await Promise.all([
+        analyticsService.getSummary(),
+        orderService.getAllOrders()
+      ]);
+      setStats(summaryResponse.data);
+      setRecentOrders((ordersResponse.data || []).slice(0, 5));
     } catch (err) {
-      console.error('Dash fetch failed');
+      console.error('Dashboard fetch failed');
     }
   };
 
@@ -76,7 +75,7 @@ export default function AdminDashboard() {
                     </div>
                  </div>
                  <div className="text-right">
-                    <p className="font-label font-bold text-sm">₦{order.total.toLocaleString()}</p>
+                    <p className="font-label font-bold text-sm">₦{order.total_amount.toLocaleString()}</p>
                     <span className="font-label text-[10px] uppercase font-bold text-secondary">{order.status}</span>
                  </div>
                </div>

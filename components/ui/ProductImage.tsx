@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React from 'react';
+import React, { useState } from 'react';
 
 interface ProductImageProps {
   src: string;
@@ -22,7 +22,22 @@ export default function ProductImage({
   className = '',
   priority = false
 }: ProductImageProps) {
+  const [imageError, setImageError] = useState(false);
   const isSvg = src?.toLowerCase().endsWith('.svg');
+
+  // Debugging logs
+  console.log('ProductImage src:', src);
+  console.log('ProductImage imageError:', imageError);
+
+  if (!src || imageError) {
+    return (
+      <div className={`relative overflow-hidden bg-surface-container-high ${className}`}>
+        <div className="w-full h-full flex items-center justify-center">
+          <span className="material-symbols-outlined text-outline/30 text-4xl">image_not_supported</span>
+        </div>
+      </div>
+    );
+  }
 
   if (isSvg) {
     return (
@@ -32,6 +47,7 @@ export default function ProductImage({
           alt={alt}
           className="w-full h-full object-contain bg-transparent"
           style={{ backgroundColor: 'transparent' }}
+          onError={() => setImageError(true)}
         />
       </div>
     );
@@ -48,6 +64,8 @@ export default function ProductImage({
         priority={priority}
         className="object-contain bg-transparent mix-blend-multiply"
         style={{ backgroundColor: 'transparent' }}
+        onError={() => setImageError(true)}
+        unoptimized
       />
     </div>
   );

@@ -67,7 +67,7 @@ export default function CheckoutPage() {
     }
   });
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (items.length === 0) return addToast('Cart is empty', 'error');
 
@@ -82,7 +82,7 @@ export default function CheckoutPage() {
     });
   };
 
-  const handleReceiptUpload = async (e: React.FormEvent) => {
+  const handleReceiptUpload = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!receiptFile) return addToast('Please upload receipt image', 'error');
     confirmPayment();
@@ -108,15 +108,6 @@ export default function CheckoutPage() {
         >
           Back to Home
         </button>
-        <a
-          href={`https://wa.me/2348012345678?text=${encodeURIComponent(`Hello, I just placed an order with reference ${orderRef}. I would like to chat.`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 flex items-center justify-center gap-2 bg-green-500 text-white font-headline font-bold px-12 py-4 rounded-full shadow-lg active:scale-95 transition-transform"
-        >
-          <span className="material-symbols-outlined text-xl">chat</span>
-          Chat on WhatsApp
-        </a>
       </div>
     );
   }

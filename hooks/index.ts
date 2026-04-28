@@ -1,3 +1,9 @@
+export interface ToastMessage {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
 export interface Transaction {
   id: string;
   type: 'credit' | 'debit';
@@ -22,12 +28,6 @@ export interface Order {
   total: number;
   status: 'pending' | 'preparing' | 'delivered' | 'cancelled';
   createdAt: string;
-}
-
-export interface ToastMessage {
-  id: string;
-  message: string;
-  type: 'success' | 'error' | 'info';
 }
 
 export interface AppState {
