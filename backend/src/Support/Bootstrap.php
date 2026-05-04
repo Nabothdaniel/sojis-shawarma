@@ -32,6 +32,7 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 order_ref TEXT UNIQUE,
                 session_id TEXT,
+                user_id INTEGER,
                 customer_name TEXT NOT NULL,
                 customer_phone TEXT NOT NULL,
                 items TEXT NOT NULL,
@@ -48,6 +49,27 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 receipt_path TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                phone TEXT,
+                address TEXT,
+                password_hash TEXT NOT NULL,
+                role TEXT DEFAULT 'user',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE IF NOT EXISTS reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                order_id INTEGER NOT NULL,
+                product_id TEXT NOT NULL,
+                product_name TEXT NOT NULL,
+                rating INTEGER NOT NULL,
+                review_text TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(order_id, product_id)
             )",
             "CREATE TABLE IF NOT EXISTS rate_limits (
                 ip TEXT NOT NULL,
@@ -105,6 +127,7 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 order_ref VARCHAR(64) UNIQUE,
                 session_id VARCHAR(64) NULL,
+                user_id INT NULL,
                 customer_name VARCHAR(255) NOT NULL,
                 customer_phone VARCHAR(50) NOT NULL,
                 items JSON NOT NULL,
@@ -121,6 +144,27 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 receipt_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                phone VARCHAR(50) NULL,
+                address TEXT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                role VARCHAR(50) DEFAULT 'user',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE IF NOT EXISTS reviews (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                order_id INT NOT NULL,
+                product_id VARCHAR(64) NOT NULL,
+                product_name VARCHAR(255) NOT NULL,
+                rating TINYINT NOT NULL,
+                review_text TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_order_product_review (order_id, product_id)
             )",
             "CREATE TABLE IF NOT EXISTS rate_limits (
                 ip VARCHAR(45) NOT NULL,
@@ -154,8 +198,9 @@ function ensureBackendSchema(PDO $db, string $driver): void {
     }
 
     $columns = [
-        'orders' => ['order_ref', 'total_amount', 'payment_status', 'receipt_path', 'updated_at'],
+        'orders' => ['order_ref', 'total_amount', 'payment_status', 'receipt_path', 'updated_at', 'user_id'],
         'admins' => ['role'],
+        'users' => ['phone', 'address', 'role'],
     ];
 
     foreach ($columns as $table => $requiredColumns) {
@@ -202,9 +247,21 @@ function addMissingColumn(PDO $db, string $driver, string $table, string $column
         'orders.updated_at' => $driver === 'sqlite'
             ? "ALTER TABLE orders ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
             : "ALTER TABLE orders ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+        'orders.user_id' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN user_id INTEGER"
+            : "ALTER TABLE orders ADD COLUMN user_id INT NULL",
         'admins.role' => $driver === 'sqlite'
             ? "ALTER TABLE admins ADD COLUMN role TEXT DEFAULT 'admin'"
             : "ALTER TABLE admins ADD COLUMN role VARCHAR(50) DEFAULT 'admin'",
+        'users.phone' => $driver === 'sqlite'
+            ? "ALTER TABLE users ADD COLUMN phone TEXT"
+            : "ALTER TABLE users ADD COLUMN phone VARCHAR(50) NULL",
+        'users.address' => $driver === 'sqlite'
+            ? "ALTER TABLE users ADD COLUMN address TEXT"
+            : "ALTER TABLE users ADD COLUMN address TEXT NULL",
+        'users.role' => $driver === 'sqlite'
+            ? "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'"
+            : "ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'user'",
     ];
 
     $key = "$table.$column";

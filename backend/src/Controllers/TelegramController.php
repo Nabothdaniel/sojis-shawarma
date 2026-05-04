@@ -20,12 +20,12 @@ class TelegramController {
             $orderId = str_replace('confirm_', '', $data);
             $this->updateOrderStatus($orderId, 'confirmed');
             $this->answerCallback($callback['id'], "Order #$orderId Confirmed!");
-            $this->editMessage($chatId, $messageId, "✅ Order #$orderId confirmed. Customer will be notified.");
+            $this->editMessage($chatId, $messageId, " Order #$orderId confirmed. Customer will be notified.");
         } elseif (strpos($data, 'cancel_') === 0) {
             $orderId = str_replace('cancel_', '', $data);
             $this->updateOrderStatus($orderId, 'cancelled');
             $this->answerCallback($callback['id'], "Order #$orderId Cancelled!");
-            $this->editMessage($chatId, $messageId, "❌ Order #$orderId cancelled.");
+            $this->editMessage($chatId, $messageId, " Order #$orderId cancelled.");
         }
     }
 

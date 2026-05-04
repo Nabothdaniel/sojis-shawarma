@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import { useAuth } from '@/context/AuthContext';
-import { orderService, userService, type Order } from '@/lib/api';
+import { authService, orderService, reviewService, userService, type Order } from '@/lib/api';
 
-type ProfileTab = 'profile' | 'orders' | 'notifications';
+type ProfileTab = 'profile' | 'tracking' | 'history' | 'notifications';
 
 const activeStatuses: Order['status'][] = ['pending', 'confirmed', 'preparing', 'dispatched'];
 
@@ -73,6 +73,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, { rating: number; review_text: string }>>({});
+  const [submittingReviewKey, setSubmittingReviewKey] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -110,6 +112,11 @@ export default function ProfilePage() {
 
   const activeOrders = useMemo(
     () => orders.filter((order) => activeStatuses.includes(order.status)),
+    [orders]
+  );
+
+  const pastOrders = useMemo(
+    () => orders.filter((order) => ['delivered', 'cancelled'].includes(order.status)),
     [orders]
   );
 
@@ -165,20 +172,29 @@ export default function ProfilePage() {
         {!authLoading && !token && (
           <section className="bg-surface-container-low rounded-3xl p-6 space-y-4">
             <p className="font-body text-sm text-outline">
-              You can still order as a guest, but signing in keeps your profile, active orders, and notifications in one place.
+              Sign in before placing an order so you can track delivery progress, see notifications, and leave reviews after each meal.
             </p>
-            <Link
-              href="/login"
-              className="w-full inline-flex items-center justify-center bg-on-surface text-surface py-4 rounded-full font-label font-bold text-xs uppercase tracking-widest"
-            >
-              Sign In
-            </Link>
+            <div className="flex gap-3">
+              <Link
+                href="/login"
+                className="flex-1 inline-flex items-center justify-center bg-on-surface text-surface py-4 rounded-full font-label font-bold text-xs uppercase tracking-widest"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup"
+                className="flex-1 inline-flex items-center justify-center bg-surface-container-highest text-on-surface py-4 rounded-full font-label font-bold text-xs uppercase tracking-widest"
+              >
+                Sign Up
+              </Link>
+            </div>
           </section>
         )}
 
         <section className="flex gap-2 overflow-x-auto no-scrollbar">
           {tabButton('profile', 'Profile')}
-          {tabButton('orders', 'Active Orders', activeOrders.length)}
+          {tabButton('tracking', 'Tracking', activeOrders.length)}
+          {tabButton('history', 'History', pastOrders.length)}
           {tabButton('notifications', 'Notifications', notifications.length)}
         </section>
 
@@ -213,7 +229,10 @@ export default function ProfilePage() {
             {token && (
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
+                  try {
+                    await authService.logout();
+                  } catch {}
                   logout();
                   router.push('/login');
                 }}
@@ -225,7 +244,7 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {activeTab === 'orders' && (
+        {activeTab === 'tracking' && (
           <section className="space-y-3">
             {loading && <div className="bg-surface-container-low rounded-3xl p-6 text-sm text-outline">Loading your active orders...</div>}
             {!loading && activeOrders.length === 0 && (
@@ -256,6 +275,116 @@ export default function ProfilePage() {
                 <div className="pt-3 border-t border-outline-variant/20 flex justify-between items-center">
                   <span className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Total</span>
                   <span className="font-headline font-bold">{formatCurrency(order.total_amount)}</span>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+
+        {activeTab === 'history' && (
+          <section className="space-y-3">
+            {loading && <div className="bg-surface-container-low rounded-3xl p-6 text-sm text-outline">Loading your order history...</div>}
+            {!loading && pastOrders.length === 0 && (
+              <div className="bg-surface-container-low rounded-3xl p-6 text-center space-y-2">
+                <p className="font-headline font-bold text-lg">No completed orders yet</p>
+                <p className="font-body text-sm text-outline">Delivered and cancelled orders will live here with review actions.</p>
+              </div>
+            )}
+            {pastOrders.map((order) => (
+              <article key={order.id} className="bg-surface-container-low rounded-3xl p-6 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-headline font-bold text-lg">{order.order_ref}</p>
+                    <p className="font-body text-xs text-outline">{formatDate(order.updated_at)}</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${statusTone[order.status]}`}>
+                    {order.status}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {order.items.map((item) => {
+                    const reviewKey = `${order.id}:${item.id}`;
+                    const hasReview = order.reviewed_product_ids?.includes(String(item.id));
+                    const draft = reviewDrafts[reviewKey] || { rating: 5, review_text: '' };
+
+                    return (
+                      <div key={reviewKey} className="rounded-2xl bg-surface-container-highest/80 p-4 space-y-3">
+                        <div className="flex justify-between gap-3">
+                          <div>
+                            <p className="font-body font-bold text-sm">{item.name}</p>
+                            <p className="font-body text-xs text-outline">{item.quantity}x • {item.size}</p>
+                          </div>
+                          <span className="font-label font-bold text-sm">{formatCurrency(item.price * item.quantity)}</span>
+                        </div>
+
+                        {order.status === 'delivered' && !hasReview && (
+                          <div className="space-y-3 border-t border-outline-variant/20 pt-3">
+                            <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Leave a quick review</p>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4, 5].map((rating) => (
+                                <button
+                                  key={rating}
+                                  type="button"
+                                  onClick={() => setReviewDrafts((current) => ({ ...current, [reviewKey]: { ...draft, rating } }))}
+                                  className="text-[#EAB600]"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontVariationSettings: `'FILL' ${rating <= draft.rating ? 1 : 0}` }}>star</span>
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              value={draft.review_text}
+                              onChange={(event) =>
+                                setReviewDrafts((current) => ({
+                                  ...current,
+                                  [reviewKey]: { ...draft, review_text: event.target.value },
+                                }))
+                              }
+                              rows={2}
+                              placeholder="What did you like? Optional."
+                              className="w-full rounded-2xl bg-surface px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-container/30"
+                            />
+                            <button
+                              type="button"
+                              disabled={submittingReviewKey === reviewKey}
+                              onClick={async () => {
+                                setSubmittingReviewKey(reviewKey);
+                                try {
+                                  await reviewService.createReview({
+                                    order_id: order.id,
+                                    product_id: String(item.id),
+                                    rating: draft.rating,
+                                    review_text: draft.review_text,
+                                  });
+                                  setOrders((current) => current.map((candidate) => candidate.id === order.id
+                                    ? {
+                                        ...candidate,
+                                        reviewed_product_ids: [...(candidate.reviewed_product_ids || []), String(item.id)],
+                                      }
+                                    : candidate
+                                  ));
+                                  addToast('Thanks for the review', 'success');
+                                } catch (error: any) {
+                                  addToast(error.message || 'Could not save review', 'error');
+                                } finally {
+                                  setSubmittingReviewKey(null);
+                                }
+                              }}
+                              className="rounded-full bg-primary-container px-5 py-3 text-xs font-label font-bold uppercase tracking-widest text-on-primary-container"
+                            >
+                              {submittingReviewKey === reviewKey ? 'Sending...' : 'Submit review'}
+                            </button>
+                          </div>
+                        )}
+
+                        {order.status === 'delivered' && hasReview && (
+                          <div className="border-t border-outline-variant/20 pt-3 text-xs font-label font-bold uppercase tracking-widest text-tertiary">
+                            Review submitted
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </article>
             ))}

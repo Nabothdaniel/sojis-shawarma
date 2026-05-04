@@ -9,6 +9,21 @@ const normalizeUser = (user: User): User => ({
   role: user.role ?? 'user',
 });
 
+const persistToken = (token: string | null) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (token) {
+    window.localStorage.setItem('soji-token', token);
+    window.sessionStorage.setItem('soji-token', token);
+    return;
+  }
+
+  window.localStorage.removeItem('soji-token');
+  window.sessionStorage.removeItem('soji-token');
+};
+
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
@@ -23,21 +38,30 @@ export const useAppStore = create<AppState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      login: (user, token) => set({
-        user: normalizeUser(user),
-        token: token ?? null,
-        isAuthenticated: true,
-      }),
-      logout: () => set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-      }),
+      login: (user, token) => {
+        persistToken(token ?? null);
+        set({
+          user: normalizeUser(user),
+          token: token ?? null,
+          isAuthenticated: true,
+        });
+      },
+      logout: () => {
+        persistToken(null);
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+        });
+      },
       setUser: (user) => set({ user: normalizeUser(user) }),
-      setToken: (token) => set((state) => ({
-        token,
-        isAuthenticated: Boolean(token || state.user),
-      })),
+      setToken: (token) => {
+        persistToken(token);
+        set((state) => ({
+          token,
+          isAuthenticated: Boolean(token || state.user),
+        }));
+      },
       updateUserBalance: (balance) => set((state) => ({
         user: state.user ? { ...state.user, balance } : null,
       })),

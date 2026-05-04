@@ -1,0 +1,15 @@
+# 
+
+Response:
+HTTP/1.1 500 Internal Server Error
+Host: localhost:8000
+Date: Fri, 17 Apr 2026 12:32:41 GMT
+Connection: close
+X-Powered-By: PHP/8.2.12
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With
+Vary: Origin
+Content-type: text/html; charset=UTF-8
+
+{"error":"Database connection failed: SQLSTATE[HY000] [1045] Access denied for user 'tiheogwi_bamzy_admin'@'102.91.97.51' (using password: YES)"}

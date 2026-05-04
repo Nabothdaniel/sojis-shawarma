@@ -43,6 +43,8 @@ export default function AdminDashboard() {
           <h1 className="font-headline font-bold text-4xl">Command Center</h1>
           <div className="flex gap-4">
              <Link href="/admin/orders" className="text-xs font-label font-bold uppercase tracking-widest bg-on-surface text-surface px-6 py-3 rounded-full">Orders</Link>
+             <Link href="/admin/products" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Products</Link>
+             <Link href="/admin/reviews" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Reviews</Link>
              <Link href="/admin/analytics" className="text-xs font-label font-bold uppercase tracking-widest bg-primary-container text-on-primary-container px-6 py-3 rounded-full">Analytics</Link>
           </div>
         </header>

@@ -5,3 +5,4 @@ export * from './admin.service';
 export * from './order.service';
 export * from './analytics.service';
 export * from './catalog.service';
+export * from './review.service';

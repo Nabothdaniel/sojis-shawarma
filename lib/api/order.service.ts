@@ -11,6 +11,7 @@ export interface OrderItem {
 export interface Order {
   id: number;
   order_ref: string;
+  user_id?: number | null;
   customer_name: string;
   customer_phone: string;
   delivery_address: string;
@@ -20,6 +21,7 @@ export interface Order {
   payment_status?: 'pending' | 'submitted' | 'confirmed' | 'rejected';
   receipt_path?: string | null;
   notes?: string;
+  reviewed_product_ids?: string[];
   created_at: string;
   updated_at: string;
 }

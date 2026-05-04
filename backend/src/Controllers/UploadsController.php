@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Support/Auth.php';
+
 class UploadsController {
     private $db;
 
@@ -8,6 +10,13 @@ class UploadsController {
     }
 
     public function catalog() {
+        $token = getBearerToken();
+        $payload = $token ? verifyJwt($token) : false;
+        if (!$payload || (($payload['role'] ?? 'user') !== 'admin')) {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Admin access required']);
+        }
+
         if (!isset($_FILES['file'])) {
             header("HTTP/1.1 400 Bad Request");
             return json_encode(['message' => 'Image file is required']);

@@ -103,7 +103,8 @@ apiClient.interceptors.request.use(
       }
 
       // 2. Encrypt sensitive fields (skip for FormData)
-      if (config.data && !(config.data instanceof FormData)) {
+      const isAuthRequest = typeof config.url === 'string' && config.url.startsWith('/auth/');
+      if (config.data && !(config.data instanceof FormData) && !isAuthRequest) {
         const sensitiveFields = [
           'password',
           'pin', 'transaction_pin',
@@ -132,7 +133,9 @@ apiClient.interceptors.response.use(
     // Check if we are on a route that requires authentication
     const isPublicRoute = typeof window !== 'undefined' &&
       (window.location.pathname === '/login' ||
+        window.location.pathname === '/signup' ||
         window.location.pathname === '/register' ||
+        window.location.pathname === '/admin/login' ||
         window.location.pathname === '/');
 
     // Auto-logout on 401 (expired/invalid JWT)

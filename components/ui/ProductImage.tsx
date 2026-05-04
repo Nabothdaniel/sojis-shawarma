@@ -34,7 +34,7 @@ export default function ProductImage({
 
   if (fallbackFailed) {
     return (
-      <div className={`relative overflow-hidden bg-surface-container-high ${fill ? 'h-full w-full' : ''} ${className}`}>
+      <div className={`relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(245,197,24,0.12),_rgba(255,255,255,0.92)_55%,_rgba(240,233,220,0.9))] ${fill ? 'h-full w-full' : ''} ${className}`}>
         <div className="w-full h-full flex items-center justify-center">
           <span className="material-symbols-outlined text-outline/30 text-4xl">image_not_supported</span>
         </div>
@@ -43,7 +43,7 @@ export default function ProductImage({
   }
 
   return (
-    <div className={`relative overflow-hidden bg-transparent ${fill ? 'h-full w-full' : ''} ${className}`}>
+    <div className={`relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(245,197,24,0.14),_rgba(255,248,235,0.94)_58%,_rgba(236,230,220,0.92))] ${fill ? 'h-full w-full' : ''} ${className}`}>
       <Image
         src={activeSrc}
         alt={alt}

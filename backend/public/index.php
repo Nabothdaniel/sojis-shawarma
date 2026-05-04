@@ -55,12 +55,14 @@ function getDB() {
 $routes = [
     'POST' => [
         '/auth/login' => 'Auth@login',
+        '/auth/register' => 'Auth@register',
         '/auth/refresh' => 'Auth@refresh',
         '/auth/logout' => 'Auth@logout',
         '/products' => 'Products@create',
         '/categories' => 'Categories@create',
         '/orders' => 'Orders@create',
         '/orders/(\d+)/confirm-payment' => 'Orders@confirmPayment',
+        '/reviews' => 'Reviews@create',
         '/uploads/catalog' => 'Uploads@catalog',
         '/sessions' => 'Sessions@create',
         '/telegram/webhook' => 'Telegram@handle'
@@ -71,6 +73,8 @@ $routes = [
         '/categories' => 'Categories@getAll',
         '/orders' => 'Orders@getAll',
         '/orders/(\d+)' => 'Orders@getOne',
+        '/user/profile' => 'User@profile',
+        '/reviews' => 'Reviews@getAll',
         '/analytics/summary' => 'Analytics@getSummary',
         '/analytics/sessions' => 'Analytics@getSessions'
     ],

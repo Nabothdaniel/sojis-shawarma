@@ -45,6 +45,9 @@ export default function LoginPage() {
 
     try {
       const result: any = await authService.login(data);
+      if (result.user?.role !== 'admin') {
+        throw new Error('This login is reserved for admins');
+      }
       setToken(result.token);
       storeLogin({ ...result.user, role: 'admin' }, result.token);
       addToast('Login successful', 'success');

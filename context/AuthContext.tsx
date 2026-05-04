@@ -27,18 +27,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data: any = await axiosInstance.post('/auth/refresh');
         if (data.token) {
           setToken(data.token);
-        } else {
-          throw new Error('Refresh failed');
         }
       } catch (err) {
-        setToken(null);
+        if (!token) {
+          setToken(null);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
-    // Initial check only
-    refreshToken();
+    if (token) {
+      setIsLoading(false);
+    } else {
+      refreshToken();
+    }
 
     // Setup auto-refresh interval (14 minutes before 15min expiry)
     intervalRef.current = setInterval(refreshToken, 14 * 60 * 1000);

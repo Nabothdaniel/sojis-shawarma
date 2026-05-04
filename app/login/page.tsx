@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
 import { authService } from '@/lib/api';
@@ -18,6 +19,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setToken } = useAuth();
   const { login: storeLogin, addToast } = useAppStore();
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
@@ -49,7 +51,8 @@ export default function LoginPage() {
       setToken(result.token);
       storeLogin({ ...result.user, role }, result.token);
       addToast('Login successful', 'success');
-      router.push(role === 'admin' ? '/admin/dashboard' : '/profile');
+      const redirectTo = searchParams.get('redirect');
+      router.push(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
     } catch (error: any) {
       const status = error.response?.status;
       const message = error.response?.data?.message || 'Login failed';
@@ -125,9 +128,15 @@ export default function LoginPage() {
           )}
         </form>
 
-        <p className="mt-8 text-center text-outline font-label text-[10px] uppercase tracking-widest font-bold">
-          Admins should use /admin/login
-        </p>
+        <div className="mt-8 text-center space-y-3">
+          <p className="font-body text-sm text-outline">New here? Create an account before your next order.</p>
+          <Link
+            href={searchParams.get('redirect') ? `/signup?redirect=${encodeURIComponent(searchParams.get('redirect') || '')}` : '/signup'}
+            className="inline-flex items-center justify-center rounded-full bg-surface-container-low px-6 py-3 font-label text-xs font-bold uppercase tracking-widest text-on-surface"
+          >
+            Create account
+          </Link>
+        </div>
       </div>
     </div>
   );

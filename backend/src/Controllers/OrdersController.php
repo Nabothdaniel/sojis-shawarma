@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Support/Auth.php';
+
 class OrdersController {
     private $db;
 
@@ -47,17 +49,19 @@ class OrdersController {
         }
 
         try {
+            $currentUser = $this->getCurrentUser();
             $stmt = $this->db->prepare("
                 INSERT INTO orders (
-                    order_ref, session_id, customer_name, customer_phone, items,
+                    order_ref, session_id, user_id, customer_name, customer_phone, items,
                     subtotal, delivery_fee, total, total_amount, status, payment_status,
                     delivery_address, lat, lng, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
                 null,
                 $data['session_id'] ?? null,
+                ($currentUser && ($currentUser['type'] ?? 'user') === 'user') ? (int) $currentUser['id'] : null,
                 $customerName,
                 $customerPhone,
                 json_encode($items),
@@ -157,12 +161,28 @@ class OrdersController {
 
     public function getAll() {
         $status = $_GET['status'] ?? null;
+        $currentUser = $this->getCurrentUser();
 
-        if ($status) {
-            $stmt = $this->db->prepare("SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC");
-            $stmt->execute([$status]);
+        if ($currentUser && ($currentUser['role'] ?? 'user') === 'admin') {
+            if ($status) {
+                $stmt = $this->db->prepare("SELECT * FROM orders WHERE status = ? ORDER BY updated_at DESC, created_at DESC");
+                $stmt->execute([$status]);
+            } else {
+                $stmt = $this->db->query("SELECT * FROM orders ORDER BY updated_at DESC, created_at DESC");
+            }
+        } elseif ($currentUser && ($currentUser['type'] ?? 'user') === 'user') {
+            if ($status) {
+                $stmt = $this->db->prepare("SELECT * FROM orders WHERE user_id = ? AND status = ? ORDER BY updated_at DESC, created_at DESC");
+                $stmt->execute([$currentUser['id'], $status]);
+            } else {
+                $stmt = $this->db->prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY updated_at DESC, created_at DESC");
+                $stmt->execute([$currentUser['id']]);
+            }
         } else {
-            $stmt = $this->db->query("SELECT * FROM orders ORDER BY created_at DESC");
+            return json_encode([
+                'status' => 'success',
+                'data' => [],
+            ]);
         }
 
         $orders = array_map([$this, 'normalizeOrder'], $stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -174,6 +194,8 @@ class OrdersController {
     }
 
     public function getOne($id) {
+        $currentUser = $this->getCurrentUser();
+
         $stmt = $this->db->prepare("SELECT * FROM orders WHERE id = ?");
         $stmt->execute([$id]);
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -183,6 +205,18 @@ class OrdersController {
             return json_encode(['message' => 'Order not found']);
         }
 
+        if (!$currentUser) {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Authentication required']);
+        }
+
+        $isAdmin = ($currentUser['role'] ?? 'user') === 'admin';
+        $isOwner = ($currentUser['type'] ?? 'user') === 'user' && (int) ($order['user_id'] ?? 0) === (int) $currentUser['id'];
+        if (!$isAdmin && !$isOwner) {
+            header("HTTP/1.1 403 Forbidden");
+            return json_encode(['message' => 'You do not have access to this order']);
+        }
+
         return json_encode([
             'status' => 'success',
             'data' => $this->normalizeOrder($order),
@@ -190,6 +224,12 @@ class OrdersController {
     }
 
     public function updateStatus($id) {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser || ($currentUser['role'] ?? 'user') !== 'admin') {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Admin access required']);
+        }
+
         $data = json_decode(file_get_contents('php://input'), true);
         $status = $data['status'] ?? null;
         $allowed = ['pending', 'confirmed', 'preparing', 'dispatched', 'delivered', 'cancelled'];
@@ -223,10 +263,12 @@ class OrdersController {
     private function normalizeOrder(array $order): array {
         $items = json_decode($order['items'] ?? '[]', true);
         $totalAmount = isset($order['total_amount']) ? (float) $order['total_amount'] : (float) ($order['total'] ?? 0);
+        $reviewedProductIds = $this->getReviewedProductIds((int) $order['id']);
 
         return [
             'id' => (int) $order['id'],
             'order_ref' => $order['order_ref'] ?? sprintf('SJI-%s-%04d', date('Ymd'), $order['id']),
+            'user_id' => isset($order['user_id']) ? (int) $order['user_id'] : null,
             'customer_name' => $order['customer_name'],
             'customer_phone' => $order['customer_phone'],
             'delivery_address' => $order['delivery_address'] ?? 'Pickup',
@@ -239,9 +281,20 @@ class OrdersController {
             'payment_status' => $order['payment_status'] ?? 'pending',
             'notes' => $order['notes'] ?? '',
             'receipt_path' => $order['receipt_path'] ?? null,
+            'reviewed_product_ids' => $reviewedProductIds,
             'created_at' => $order['created_at'] ?? null,
             'updated_at' => $order['updated_at'] ?? ($order['created_at'] ?? null),
         ];
+    }
+
+    private function getReviewedProductIds(int $orderId): array {
+        $stmt = $this->db->prepare("SELECT product_id FROM reviews WHERE order_id = ?");
+        $stmt->execute([$orderId]);
+
+        return array_map(
+            static fn(array $row): string => (string) $row['product_id'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
     }
 
     private function incrementSessionOrderCount(?string $sessionId): void {
@@ -289,5 +342,11 @@ class OrdersController {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_exec($ch);
         curl_close($ch);
+    }
+
+    private function getCurrentUser() {
+        $token = getBearerToken();
+        $payload = $token ? verifyJwt($token) : false;
+        return $payload ?: null;
     }
 }

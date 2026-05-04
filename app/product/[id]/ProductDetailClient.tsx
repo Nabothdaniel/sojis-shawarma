@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import { Product } from '@/lib/products';
+import ProductImage from '@/components/ui/ProductImage';
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const router = useRouter();
@@ -46,11 +47,15 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         </div>
         {/* Product Image Hero */}
         <div className="relative w-full flex justify-center mt-4 z-10 px-4">
-          <img 
-            className="w-[85%] max-w-sm object-contain custom-shadow rotate-[15deg]" 
-            alt={product.name} 
-            src={product.image}
-          />
+          <div className="relative w-[85%] max-w-sm aspect-[4/5] rounded-[40px] p-6 bg-white/10 backdrop-blur-sm">
+            <ProductImage
+              className="custom-shadow rotate-[15deg]"
+              alt={product.name}
+              src={product.image}
+              fill
+              priority
+            />
+          </div>
         </div>
       </section>
 

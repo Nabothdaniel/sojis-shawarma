@@ -4,9 +4,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ProductImage from '@/components/ui/ProductImage';
-import { products } from '@/lib/products';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
+import { catalogService } from '@/lib/api';
+import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
 
 const RECENT_SEARCHES_KEY = 'soji-search-recent';
 const suggestionTerms = ['Beef', 'Chicken', 'Mutton', 'Combo', 'Garlic sauce', 'Quick lunch'];
@@ -19,6 +20,7 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [menuProducts, setMenuProducts] = useState<MenuProduct[]>(getFallbackMenuProducts());
 
   useEffect(() => {
     setIsMounted(true);
@@ -39,6 +41,25 @@ export default function SearchPage() {
   }, []);
 
   useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const response = await catalogService.getProducts();
+        const normalized = Array.isArray(response)
+          ? response.filter((product) => Number(product.available ?? 1) === 1).map(normalizeCatalogProduct)
+          : [];
+
+        if (normalized.length > 0) {
+          setMenuProducts(normalized);
+        }
+      } catch {
+        setMenuProducts(getFallbackMenuProducts());
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  useEffect(() => {
     if (!isMounted) {
       return;
     }
@@ -53,16 +74,19 @@ export default function SearchPage() {
       return [];
     }
 
-    return products.filter((product) =>
+    return menuProducts.filter((product) =>
       [product.name, product.category, product.description].some((value) =>
         value.toLowerCase().includes(normalizedQuery)
       )
     );
-  }, [normalizedQuery]);
+  }, [menuProducts, normalizedQuery]);
 
-  const featuredProducts = useMemo(() => products.slice(0, 3), []);
+  const featuredProducts = useMemo(
+    () => [...menuProducts].sort((a, b) => (b.popularScore ?? 0) - (a.popularScore ?? 0)).slice(0, 3),
+    [menuProducts]
+  );
 
-  const handleQuickAdd = (product: (typeof products)[number]) => {
+  const handleQuickAdd = (product: MenuProduct) => {
     addItem({
       id: product.id,
       name: product.name,
@@ -219,7 +243,7 @@ export default function SearchPage() {
               <div>
                 <p className="font-label text-[10px] uppercase tracking-[0.3em] text-outline font-bold">Results</p>
                 <h1 className="font-headline text-2xl font-bold">
-                  {filteredProducts.length} match{filteredProducts.length === 1 ? '' : 'es'} for "{searchQuery.trim()}"
+                  {filteredProducts.length} match{filteredProducts.length === 1 ? '' : 'es'} for &quot;{searchQuery.trim()}&quot;
                 </h1>
               </div>
               <button
@@ -236,7 +260,7 @@ export default function SearchPage() {
                 {filteredProducts.map((product) => (
                   <article key={product.id} className="rounded-[30px] bg-surface-container-low p-4">
                     <div className="flex gap-4">
-                      <Link href={`/product/${product.id}`} className="w-24 h-24 rounded-[24px] overflow-hidden bg-surface shrink-0">
+                      <Link href={buildProductHref(product.id)} className="w-24 h-24 rounded-[24px] overflow-hidden bg-surface shrink-0">
                         <ProductImage src={product.image} alt={product.name} fill />
                       </Link>
                       <div className="flex-1 min-w-0">
@@ -250,7 +274,7 @@ export default function SearchPage() {
                         <p className="font-body text-sm text-outline mt-2 line-clamp-2">{product.description}</p>
                         <div className="flex items-center justify-between mt-4">
                           <Link
-                            href={`/product/${product.id}`}
+                            href={buildProductHref(product.id)}
                             className="text-xs font-label font-bold uppercase tracking-widest text-outline"
                           >
                             View details
@@ -273,7 +297,7 @@ export default function SearchPage() {
                 <span className="material-symbols-outlined text-6xl mb-4 opacity-20">search_off</span>
                 <p className="font-headline text-xl font-bold text-on-surface mb-2">No exact match yet</p>
                 <p className="font-body text-sm max-w-xs">
-                  Try searching by protein, combo, or flavor. "Beef" and "Chicken" work well.
+                  Try searching by protein, combo, or flavor. &quot;Beef&quot; and &quot;Chicken&quot; work well.
                 </p>
               </div>
             )}

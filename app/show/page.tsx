@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
-import { products } from '@/lib/products';
 import ProductImage from '@/components/ui/ProductImage';
 import useInstallPrompt from '@/hooks/useInstallPrompt';
+import { catalogService } from '@/lib/api';
+import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
 
 export default function DeliveryMenu() {
   const router = useRouter();
@@ -19,9 +20,34 @@ export default function DeliveryMenu() {
   const totalItems = useCartStore((state) => state.totalItems());
   const addToast = useAppStore((state:any) => state.addToast);
   const [isMounted, setIsMounted] = useState(false);
+  const [menuProducts, setMenuProducts] = useState<MenuProduct[]>(getFallbackMenuProducts());
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoadingProducts(true);
+
+      try {
+        const response = await catalogService.getProducts();
+        const normalized = Array.isArray(response)
+          ? response.filter((product) => Number(product.available ?? 1) === 1).map(normalizeCatalogProduct)
+          : [];
+
+        if (normalized.length > 0) {
+          setMenuProducts(normalized);
+        }
+      } catch {
+        setMenuProducts(getFallbackMenuProducts());
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    loadProducts();
   }, []);
 
   const handleInstall = async () => {
@@ -35,11 +61,22 @@ export default function DeliveryMenu() {
     });
   };
 
-  const categories = ['All', 'Shawarma'];
-  const handleQuickAdd = (item: any) => {
+  const categories = ['All', ...Array.from(new Set(menuProducts.map((product) => product.category.split('•')[0].trim())))];
+  const handleQuickAdd = (item: MenuProduct) => {
     addItem({ ...item, quantity: 1, size: 'Regular' });
     addToast(`${item.name} added to cart`, 'success');
   };
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredProducts = menuProducts.filter((product) => {
+    const categoryMatches = activeCategory === 'All' || product.category.toLowerCase().includes(activeCategory.toLowerCase());
+    const searchMatches = !normalizedSearch || [product.name, product.category, product.description].some((value) => value.toLowerCase().includes(normalizedSearch));
+    return categoryMatches && searchMatches;
+  });
+
+  const popularProducts = [...menuProducts]
+    .sort((a, b) => (b.popularScore ?? 0) - (a.popularScore ?? 0))
+    .slice(0, 3);
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32">
@@ -95,10 +132,38 @@ export default function DeliveryMenu() {
           </div>
         </section>
 
+        {popularProducts.length > 0 && !normalizedSearch && (
+          <section className="space-y-3">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="font-label text-[10px] uppercase tracking-[0.3em] text-outline font-bold">Popular right now</p>
+                <h2 className="font-headline font-bold text-xl">Chosen from repeat orders and ratings</h2>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {popularProducts.map((product) => (
+                <Link key={`popular-${product.id}`} href={buildProductHref(product.id)} className="bg-surface-container-low rounded-[28px] p-4 flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-[24px] overflow-hidden shrink-0">
+                    <ProductImage src={product.image} alt={product.name} fill />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-body font-bold text-sm">{product.name}</p>
+                    <p className="font-body text-xs text-outline line-clamp-1">{product.description}</p>
+                    <div className="mt-2 flex items-center gap-3 text-[11px] font-label font-bold uppercase tracking-widest text-outline">
+                      <span>{product.orderCount || 0} orders</span>
+                      <span>{product.rating} stars</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="grid grid-cols-2 gap-4">
-          {products.map((item) => (
+          {filteredProducts.map((item) => (
             <div key={item.id} className="bg-transparent rounded-lg overflow-hidden flex flex-col group">
-              <Link href={`/product/${item.id}`} className="relative h-44 overflow-hidden rounded-3xl">
+              <Link href={buildProductHref(item.id)} className="relative h-44 overflow-hidden rounded-3xl">
                 <ProductImage src={item.image} alt={item.name} fill className="group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
                   <span className="material-symbols-outlined text-primary-container text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
@@ -114,6 +179,11 @@ export default function DeliveryMenu() {
               </div>
             </div>
           ))}
+          {!loadingProducts && filteredProducts.length === 0 && (
+            <div className="col-span-2 bg-surface-container-low rounded-[28px] p-8 text-center text-outline">
+              No matching menu items yet.
+            </div>
+          )}
         </section>
       </main>
 

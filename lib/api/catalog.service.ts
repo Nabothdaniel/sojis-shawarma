@@ -17,6 +17,10 @@ export interface CatalogProduct {
   price: number;
   image_url?: string | null;
   available: number;
+  average_rating?: number;
+  review_count?: number;
+  order_count?: number;
+  popular_score?: number;
 }
 
 export interface CatalogUploadResponse {
