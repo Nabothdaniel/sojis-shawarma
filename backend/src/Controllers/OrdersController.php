@@ -21,17 +21,29 @@ class OrdersController {
             return json_encode(['message' => 'Invalid order payload']);
         }
 
-        $customerName = $data['customer_name'] ?? $data['name'] ?? null;
-        $customerPhone = $data['customer_phone'] ?? $data['phone'] ?? null;
-        $deliveryAddress = $data['delivery_address'] ?? $data['address'] ?? 'Pickup';
+        // Sanitize inputs
+        $customerName = isset($data['customer_name']) ? htmlspecialchars(strip_tags(trim($data['customer_name']))) : null;
+        $customerPhone = isset($data['customer_phone']) ? htmlspecialchars(strip_tags(trim($data['customer_phone']))) : null;
+        $deliveryAddress = isset($data['delivery_address']) ? htmlspecialchars(strip_tags(trim($data['delivery_address']))) : 'Pickup';
+        $notes = isset($data['notes']) ? htmlspecialchars(strip_tags(trim($data['notes']))) : (isset($data['note']) ? htmlspecialchars(strip_tags(trim($data['note']))) : '');
+        
         $items = $data['items'] ?? [];
         $subtotal = (float) ($data['subtotal'] ?? $data['total_amount'] ?? $data['total'] ?? 0);
         $deliveryFee = (float) ($data['delivery_fee'] ?? 0);
         $total = (float) ($data['total_amount'] ?? $data['total'] ?? ($subtotal + $deliveryFee));
 
-        if (!$customerName || !$customerPhone || empty($items)) {
+        // Backend Validation
+        if (empty($customerName)) {
             header("HTTP/1.1 422 Unprocessable Entity");
-            return json_encode(['message' => 'Customer details and order items are required']);
+            return json_encode(['message' => 'Customer name is required']);
+        }
+        if (empty($customerPhone) || !preg_match('/^\+?[\d\s-]{10,}$/', $customerPhone)) {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'A valid phone number is required']);
+        }
+        if (empty($items)) {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'Order items are required']);
         }
 
         try {
@@ -58,7 +70,7 @@ class OrdersController {
                 $deliveryAddress,
                 (float) ($data['lat'] ?? 0),
                 (float) ($data['lng'] ?? 0),
-                $data['notes'] ?? $data['note'] ?? ''
+                $notes
             ]);
 
             $orderId = (int) $this->db->lastInsertId();
@@ -94,12 +106,34 @@ class OrdersController {
     public function confirmPayment($id) {
         if (!isset($_FILES['receipt'])) {
             header("HTTP/1.1 400 Bad Request");
-            return json_encode(['message' => 'Receipt file is required']);
+            $error = 'Receipt file is required';
+            if (isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > (int)ini_get('post_max_size') * 1024 * 1024) {
+                $error = 'File too large. Maximum size is ' . ini_get('post_max_size');
+            }
+            return json_encode(['message' => $error, 'error' => $error]);
+        }
+
+        if ($_FILES['receipt']['error'] !== UPLOAD_ERR_OK) {
+            header("HTTP/1.1 400 Bad Request");
+            $errors = [
+                UPLOAD_ERR_INI_SIZE => 'File exceeds upload_max_filesize',
+                UPLOAD_ERR_FORM_SIZE => 'File exceeds MAX_FILE_SIZE',
+                UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+                UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+                UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder',
+                UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+                UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload'
+            ];
+            $error = $errors[$_FILES['receipt']['error']] ?? 'Unknown upload error';
+            return json_encode(['message' => $error, 'error' => $error]);
         }
 
         $uploadDir = __DIR__ . '/../../storage/receipts';
         if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
+            if (!mkdir($uploadDir, 0777, true)) {
+                header("HTTP/1.1 500 Internal Server Error");
+                return json_encode(['message' => 'Failed to create upload directory']);
+            }
         }
 
         $extension = pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION) ?: 'jpg';
@@ -108,7 +142,7 @@ class OrdersController {
 
         if (!move_uploaded_file($_FILES['receipt']['tmp_name'], $targetPath)) {
             header("HTTP/1.1 500 Internal Server Error");
-            return json_encode(['message' => 'Failed to save receipt']);
+            return json_encode(['message' => 'Failed to save receipt to ' . $targetPath]);
         }
 
         $stmt = $this->db->prepare("UPDATE orders SET payment_status = ?, receipt_path = ? WHERE id = ?");
@@ -165,8 +199,20 @@ class OrdersController {
             return json_encode(['message' => 'Invalid order status']);
         }
 
-        $stmt = $this->db->prepare("UPDATE orders SET status = ? WHERE id = ?");
-        $stmt->execute([$status, $id]);
+        $paymentStatus = null;
+        if (in_array($status, ['confirmed', 'preparing', 'dispatched', 'delivered'], true)) {
+            $paymentStatus = 'confirmed';
+        } elseif ($status === 'cancelled') {
+            $paymentStatus = 'rejected';
+        }
+
+        if ($paymentStatus) {
+            $stmt = $this->db->prepare("UPDATE orders SET status = ?, payment_status = ? WHERE id = ?");
+            $stmt->execute([$status, $paymentStatus, $id]);
+        } else {
+            $stmt = $this->db->prepare("UPDATE orders SET status = ? WHERE id = ?");
+            $stmt->execute([$status, $id]);
+        }
 
         return json_encode([
             'status' => 'success',

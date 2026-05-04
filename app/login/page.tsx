@@ -44,12 +44,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await authService.login(data);
-
+      const result: any = await authService.login(data);
+      const role = result.user?.role === 'admin' ? 'admin' : 'user';
       setToken(result.token);
-      storeLogin({ ...result.user, role: 'admin' }, result.token);
+      storeLogin({ ...result.user, role }, result.token);
       addToast('Login successful', 'success');
-      router.push('/admin/dashboard');
+      router.push(role === 'admin' ? '/admin/dashboard' : '/profile');
     } catch (error: any) {
       const status = error.response?.status;
       const message = error.response?.data?.message || 'Login failed';
@@ -79,8 +79,8 @@ export default function LoginPage() {
           <div className="w-20 h-20 bg-primary-container rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-container/20">
             <span className="material-symbols-outlined text-on-primary-container text-4xl">lock</span>
           </div>
-          <h1 className="font-headline font-bold text-3xl">Admin Access</h1>
-          <p className="font-body text-outline text-sm mt-2">Personal use only</p>
+          <h1 className="font-headline font-bold text-3xl">Welcome Back</h1>
+          <p className="font-body text-outline text-sm mt-2">Sign in to manage your orders and delivery details</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -126,7 +126,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-8 text-center text-outline font-label text-[10px] uppercase tracking-widest font-bold">
-          Unauthorized access is logged
+          Admins should use /admin/login
         </p>
       </div>
     </div>

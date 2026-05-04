@@ -6,7 +6,7 @@ import type { AppState, ToastMessage, User } from '@/types';
 
 const normalizeUser = (user: User): User => ({
   ...user,
-  role: user.role ?? 'admin',
+  role: user.role ?? 'user',
 });
 
 export const useAppStore = create<AppState>()(

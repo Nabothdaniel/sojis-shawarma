@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (!authLoading && !token) router.push('/login');
+    if (!authLoading && !token) router.push('/admin/login');
     if (token) {
       fetchDashboardData();
       const interval = setInterval(fetchDashboardData, 30000);

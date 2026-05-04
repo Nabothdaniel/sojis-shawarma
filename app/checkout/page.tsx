@@ -26,13 +26,15 @@ export default function CheckoutPage() {
     address: '',
     note: ''
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const checkoutSteps: CheckoutStep[] = ['delivery', 'payment', 'receipt'];
+  const stepIndex = checkoutSteps.indexOf(currentStep);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   const subtotal = totalPrice();
-  const stepIndex = ['delivery', 'payment', 'receipt', 'success'].indexOf(currentStep);
 
   const { mutate: placeOrder, isPending: isLoading } = useMutation({
     mutationFn: (orderData: any) => orderService.createOrder(orderData),
@@ -44,40 +46,59 @@ export default function CheckoutPage() {
       addToast('Order details saved! Proceed with payment', 'success');
     },
     onError: (err: any) => {
-      addToast(err.response?.data?.error || 'Error creating order', 'error');
-    }
+      addToast(err.message || 'Error creating order', 'error');
+    },
   });
 
   const { mutate: confirmPayment, isPending: isConfirming } = useMutation({
     mutationFn: async () => {
-      if (!orderId || !receiptFile) throw new Error('Missing order or receipt');
-      
-      const formData = new FormData();
-      formData.append('receipt', receiptFile);
-      
-      return await orderService.confirmPayment(orderId, formData);
+      if (!orderId || !receiptFile) {
+        throw new Error('Missing order or receipt');
+      }
+
+      const uploadData = new FormData();
+      uploadData.append('receipt', receiptFile);
+      return orderService.confirmPayment(orderId, uploadData);
     },
-    onSuccess: (response: any) => {
+    onSuccess: () => {
       setCurrentStep('success');
       clearCart();
       addToast('Payment confirmed! Order is being prepared', 'success');
     },
     onError: (err: any) => {
-      addToast(err.response?.data?.error || 'Error confirming payment', 'error');
-    }
+      addToast(err.message || 'Error confirming payment', 'error');
+    },
   });
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.name.trim()) newErrors.name = 'Full name is required';
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^\+?[\d\s-]{10,}$/.test(formData.phone)) {
+      newErrors.phone = 'Invalid phone number format';
+    }
+    if (!formData.address.trim()) newErrors.address = 'Delivery address is required';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return addToast('Cart is empty', 'error');
+    if (!validateForm()) {
+      addToast('Please fix the errors in the form', 'error');
+      return;
+    }
 
     placeOrder({
-      customer_name: formData.name,
-      customer_phone: formData.phone,
-      delivery_address: formData.address,
+      customer_name: formData.name.trim(),
+      customer_phone: formData.phone.trim(),
+      delivery_address: formData.address.trim(),
       items: items,
       total_amount: subtotal,
-      notes: formData.note,
+      notes: formData.note.trim(),
       payment_status: 'pending'
     });
   };
@@ -152,23 +173,35 @@ export default function CheckoutPage() {
               </h2>
 
               <div className="space-y-4">
-                <input
-                  required
-                  type="text"
-                  placeholder="Full Name"
-                  className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-                <input
-                  required
-                  type="tel"
-                  placeholder="Phone Number"
-                  className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-                <div>
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    className={`w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.name ? 'ring-2 ring-red-500/50' : ''}`}
+                    value={formData.name}
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value });
+                      if (errors.name) setErrors({ ...errors, name: '' });
+                    }}
+                  />
+                  {errors.name && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.name}</p>}
+                </div>
+
+                <div className="space-y-1">
+                  <input
+                    type="tel"
+                    placeholder="Phone Number"
+                    className={`w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.phone ? 'ring-2 ring-red-500/50' : ''}`}
+                    value={formData.phone}
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: e.target.value });
+                      if (errors.phone) setErrors({ ...errors, phone: '' });
+                    }}
+                  />
+                  {errors.phone && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.phone}</p>}
+                </div>
+
+                <div className="space-y-1">
                   <div className="flex justify-between items-center mb-2 px-1">
                     <label className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Delivery Address</label>
                     <button
@@ -183,6 +216,7 @@ export default function CheckoutPage() {
                             });
                             const data = await res.json();
                             setFormData({ ...formData, address: data.display_name });
+                            if (errors.address) setErrors({ ...errors, address: '' });
                             addToast('Location detected!', 'success');
                           } catch (err) {
                             addToast('Could not fetch address details', 'error');
@@ -201,13 +235,16 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                   <textarea
-                    required
                     placeholder="Street, House No, Keffi"
                     rows={3}
-                    className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none"
+                    className={`w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none ${errors.address ? 'ring-2 ring-red-500/50' : ''}`}
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, address: e.target.value });
+                      if (errors.address) setErrors({ ...errors, address: '' });
+                    }}
                   />
+                  {errors.address && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.address}</p>}
                 </div>
                 <input
                   type="text"

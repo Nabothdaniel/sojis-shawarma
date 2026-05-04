@@ -30,7 +30,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (!authLoading && !token) {
-      router.push('/login');
+      router.push('/admin/login');
       return;
     }
     if (token) {

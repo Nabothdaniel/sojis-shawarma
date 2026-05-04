@@ -28,7 +28,7 @@ export default function AdminOrders() {
   };
 
   useEffect(() => {
-    if (!authLoading && !token) router.push('/login');
+    if (!authLoading && !token) router.push('/admin/login');
     if (token) fetchOrders();
   }, [token, filter, authLoading]);
 

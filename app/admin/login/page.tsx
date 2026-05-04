@@ -44,7 +44,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await authService.login(data);
+      const result: any = await authService.login(data);
       setToken(result.token);
       storeLogin({ ...result.user, role: 'admin' }, result.token);
       addToast('Login successful', 'success');

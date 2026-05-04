@@ -17,6 +17,9 @@ export interface Order {
   items: OrderItem[];
   total_amount: number;
   status: 'pending' | 'confirmed' | 'preparing' | 'dispatched' | 'delivered' | 'cancelled';
+  payment_status?: 'pending' | 'submitted' | 'confirmed' | 'rejected';
+  receipt_path?: string | null;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -38,9 +41,7 @@ export const orderService = {
 
   // Confirm payment with receipt
   confirmPayment: (orderId: number, receiptData: FormData) =>
-    apiClient.post(`/orders/${orderId}/confirm-payment`, receiptData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
+    apiClient.post(`/orders/${orderId}/confirm-payment`, receiptData),
 
   // Admin orders management
   getAllOrders: (status?: string) =>

@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (pathname.startsWith('/admin') && token === null && !isLoading) {
       logout();
-      router.push('/login');
+      router.push('/admin/login');
     }
   }, [pathname]);
 

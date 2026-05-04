@@ -11,9 +11,6 @@ const API_URL = getApiUrl();
 
 const apiClient = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Helper for simple encryption using Web Crypto API
@@ -105,8 +102,8 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // 2. Encrypt sensitive fields
-      if (config.data) {
+      // 2. Encrypt sensitive fields (skip for FormData)
+      if (config.data && !(config.data instanceof FormData)) {
         const sensitiveFields = [
           'password',
           'pin', 'transaction_pin',

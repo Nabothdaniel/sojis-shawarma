@@ -1,7 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
+const GENERIC_PRODUCT_IMAGE = '/images/beef-supreme.png';
 
 interface ProductImageProps {
   src: string;
@@ -22,16 +24,17 @@ export default function ProductImage({
   className = '',
   priority = false
 }: ProductImageProps) {
-  const [imageError, setImageError] = useState(false);
-  const isSvg = src?.toLowerCase().endsWith('.svg');
+  const [activeSrc, setActiveSrc] = useState(src || GENERIC_PRODUCT_IMAGE);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
 
-  // Debugging logs
-  console.log('ProductImage src:', src);
-  console.log('ProductImage imageError:', imageError);
+  useEffect(() => {
+    setActiveSrc(src || GENERIC_PRODUCT_IMAGE);
+    setFallbackFailed(false);
+  }, [src]);
 
-  if (!src || imageError) {
+  if (fallbackFailed) {
     return (
-      <div className={`relative overflow-hidden bg-surface-container-high ${className}`}>
+      <div className={`relative overflow-hidden bg-surface-container-high ${fill ? 'h-full w-full' : ''} ${className}`}>
         <div className="w-full h-full flex items-center justify-center">
           <span className="material-symbols-outlined text-outline/30 text-4xl">image_not_supported</span>
         </div>
@@ -39,32 +42,25 @@ export default function ProductImage({
     );
   }
 
-  if (isSvg) {
-    return (
-      <div className={`relative overflow-hidden bg-transparent ${className}`}>
-        <img
-          src={src}
-          alt={alt}
-          className="w-full h-full object-contain bg-transparent"
-          style={{ backgroundColor: 'transparent' }}
-          onError={() => setImageError(true)}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className={`relative overflow-hidden bg-transparent ${className}`}>
+    <div className={`relative overflow-hidden bg-transparent ${fill ? 'h-full w-full' : ''} ${className}`}>
       <Image
-        src={src}
+        src={activeSrc}
         alt={alt}
         fill={fill}
         width={!fill ? width : undefined}
         height={!fill ? height : undefined}
         priority={priority}
-        className="object-contain bg-transparent mix-blend-multiply"
+        className="object-contain bg-transparent"
         style={{ backgroundColor: 'transparent' }}
-        onError={() => setImageError(true)}
+        onError={() => {
+          if (activeSrc !== GENERIC_PRODUCT_IMAGE) {
+            setActiveSrc(GENERIC_PRODUCT_IMAGE);
+            return;
+          }
+
+          setFallbackFailed(true);
+        }}
         unoptimized
       />
     </div>

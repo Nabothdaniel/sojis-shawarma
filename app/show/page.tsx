@@ -35,7 +35,7 @@ export default function DeliveryMenu() {
     });
   };
 
-  const categories = ['All', 'Shawarma', 'Drinks', 'Sides', 'Combos'];
+  const categories = ['All', 'Shawarma'];
   const handleQuickAdd = (item: any) => {
     addItem({ ...item, quantity: 1, size: 'Regular' });
     addToast(`${item.name} added to cart`, 'success');
@@ -119,12 +119,12 @@ export default function DeliveryMenu() {
 
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-on-surface/90 backdrop-blur-xl rounded-full px-8 py-4 flex justify-between items-center z-50 shadow-2xl border border-white/10">
         <Link href="/show" className="flex flex-col items-center gap-1 text-primary-container"><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>home</span></Link>
-        <button className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">search</span></button>
+        <Link href="/search" className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">search</span></Link>
         <Link href="/cart" className="flex flex-col items-center gap-1 text-white/50 relative">
           <span className="material-symbols-outlined">shopping_cart</span>
           {isMounted && totalItems > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-on-surface">{totalItems}</span>}
         </Link>
-        <button className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">person</span></button>
+        <Link href="/profile" className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">person</span></Link>
       </nav>
     </div>
   );

@@ -61,6 +61,7 @@ $routes = [
         '/categories' => 'Categories@create',
         '/orders' => 'Orders@create',
         '/orders/(\d+)/confirm-payment' => 'Orders@confirmPayment',
+        '/uploads/catalog' => 'Uploads@catalog',
         '/sessions' => 'Sessions@create',
         '/telegram/webhook' => 'Telegram@handle'
     ],

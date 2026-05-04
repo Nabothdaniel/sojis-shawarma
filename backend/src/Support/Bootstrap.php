@@ -180,8 +180,8 @@ function columnExists(PDO $db, string $driver, string $table, string $column): b
         return false;
     }
 
-    $stmt = $db->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
-    $stmt->execute([$column]);
+    $stmt = $db->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ? AND TABLE_SCHEMA = ?");
+    $stmt->execute([$table, $column, getenv('DB_NAME') ?: 'soji_shawarma']);
     return (bool) $stmt->fetch();
 }
 

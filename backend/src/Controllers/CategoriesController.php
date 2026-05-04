@@ -22,8 +22,15 @@ class CategoriesController {
 
     public function update($id) {
         $data = json_decode(file_get_contents('php://input'), true);
-        $stmt = $this->db->prepare("UPDATE categories SET name = ?, active = ? WHERE id = ?");
-        $stmt->execute([$data['name'], $data['active'], $id]);
+        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $data['name'])));
+        $stmt = $this->db->prepare("UPDATE categories SET name = ?, slug = ?, image_url = ?, active = ? WHERE id = ?");
+        $stmt->execute([
+            $data['name'],
+            $slug,
+            $data['image_url'] ?? '',
+            $data['active'] ?? 1,
+            $id
+        ]);
         return json_encode(['status' => 'success']);
     }
 
