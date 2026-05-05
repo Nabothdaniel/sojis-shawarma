@@ -13,7 +13,7 @@ type CheckoutStep = 'delivery' | 'payment' | 'receipt' | 'success';
 export default function CheckoutPage() {
   const router = useRouter();
   const { token, isLoading: authLoading } = useAuth();
-  const { user } = useAppStore();
+  const { user, token: persistedToken, hasHydrated } = useAppStore();
   const { items, totalPrice, clearCart } = useCartStore();
   const { addToast } = useAppStore();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('delivery');
@@ -31,17 +31,19 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const checkoutSteps: CheckoutStep[] = ['delivery', 'payment', 'receipt'];
   const stepIndex = checkoutSteps.indexOf(currentStep);
+  const effectiveToken = token || persistedToken;
+  const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !token) {
+    if (!authLoading && hasHydrated && !isSignedIn) {
       addToast('Please sign in before placing an order', 'info');
       router.replace('/login?redirect=/checkout');
     }
-  }, [authLoading, token, addToast, router]);
+  }, [authLoading, hasHydrated, isSignedIn, addToast, router]);
 
   useEffect(() => {
     if (user) {
@@ -130,7 +132,7 @@ export default function CheckoutPage() {
   };
 
   // Success screen
-  if (!isMounted || authLoading || !token) return null;
+  if (!isMounted || authLoading || !hasHydrated || !isSignedIn) return null;
   
   if (currentStep === 'success') {
     return (
@@ -141,7 +143,7 @@ export default function CheckoutPage() {
         <h1 className="font-headline font-bold text-3xl mb-3">Payment Confirmed! ✓</h1>
         <p className="text-outline font-body text-base mb-2">Order Ref: <span className="font-bold text-primary-container">{orderRef}</span></p>
         <p className="text-outline font-body text-base mb-10 max-w-[280px]">
-          Your shawarma is being prepared. We&apos;ll notify you when it&apos;s out for delivery.
+          Your shawarma is being prepared. We&apos;ll notify you in-app and by WhatsApp when your order status changes.
         </p>
         <button
           onClick={() => router.push('/profile')}

@@ -4,6 +4,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AppState, ToastMessage, User } from '@/types';
 
+const recentToastTimestamps = new Map<string, number>();
+
 const normalizeUser = (user: User): User => ({
   ...user,
   role: user.role ?? 'user',
@@ -68,6 +70,15 @@ export const useAppStore = create<AppState>()(
 
       toasts: [],
       addToast: (message, type) => {
+        const key = `${type}:${message.trim().toLowerCase()}`;
+        const now = Date.now();
+        const lastShownAt = recentToastTimestamps.get(key) ?? 0;
+
+        if (now - lastShownAt < 5000) {
+          return;
+        }
+
+        recentToastTimestamps.set(key, now);
         const id = crypto.randomUUID();
         const toast: ToastMessage = { id, message, type };
 

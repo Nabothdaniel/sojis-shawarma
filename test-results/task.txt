@@ -1,0 +1,20 @@
+Unhandled Runtime Error
+
+Error: stepIndex is not defined
+
+app/checkout/page.tsx (123:50) @ CheckoutPage
+
+  121 |         {/* Progress indicator */}
+  122 |         <div className="flex gap-2 h-1.5 w-full">
+> 123 |           <div className={`flex-1 rounded-full ${stepIndex >= 0 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
+      |                                                  ^
+  124 |           <div className={`flex-1 rounded-full ${stepIndex >= 1 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
+  125 |           <div className={`flex-1 rounded-full ${stepIndex >= 2 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
+  126 |         </div>
+
+Call Stack 2
+Show 1 ignore-listed frame(s)
+CheckoutPage
+app/checkout/page.tsx (123:50)
+
+Wasj 2. the profile should be user specific no nee for  admin access here pls 3. there should be an active orders tab 4. there is no notificaton system pls

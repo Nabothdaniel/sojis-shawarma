@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Support/Auth.php';
+require_once __DIR__ . '/../Support/Crypto.php';
 
 class AuthController {
     private $db;
@@ -13,8 +14,8 @@ class AuthController {
 
     public function login() {
         $data = json_decode(file_get_contents('php://input'), true);
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
+        $identifier = trim((string) ($data['identifier'] ?? $data['email'] ?? $data['username'] ?? ''));
+        $password = decryptSensitiveInput($data['password'] ?? '');
         $ip = $_SERVER['REMOTE_ADDR'];
 
         // Rate Limiting (Task 2)
@@ -23,33 +24,85 @@ class AuthController {
             return json_encode(['message' => 'Too many attempts. Locked for 15 minutes.']);
         }
 
-        $adminStmt = $this->db->prepare("SELECT id, email, name, role, password_hash FROM admins WHERE email = ?");
-        $adminStmt->execute([$email]);
-        $user = $adminStmt->fetch();
+        $user = $this->findAdminForLogin($identifier);
         $userType = 'admin';
 
         if (!$user) {
-            $customerStmt = $this->db->prepare("SELECT id, email, name, phone, address, role, password_hash FROM users WHERE email = ?");
-            $customerStmt->execute([$email]);
-            $user = $customerStmt->fetch();
+            $user = $this->findUserForLogin($identifier);
             $userType = 'user';
         }
 
         if ($user && password_verify($password, $user['password_hash'])) {
+            if ($userType === 'user') {
+                $this->attachOrdersToUser((int) $user['id'], (string) ($user['phone'] ?? ''));
+            }
             $this->resetRateLimit($ip, '/auth/login');
             return json_encode($this->issueAuthPayload($user, $userType));
         } else {
             $this->logAttempt($ip, '/auth/login');
             header("HTTP/1.1 401 Unauthorized");
-            return json_encode(['message' => 'Invalid email or password']);
+            return json_encode(['message' => 'Invalid login details or password']);
         }
+    }
+
+    public function resetPassword() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $accountType = strtolower(trim((string) ($data['account_type'] ?? 'user')));
+        $identifier = trim((string) ($data['identifier'] ?? $data['email'] ?? $data['username'] ?? ''));
+        $phone = trim((string) ($data['phone'] ?? $data['whatsapp_number'] ?? ''));
+        $newPassword = decryptSensitiveInput($data['new_password'] ?? '');
+
+        if ($identifier === '' || $newPassword === '') {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'Identifier and new password are required']);
+        }
+
+        if (strlen($newPassword) < 6) {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'Password must be at least 6 characters']);
+        }
+
+        if ($accountType === 'admin') {
+            $admin = $this->findAdminForLogin($identifier);
+            if (!$admin) {
+                header("HTTP/1.1 404 Not Found");
+                return json_encode(['message' => 'Admin account not found']);
+            }
+
+            $stmt = $this->db->prepare("UPDATE admins SET password_hash = ? WHERE id = ?");
+            $stmt->execute([password_hash($newPassword, PASSWORD_BCRYPT), $admin['id']]);
+
+            return json_encode([
+                'status' => 'success',
+                'message' => 'Admin password updated successfully',
+            ]);
+        }
+
+        if ($phone === '') {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'WhatsApp or phone number is required for user password reset']);
+        }
+
+        $user = $this->findUserForPasswordReset($identifier, $phone);
+        if (!$user) {
+            header("HTTP/1.1 404 Not Found");
+            return json_encode(['message' => 'No user matched that name/email and WhatsApp number']);
+        }
+
+        $stmt = $this->db->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+        $stmt->execute([password_hash($newPassword, PASSWORD_BCRYPT), $user['id']]);
+
+        return json_encode([
+            'status' => 'success',
+            'message' => 'Password updated successfully. You can log in now.',
+        ]);
     }
 
     public function register() {
         $data = json_decode(file_get_contents('php://input'), true);
         $name = trim($data['name'] ?? '');
         $email = strtolower(trim($data['email'] ?? ''));
-        $password = $data['password'] ?? '';
+        $password = decryptSensitiveInput($data['password'] ?? '');
         $phone = trim($data['phone'] ?? '');
         $address = trim($data['address'] ?? '');
 
@@ -91,6 +144,8 @@ class AuthController {
         $stmt = $this->db->prepare("SELECT id, email, name, phone, address, role FROM users WHERE id = ?");
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
+
+        $this->attachOrdersToUser($userId, $phone);
 
         header("HTTP/1.1 201 Created");
         return json_encode($this->issueAuthPayload($user, 'user'));
@@ -148,6 +203,7 @@ class AuthController {
             'id' => (string) $user['id'],
             'email' => $user['email'],
             'name' => $user['name'],
+            'username' => $user['username'] ?? null,
             'role' => $user['role'] ?? $userType,
         ];
 
@@ -192,5 +248,142 @@ class AuthController {
     private function resetRateLimit($ip, $endpoint) {
         $stmt = $this->db->prepare("DELETE FROM rate_limits WHERE ip = ? AND endpoint = ?");
         $stmt->execute([$ip, $endpoint]);
+    }
+
+    private function findAdminForLogin(string $identifier) {
+        if ($identifier === '') {
+            return false;
+        }
+
+        $normalized = strtolower($identifier);
+        $hasUsername = $this->columnExists('admins', 'username');
+
+        if ($hasUsername) {
+            $stmt = $this->db->prepare("
+                SELECT id, email, username, name, role, password_hash
+                FROM admins
+                WHERE LOWER(email) = ? OR LOWER(username) = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$normalized, $normalized]);
+            return $stmt->fetch();
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT id, email, name, role, password_hash
+            FROM admins
+            WHERE LOWER(email) = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$normalized]);
+        return $stmt->fetch();
+    }
+
+    private function findUserForLogin(string $identifier) {
+        if ($identifier === '') {
+            return false;
+        }
+
+        $normalized = strtolower($identifier);
+        $phone = $this->normalizePhone($identifier);
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            $stmt = $this->db->prepare("
+                SELECT id, email, name, phone, address, role, password_hash
+                FROM users
+                WHERE LOWER(email) = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$normalized]);
+            return $stmt->fetch();
+        }
+
+        if ($phone !== '') {
+            $stmt = $this->db->prepare("
+                SELECT id, email, name, phone, address, role, password_hash
+                FROM users
+                WHERE phone IS NOT NULL
+            ");
+            $stmt->execute();
+            while ($user = $stmt->fetch()) {
+                if ($this->normalizePhone((string) ($user['phone'] ?? '')) === $phone) {
+                    return $user;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function findUserForPasswordReset(string $identifier, string $phone) {
+        $normalizedIdentifier = strtolower($identifier);
+        $normalizedPhone = $this->normalizePhone($phone);
+
+        $stmt = $this->db->prepare("
+            SELECT id, email, name, phone, address, role, password_hash
+            FROM users
+            WHERE LOWER(email) = ? OR LOWER(name) = ?
+        ");
+        $stmt->execute([$normalizedIdentifier, $normalizedIdentifier]);
+
+        while ($user = $stmt->fetch()) {
+            if ($this->normalizePhone((string) ($user['phone'] ?? '')) === $normalizedPhone) {
+                return $user;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizePhone(string $phone): string {
+        return preg_replace('/\D+/', '', $phone) ?? '';
+    }
+
+    private function attachOrdersToUser(int $userId, string $phone): void {
+        $normalizedPhone = $this->normalizePhone($phone);
+        if ($userId <= 0 || $normalizedPhone === '') {
+            return;
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT id, customer_phone
+            FROM orders
+            WHERE (user_id IS NULL OR user_id = 0)
+        ");
+        $stmt->execute();
+
+        $matchingOrderIds = [];
+        while ($order = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            if ($this->normalizePhone((string) ($order['customer_phone'] ?? '')) === $normalizedPhone) {
+                $matchingOrderIds[] = (int) $order['id'];
+            }
+        }
+
+        if ($matchingOrderIds === []) {
+            return;
+        }
+
+        $update = $this->db->prepare("UPDATE orders SET user_id = ? WHERE id = ?");
+        foreach ($matchingOrderIds as $orderId) {
+            $update->execute([$userId, $orderId]);
+        }
+    }
+
+    private function columnExists(string $table, string $column): bool {
+        $driver = $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+        if ($driver === 'sqlite') {
+            $rows = $this->db->query("PRAGMA table_info($table)")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                if (($row['name'] ?? null) === $column) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        $stmt = $this->db->prepare("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ? AND TABLE_SCHEMA = ?");
+        $stmt->execute([$table, $column, getenv('DB_NAME') ?: 'soji_shawarma']);
+        return (bool) $stmt->fetch();
     }
 }

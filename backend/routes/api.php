@@ -29,8 +29,12 @@ $router->add('POST', '/login', function() use ($db) {
     return $controller->login();
 });
 
+$router->add('POST', '/reset-password', function() use ($db) {
+    $controller = new AuthController($db);
+    return $controller->resetPassword();
+});
+
 $router->add('POST', '/telegram-webhook', function() use ($db) {
     $controller = new TelegramController($db);
     return $controller->handle();
 });
-

@@ -66,7 +66,7 @@ const formatDate = (value: string) =>
 export default function ProfilePage() {
   const router = useRouter();
   const { token, isLoading: authLoading } = useAuth();
-  const { user, logout, addToast } = useAppStore();
+  const { user, token: persistedToken, hasHydrated, logout, addToast, setUser } = useAppStore();
   const totalItems = useCartStore((state) => state.totalItems());
   const [isMounted, setIsMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>('profile');
@@ -76,12 +76,15 @@ export default function ProfilePage() {
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, { rating: number; review_text: string }>>({});
   const [submittingReviewKey, setSubmittingReviewKey] = useState<string | null>(null);
 
+  const effectiveToken = token || persistedToken;
+  const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!token) {
+    if (!effectiveToken) {
       setProfile(null);
       setOrders([]);
       return;
@@ -94,7 +97,20 @@ export default function ProfilePage() {
           userService.getProfile(),
           orderService.getAllOrders(),
         ]);
-        setProfile(profileResponse.data ?? profileResponse);
+        const nextProfile = profileResponse.data ?? profileResponse;
+        setProfile(nextProfile);
+        const latestUser = useAppStore.getState().user;
+        if (nextProfile?.name) {
+          setUser({
+            id: String(nextProfile.id ?? latestUser?.id ?? ''),
+            name: nextProfile.name,
+            username: nextProfile.username ?? latestUser?.username ?? null,
+            phone: nextProfile.phone ?? latestUser?.phone,
+            address: nextProfile.address ?? latestUser?.address,
+            role: nextProfile.role ?? latestUser?.role ?? 'user',
+            balance: latestUser?.balance,
+          });
+        }
         setOrders(Array.isArray(ordersResponse.data) ? ordersResponse.data : []);
       } catch (error: any) {
         addToast(error.message || 'Could not load your profile', 'error');
@@ -104,9 +120,9 @@ export default function ProfilePage() {
     };
 
     fetchProfileData();
-  }, [token, addToast]);
+  }, [effectiveToken, addToast, setUser]);
 
-  const displayName = profile?.name || user?.name || 'Guest User';
+  const displayName = profile?.name || user?.name || (isSignedIn ? 'Loading profile...' : 'Guest User');
   const displayPhone = profile?.phone || user?.phone || 'Add a phone number when you place an order';
   const displayAddress = profile?.address || user?.address || 'No saved delivery address yet';
 
@@ -165,11 +181,11 @@ export default function ProfilePage() {
           </div>
           <h2 className="font-headline font-bold text-2xl text-center">{displayName}</h2>
           <p className="font-body text-sm text-outline text-center">
-            {token ? 'Your delivery details and order updates live here.' : 'Sign in to track active orders and receive updates.'}
+            {isSignedIn ? 'Your delivery details and order updates live here.' : 'Sign in to track active orders and receive updates.'}
           </p>
         </section>
 
-        {!authLoading && !token && (
+        {!authLoading && hasHydrated && !isSignedIn && (
           <section className="bg-surface-container-low rounded-3xl p-6 space-y-4">
             <p className="font-body text-sm text-outline">
               Sign in before placing an order so you can track delivery progress, see notifications, and leave reviews after each meal.
@@ -226,7 +242,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {token && (
+            {isSignedIn && (
               <button
                 type="button"
                 onClick={async () => {

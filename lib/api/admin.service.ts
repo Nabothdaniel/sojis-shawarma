@@ -67,6 +67,14 @@ export interface ManualNumberCancellationRequest {
   created_at: string;
 }
 
+export interface AdminAccessLinkSettings {
+  is_enabled: boolean;
+  access_key: string | null;
+  login_path: string;
+  expires_at: string | null;
+  refresh_hours: number;
+}
+
 export const adminService = {
   // Get paginated users
   getUsers: (params: { page: number; limit: number; search?: string; role?: string }): Promise<{ 
@@ -223,4 +231,14 @@ export const adminService = {
     }
     return res;
   },
+
+  getAccessLinkSettings: (): Promise<{ status: string; data: AdminAccessLinkSettings }> =>
+    apiClient.get('/admin/access-link'),
+
+  updateAccessLinkSettings: (payload: {
+    action?: 'save' | 'regenerate';
+    is_enabled: boolean;
+    access_key?: string;
+  }): Promise<{ status: string; message: string; data: AdminAccessLinkSettings }> =>
+    apiClient.post('/admin/access-link', payload),
 };

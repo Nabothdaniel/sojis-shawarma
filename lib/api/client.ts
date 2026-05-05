@@ -103,8 +103,7 @@ apiClient.interceptors.request.use(
       }
 
       // 2. Encrypt sensitive fields (skip for FormData)
-      const isAuthRequest = typeof config.url === 'string' && config.url.startsWith('/auth/');
-      if (config.data && !(config.data instanceof FormData) && !isAuthRequest) {
+      if (config.data && !(config.data instanceof FormData)) {
         const sensitiveFields = [
           'password',
           'pin', 'transaction_pin',

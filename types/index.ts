@@ -10,6 +10,7 @@ export interface Transaction {
 export interface User {
   id: string;
   name: string;
+  username?: string | null;
   phone?: string;
   address?: string;
   role: 'user' | 'admin';
@@ -64,4 +65,3 @@ export interface AppState {
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
 }
-

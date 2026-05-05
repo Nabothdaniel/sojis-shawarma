@@ -4,13 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
 import { authService } from '@/lib/api';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  identifier: z.string().min(1, 'Username is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -18,12 +19,16 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setToken } = useAuth();
   const { login: storeLogin, addToast } = useAppStore();
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
   const [isLocked, setIsLocked] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+  const [accessStatus, setAccessStatus] = useState<{ is_enabled: boolean; is_valid: boolean; expires_at: string | null } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -38,6 +43,22 @@ export default function LoginPage() {
     }
     return () => clearInterval(timer);
   }, [countdown]);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const access = searchParams.get('access') || undefined;
+        const result: any = await authService.getAdminAccessStatus(access);
+        setAccessStatus(result.data ?? null);
+      } catch (error: any) {
+        addToast(error.message || 'Could not verify admin access link', 'error');
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+
+    run();
+  }, [searchParams, addToast]);
 
   const onSubmit = async (data: LoginFormValues) => {
     if (isLocked) return;
@@ -71,6 +92,34 @@ export default function LoginPage() {
     }
   };
 
+  if (isCheckingAccess) {
+    return <div className="bg-surface min-h-screen flex items-center justify-center font-headline font-bold text-xl">Checking admin access...</div>;
+  }
+
+  if (accessStatus?.is_enabled && !accessStatus.is_valid) {
+    return (
+      <div className="bg-surface min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-surface-container-low rounded-[32px] p-8 text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-error/10 text-error flex items-center justify-center">
+            <span className="material-symbols-outlined text-3xl">vpn_key_alert</span>
+          </div>
+          <h1 className="font-headline font-bold text-3xl">Private Admin Link Required</h1>
+          <p className="font-body text-sm text-outline">
+            This admin login is protected by a rotating 10-character access URL. Please open the latest link from the admin dashboard.
+          </p>
+          {accessStatus.expires_at && (
+            <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">
+              Current link rotates every 6 hours
+            </p>
+          )}
+          <Link href="/reset-password?account=admin" className="inline-flex items-center justify-center rounded-full bg-on-surface px-6 py-3 font-label text-xs font-bold uppercase tracking-widest text-surface">
+            Admin password help
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-surface min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -85,23 +134,36 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-1">
             <input
-              {...register('email')}
-              type="email"
-              placeholder="Email Address"
+              {...register('identifier')}
+              type="text"
+              placeholder="Admin Username"
               disabled={isLocked || isLoading}
               className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
             />
-            {errors.email && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.email.message}</p>}
+            {errors.identifier && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.identifier.message}</p>}
           </div>
 
           <div className="space-y-1">
-            <input
-              {...register('password')}
-              type="password"
-              placeholder="Password"
-              disabled={isLocked || isLoading}
-              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
-            />
+            <div className="relative">
+              <input
+                {...register('password')}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password"
+                disabled={isLocked || isLoading}
+                className="w-full bg-surface-container-highest border-none rounded-2xl py-4 pl-6 pr-14 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                disabled={isLocked || isLoading}
+                className="absolute inset-y-0 right-0 flex w-14 items-center justify-center text-outline disabled:opacity-50"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <span className="material-symbols-outlined text-xl">
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
             {errors.password && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.password.message}</p>}
           </div>
 
@@ -124,9 +186,14 @@ export default function LoginPage() {
           )}
         </form>
 
-        <p className="mt-8 text-center text-outline font-label text-[10px] uppercase tracking-widest font-bold">
-          Unauthorized access is logged
-        </p>
+        <div className="mt-8 space-y-3 text-center">
+          <p className="text-outline font-label text-[10px] uppercase tracking-widest font-bold">
+            Unauthorized access is logged
+          </p>
+          <Link href="/reset-password?account=admin" className="font-body text-sm text-on-surface underline underline-offset-4">
+            Change admin password
+          </Link>
+        </div>
       </div>
     </div>
   );

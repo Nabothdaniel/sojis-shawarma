@@ -26,6 +26,7 @@ export default function SignupPage() {
   const { setToken } = useAuth();
   const { login: storeLogin, addToast } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -71,7 +72,24 @@ export default function SignupPage() {
           <textarea {...register('address')} rows={3} placeholder="Delivery Address" className="w-full bg-surface-container-highest rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none" />
           {errors.address && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.address.message}</p>}
 
-          <input {...register('password')} type="password" placeholder="Password" className="w-full bg-surface-container-highest rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all" />
+          <div className="relative">
+            <input
+              {...register('password')}
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              className="w-full bg-surface-container-highest rounded-2xl py-4 pl-6 pr-14 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute inset-y-0 right-0 flex w-14 items-center justify-center text-outline"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              <span className="material-symbols-outlined text-xl">
+                {showPassword ? 'visibility_off' : 'visibility'}
+              </span>
+            </button>
+          </div>
           {errors.password && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.password.message}</p>}
 
           <button
@@ -93,4 +111,3 @@ export default function SignupPage() {
     </div>
   );
 }
-

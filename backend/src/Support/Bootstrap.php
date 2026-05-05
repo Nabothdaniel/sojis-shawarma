@@ -6,6 +6,7 @@ function ensureBackendSchema(PDO $db, string $driver): void {
             "CREATE TABLE IF NOT EXISTS admins (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT UNIQUE NOT NULL,
+                username TEXT UNIQUE,
                 password_hash TEXT NOT NULL,
                 name TEXT NOT NULL,
                 role TEXT DEFAULT 'admin',
@@ -96,11 +97,20 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 available INTEGER DEFAULT 1,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
+            "CREATE TABLE IF NOT EXISTS admin_access_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                is_enabled INTEGER DEFAULT 0,
+                access_key TEXT,
+                expires_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
         ]
         : [
             "CREATE TABLE IF NOT EXISTS admins (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 email VARCHAR(255) UNIQUE NOT NULL,
+                username VARCHAR(255) UNIQUE NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 name VARCHAR(255) NOT NULL,
                 role VARCHAR(50) DEFAULT 'admin',
@@ -191,6 +201,14 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 available TINYINT(1) DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )",
+            "CREATE TABLE IF NOT EXISTS admin_access_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                is_enabled TINYINT(1) DEFAULT 0,
+                access_key VARCHAR(32) NULL,
+                expires_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )",
         ];
 
     foreach ($statements as $statement) {
@@ -198,8 +216,9 @@ function ensureBackendSchema(PDO $db, string $driver): void {
     }
 
     $columns = [
-        'orders' => ['order_ref', 'total_amount', 'payment_status', 'receipt_path', 'updated_at', 'user_id'],
-        'admins' => ['role'],
+        'orders' => ['order_ref', 'total_amount', 'payment_status', 'receipt_path', 'updated_at', 'user_id', 'last_notification_key', 'last_notification_at'],
+        'admins' => ['username', 'role'],
+        'admin_access_settings' => ['is_enabled', 'access_key', 'expires_at', 'updated_at'],
         'users' => ['phone', 'address', 'role'],
     ];
 
@@ -212,6 +231,7 @@ function ensureBackendSchema(PDO $db, string $driver): void {
     }
 
     seedDefaultAdmin($db);
+    seedAdminAccessSettings($db);
 }
 
 function columnExists(PDO $db, string $driver, string $table, string $column): bool {
@@ -250,9 +270,30 @@ function addMissingColumn(PDO $db, string $driver, string $table, string $column
         'orders.user_id' => $driver === 'sqlite'
             ? "ALTER TABLE orders ADD COLUMN user_id INTEGER"
             : "ALTER TABLE orders ADD COLUMN user_id INT NULL",
+        'orders.last_notification_key' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN last_notification_key TEXT"
+            : "ALTER TABLE orders ADD COLUMN last_notification_key VARCHAR(255) NULL",
+        'orders.last_notification_at' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN last_notification_at DATETIME"
+            : "ALTER TABLE orders ADD COLUMN last_notification_at TIMESTAMP NULL",
+        'admins.username' => $driver === 'sqlite'
+            ? "ALTER TABLE admins ADD COLUMN username TEXT"
+            : "ALTER TABLE admins ADD COLUMN username VARCHAR(255) NULL",
         'admins.role' => $driver === 'sqlite'
             ? "ALTER TABLE admins ADD COLUMN role TEXT DEFAULT 'admin'"
             : "ALTER TABLE admins ADD COLUMN role VARCHAR(50) DEFAULT 'admin'",
+        'admin_access_settings.is_enabled' => $driver === 'sqlite'
+            ? "ALTER TABLE admin_access_settings ADD COLUMN is_enabled INTEGER DEFAULT 0"
+            : "ALTER TABLE admin_access_settings ADD COLUMN is_enabled TINYINT(1) DEFAULT 0",
+        'admin_access_settings.access_key' => $driver === 'sqlite'
+            ? "ALTER TABLE admin_access_settings ADD COLUMN access_key TEXT"
+            : "ALTER TABLE admin_access_settings ADD COLUMN access_key VARCHAR(32) NULL",
+        'admin_access_settings.expires_at' => $driver === 'sqlite'
+            ? "ALTER TABLE admin_access_settings ADD COLUMN expires_at DATETIME"
+            : "ALTER TABLE admin_access_settings ADD COLUMN expires_at TIMESTAMP NULL",
+        'admin_access_settings.updated_at' => $driver === 'sqlite'
+            ? "ALTER TABLE admin_access_settings ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"
+            : "ALTER TABLE admin_access_settings ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
         'users.phone' => $driver === 'sqlite'
             ? "ALTER TABLE users ADD COLUMN phone TEXT"
             : "ALTER TABLE users ADD COLUMN phone VARCHAR(50) NULL",
@@ -272,16 +313,30 @@ function addMissingColumn(PDO $db, string $driver, string $table, string $column
 
 function seedDefaultAdmin(PDO $db): void {
     $email = 'admin@yourdomain.com';
+    $username = 'admin';
     $password = 'Admin@123';
     $name = 'Soji Admin';
     $hash = password_hash($password, PASSWORD_BCRYPT);
 
     $stmt = $db->prepare("SELECT id FROM admins WHERE email = ?");
     $stmt->execute([$email]);
-    if ($stmt->fetch()) {
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($existing) {
+        $update = $db->prepare("UPDATE admins SET username = COALESCE(username, ?) WHERE id = ?");
+        $update->execute([$username, $existing['id']]);
         return;
     }
 
-    $insert = $db->prepare("INSERT INTO admins (email, password_hash, name, role) VALUES (?, ?, ?, ?)");
-    $insert->execute([$email, $hash, $name, 'admin']);
+    $insert = $db->prepare("INSERT INTO admins (email, username, password_hash, name, role) VALUES (?, ?, ?, ?, ?)");
+    $insert->execute([$email, $username, $hash, $name, 'admin']);
+}
+
+function seedAdminAccessSettings(PDO $db): void {
+    $stmt = $db->query("SELECT id FROM admin_access_settings ORDER BY id ASC LIMIT 1");
+    if ($stmt && $stmt->fetch(PDO::FETCH_ASSOC)) {
+        return;
+    }
+
+    $insert = $db->prepare("INSERT INTO admin_access_settings (is_enabled, access_key, expires_at) VALUES (?, ?, ?)");
+    $insert->execute([0, null, null]);
 }

@@ -20,6 +20,7 @@ export function useRealtime() {
   const updateUserBalance = useAppStore((state) => state.updateUserBalance);
   const addToast = useAppStore((state) => state.addToast);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const seenEventKeysRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     // Only connect if authenticated
@@ -41,6 +42,13 @@ export function useRealtime() {
 
     console.log('Real-time: Connecting to SSE stream...');
 
+    const shouldDisplayEvent = (key: string) => {
+      const now = Date.now();
+      const lastSeen = seenEventKeysRef.current.get(key) ?? 0;
+      seenEventKeysRef.current.set(key, now);
+      return now - lastSeen > 5000;
+    };
+
     // Live Balance Updates
     es.addEventListener('balance_updated', (e) => {
       try {
@@ -49,7 +57,10 @@ export function useRealtime() {
           updateUserBalance(Number(data.new_balance));
         }
         if (data.message) {
-          addToast(data.message, 'success');
+          const dedupeKey = `balance_updated:${data.message}`;
+          if (shouldDisplayEvent(dedupeKey)) {
+            addToast(data.message, 'success');
+          }
           // TODO: Add notification system
           // const { addNotification } = useAppStore.getState();
           // addNotification({
@@ -70,7 +81,10 @@ export function useRealtime() {
       try {
         const data = JSON.parse(e.data);
         if (data.message) {
-          addToast(data.message, data.type || 'info');
+          const dedupeKey = `${data.type || 'info'}:${data.message}`;
+          if (shouldDisplayEvent(dedupeKey)) {
+            addToast(data.message, data.type || 'info');
+          }
           // TODO: Add notification system
           // const { addNotification } = useAppStore.getState();
           // addNotification({
@@ -98,5 +112,5 @@ export function useRealtime() {
         eventSourceRef.current = null;
       }
     };
-  }, [isAuthenticated, user?.id, updateUserBalance, addToast]);
+  }, [isAuthenticated, user, token, updateUserBalance, addToast]);
 }

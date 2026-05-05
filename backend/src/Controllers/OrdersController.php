@@ -91,6 +91,12 @@ class OrdersController {
                 'items' => $items,
                 'total' => $total,
             ]);
+            $this->sendOrderWhatsAppNotification(
+                $orderId,
+                'order_created',
+                $customerPhone,
+                "Hi {$customerName}, your order {$orderRef} has been received by Soji's Shawarma. We will notify you again as soon as payment is confirmed and your order moves to the next stage."
+            );
 
             header("HTTP/1.1 201 Created");
             return json_encode([
@@ -108,6 +114,25 @@ class OrdersController {
     }
 
     public function confirmPayment($id) {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser) {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Please sign in to confirm your order payment']);
+        }
+
+        $order = $this->getOrderRecord((int) $id);
+        if (!$order) {
+            header("HTTP/1.1 404 Not Found");
+            return json_encode(['message' => 'Order not found']);
+        }
+
+        $isAdmin = ($currentUser['role'] ?? 'user') === 'admin';
+        $isOwner = ($currentUser['type'] ?? 'user') === 'user' && (int) ($order['user_id'] ?? 0) === (int) $currentUser['id'];
+        if (!$isAdmin && !$isOwner) {
+            header("HTTP/1.1 403 Forbidden");
+            return json_encode(['message' => 'You can only confirm payment for your own orders']);
+        }
+
         if (!isset($_FILES['receipt'])) {
             header("HTTP/1.1 400 Bad Request");
             $error = 'Receipt file is required';
@@ -151,6 +176,19 @@ class OrdersController {
 
         $stmt = $this->db->prepare("UPDATE orders SET payment_status = ?, receipt_path = ? WHERE id = ?");
         $stmt->execute(['submitted', $filename, $id]);
+
+        $freshOrder = $this->getOrderRecord((int) $id);
+        if ($freshOrder) {
+            $customerName = (string) ($freshOrder['customer_name'] ?? 'Customer');
+            $orderRef = (string) ($freshOrder['order_ref'] ?? sprintf('SJI-%s-%04d', date('Ymd'), $id));
+            $customerPhone = (string) ($freshOrder['customer_phone'] ?? '');
+            $this->sendOrderWhatsAppNotification(
+                (int) $id,
+                'payment_submitted',
+                $customerPhone,
+                "Hi {$customerName}, we have received your payment receipt for order {$orderRef}. Our team is reviewing it now."
+            );
+        }
 
         return json_encode([
             'status' => 'success',
@@ -254,6 +292,11 @@ class OrdersController {
             $stmt->execute([$status, $id]);
         }
 
+        $order = $this->getOrderRecord((int) $id);
+        if ($order) {
+            $this->notifyUserForStatusChange($order, $status);
+        }
+
         return json_encode([
             'status' => 'success',
             'message' => 'Order status updated',
@@ -304,6 +347,79 @@ class OrdersController {
 
         $stmt = $this->db->prepare("UPDATE sessions SET orders_placed = orders_placed + 1, cart_abandoned = 0 WHERE id = ?");
         $stmt->execute([$sessionId]);
+    }
+
+    private function getOrderRecord(int $id): ?array {
+        $stmt = $this->db->prepare("SELECT * FROM orders WHERE id = ?");
+        $stmt->execute([$id]);
+        $order = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $order ?: null;
+    }
+
+    private function notifyUserForStatusChange(array $order, string $status): void {
+        $customerName = (string) ($order['customer_name'] ?? 'Customer');
+        $customerPhone = (string) ($order['customer_phone'] ?? '');
+        $orderId = (int) ($order['id'] ?? 0);
+        $orderRef = (string) ($order['order_ref'] ?? sprintf('SJI-%s-%04d', date('Ymd'), $orderId));
+
+        $messages = [
+            'confirmed' => "Hi {$customerName}, your payment for order {$orderRef} has been confirmed. The kitchen queue is now locked in.",
+            'preparing' => "Hi {$customerName}, your order {$orderRef} is now being prepared.",
+            'dispatched' => "Hi {$customerName}, your order {$orderRef} is out for delivery.",
+            'delivered' => "Hi {$customerName}, your order {$orderRef} has been marked as delivered. Enjoy your meal.",
+            'cancelled' => "Hi {$customerName}, your order {$orderRef} has been cancelled. Please contact support if this was unexpected.",
+        ];
+
+        if (!isset($messages[$status])) {
+            return;
+        }
+
+        $this->sendOrderWhatsAppNotification($orderId, "status_{$status}", $customerPhone, $messages[$status]);
+    }
+
+    private function sendOrderWhatsAppNotification(int $orderId, string $notificationKey, string $phone, string $message): void {
+        if ($orderId <= 0 || trim($phone) === '' || trim($message) === '') {
+            return;
+        }
+
+        $order = $this->getOrderRecord($orderId);
+        if (!$order) {
+            return;
+        }
+
+        if (($order['last_notification_key'] ?? null) === $notificationKey) {
+            return;
+        }
+
+        $webhookUrl = trim((string) (getenv('WHATSAPP_NOTIFY_URL') ?: ''));
+        if ($webhookUrl === '') {
+            return;
+        }
+
+        $payload = [
+            'order_id' => $orderId,
+            'order_ref' => $order['order_ref'] ?? null,
+            'phone' => $phone,
+            'message' => $message,
+            'channel' => 'whatsapp',
+            'event' => $notificationKey,
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $webhookUrl);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 200 && $httpCode < 300) {
+            $stmt = $this->db->prepare("UPDATE orders SET last_notification_key = ?, last_notification_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([$notificationKey, $orderId]);
+        }
     }
 
     private function sendTelegramNotification($orderRef, $data) {
