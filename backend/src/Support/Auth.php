@@ -39,13 +39,24 @@ function verifyJwt(string $token) {
 }
 
 function getBearerToken() {
-    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['Authorization'] ?? '';
-    if (!$header && function_exists('getallheaders')) {
+    $header = null;
+    // Check various common server locations for Authorization header
+    if (isset($_SERVER['Authorization'])) {
+        $header = trim($_SERVER["Authorization"]);
+    } else if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $header = trim($_SERVER["HTTP_AUTHORIZATION"]);
+    } else if (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $header = trim($_SERVER["REDIRECT_HTTP_AUTHORIZATION"]);
+    } else if (function_exists('getallheaders')) {
         $headers = getallheaders();
-        $header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        if (isset($headers['Authorization'])) {
+            $header = trim($headers['Authorization']);
+        } else if (isset($headers['authorization'])) {
+            $header = trim($headers['authorization']);
+        }
     }
 
-    if (preg_match('/Bearer\s+(.*)$/i', $header, $matches)) {
+    if ($header && preg_match('/Bearer\s+(.*)$/i', $header, $matches)) {
         return trim($matches[1]);
     }
 

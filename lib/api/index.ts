@@ -6,3 +6,5 @@ export * from './order.service';
 export * from './analytics.service';
 export * from './catalog.service';
 export * from './review.service';
+export * from './feedback.service';
+export * from './biometric.service';

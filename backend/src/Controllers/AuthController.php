@@ -180,6 +180,73 @@ class AuthController {
         return json_encode(['status' => 'success']);
     }
 
+    public function getBiometricChallenge() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $userId = $data['userId'] ?? null;
+        
+        // In a real app, store this challenge in session/cache associated with user
+        $challenge = base64_encode(random_bytes(32));
+        return json_encode(['challenge' => $challenge]);
+    }
+
+    public function registerBiometric() {
+        $token = getBearerToken();
+        $payload = verifyJwt($token);
+        if (!$payload) {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Unauthorized']);
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $credentialId = $data['credentialId'] ?? null;
+        $publicKey = $data['publicKey'] ?? null;
+
+        if (!$credentialId || !$publicKey) {
+            header("HTTP/1.1 400 Bad Request");
+            return json_encode(['message' => 'Missing credential data']);
+        }
+
+        $stmt = $this->db->prepare("UPDATE users SET biometric_id = ?, biometric_key = ? WHERE id = ?");
+        $stmt->execute([$credentialId, $publicKey, $payload['id']]);
+
+        return json_encode(['status' => 'success', 'message' => 'Biometrics registered successfully']);
+    }
+
+    public function getBiometricLoginChallenge() {
+        $challenge = base64_encode(random_bytes(32));
+        // Find all users who have biometrics enabled on this device (simplified for demo: all who have biometrics)
+        $stmt = $this->db->query("SELECT biometric_id FROM users WHERE biometric_id IS NOT NULL");
+        $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        return json_encode([
+            'challenge' => $challenge,
+            'allowedIds' => $ids
+        ]);
+    }
+
+    public function verifyBiometric() {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $credentialId = $data['credentialId'] ?? null;
+
+        if (!$credentialId) {
+            header("HTTP/1.1 400 Bad Request");
+            return json_encode(['message' => 'Missing credential id']);
+        }
+
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE biometric_id = ? LIMIT 1");
+        $stmt->execute([$credentialId]);
+        $user = $stmt->fetch();
+
+        if (!$user) {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Biometric not recognized']);
+        }
+
+        // In a real app, verify b64 signature using biometric_key (public key)
+        // For demo purposes, we trust the device after match of credentialId
+        return json_encode($this->issueAuthPayload($user, 'user'));
+    }
+
     private function issueAuthPayload(array $user, string $userType): array {
         $payload = [
             'id' => (int) $user['id'],

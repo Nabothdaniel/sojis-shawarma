@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import { useMutation } from '@tanstack/react-query';
-import { orderService } from '@/lib/api';
+import { orderService, userService } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 type CheckoutStep = 'delivery' | 'payment' | 'receipt' | 'success';
@@ -19,6 +19,7 @@ export default function CheckoutPage() {
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('delivery');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [orderRef, setOrderRef] = useState('');
   const [isMounted, setIsMounted] = useState(false);
@@ -32,7 +33,7 @@ export default function CheckoutPage() {
   const checkoutSteps: CheckoutStep[] = ['delivery', 'payment', 'receipt'];
   const stepIndex = checkoutSteps.indexOf(currentStep);
   const effectiveToken = token || persistedToken;
-  const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
+  const isSignedIn = hasHydrated && Boolean(effectiveToken);
 
   useEffect(() => {
     setIsMounted(true);
@@ -46,15 +47,39 @@ export default function CheckoutPage() {
   }, [authLoading, hasHydrated, isSignedIn, addToast, router]);
 
   useEffect(() => {
-    if (user) {
-      setFormData((current) => ({
-        ...current,
-        name: current.name || user.name || '',
-        phone: current.phone || user.phone || '',
-        address: current.address || user.address || '',
-      }));
-    }
-  }, [user]);
+    const checkProfile = async () => {
+      // If we are signed in but missing form data, try to fetch/refill
+      if (isSignedIn) {
+        // First, fill from what we have in the local store immediately
+        setFormData(current => ({
+          ...current,
+          name: current.name || user?.name || '',
+          phone: current.phone || user?.phone || '',
+          address: current.address || user?.address || ''
+        }));
+
+        // Then try to get the freshest data from the profile API
+        if (effectiveToken && !profileData) {
+          try {
+            const res: any = await userService.getProfile();
+            const data = res.data?.data || res.data || res;
+            if (data && typeof data === 'object') {
+              setProfileData(data);
+              setFormData(current => ({
+                ...current,
+                name: data.name || current.name || user?.name || '',
+                phone: data.phone || current.phone || user?.phone || '',
+                address: data.address || current.address || user?.address || ''
+              }));
+            }
+          } catch (e) {
+            console.error('Auto-fill fetch failed', e);
+          }
+        }
+      }
+    };
+    if (hasHydrated) checkProfile();
+  }, [user, effectiveToken, profileData, isSignedIn, hasHydrated]);
 
   const subtotal = totalPrice();
 
@@ -205,7 +230,7 @@ export default function CheckoutPage() {
                   <input
                     type="text"
                     placeholder="Full Name"
-                    className={`w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.name ? 'ring-2 ring-red-500/50' : ''}`}
+                    className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.name ? 'ring-2 ring-red-500/50' : ''}`}
                     value={formData.name}
                     onChange={(e) => {
                       setFormData({ ...formData, name: e.target.value });
@@ -219,7 +244,7 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     placeholder="Phone Number"
-                    className={`w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.phone ? 'ring-2 ring-red-500/50' : ''}`}
+                    className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.phone ? 'ring-2 ring-red-500/50' : ''}`}
                     value={formData.phone}
                     onChange={(e) => {
                       setFormData({ ...formData, phone: e.target.value });
@@ -265,7 +290,7 @@ export default function CheckoutPage() {
                   <textarea
                     placeholder="Street, House No, Keffi"
                     rows={3}
-                    className={`w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none ${errors.address ? 'ring-2 ring-red-500/50' : ''}`}
+                    className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none ${errors.address ? 'ring-2 ring-red-500/50' : ''}`}
                     value={formData.address}
                     onChange={(e) => {
                       setFormData({ ...formData, address: e.target.value });

@@ -24,6 +24,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import ToastContainer from '@/components/ui/ToastContainer';
 import SessionManager from '@/components/ui/SessionManager';
 import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
+import OrderPoller from '@/components/OrderPoller';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ReactQueryProvider>
           <AuthProvider>
             <SessionManager />
+            <OrderPoller />
             <ToastContainer />
             {children}
           </AuthProvider>

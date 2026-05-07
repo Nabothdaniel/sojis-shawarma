@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
-import { authService } from '@/lib/api';
+import { authService, biometricService } from '@/lib/api';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Email or WhatsApp number is required'),
@@ -76,6 +76,23 @@ export default function LoginPage() {
     }
   };
 
+  const handleBiometricLogin = async () => {
+    setIsLoading(true);
+    try {
+      const result: any = await biometricService.login();
+      const role = result.user?.role === 'admin' ? 'admin' : 'user';
+      setToken(result.token);
+      storeLogin({ ...result.user, role }, result.token);
+      addToast('Biometric login successful', 'success');
+      const redirectTo = searchParams.get('redirect');
+      router.push(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
+    } catch (error: any) {
+      addToast(error.response?.data?.message || error.message || 'Biometric login failed', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="bg-surface min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -128,17 +145,31 @@ export default function LoginPage() {
               LOCKED: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
             </div>
           ) : (
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-on-surface text-surface font-headline font-bold py-5 rounded-full shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
-            >
-              {isLoading ? (
-                <span className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin"></span>
-              ) : (
-                <>Sign In <span className="material-symbols-outlined">arrow_forward</span></>
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex-1 bg-on-surface text-surface font-headline font-bold py-5 rounded-full shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+              >
+                {isLoading ? (
+                  <span className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin"></span>
+                ) : (
+                  <>Sign In <span className="material-symbols-outlined">arrow_forward</span></>
+                )}
+              </button>
+              
+              {biometricService.isSupported() && (
+                <button
+                  type="button"
+                  onClick={handleBiometricLogin}
+                  disabled={isLoading}
+                  className="w-20 h-[64px] bg-primary-container/20 border-2 border-primary-container/30 text-primary-container rounded-[24px] flex items-center justify-center active:scale-95 transition-all shadow-xl shadow-primary-container/10"
+                  aria-label="Fingerprint Login"
+                >
+                  <span className="material-symbols-outlined text-3xl">fingerprint</span>
+                </button>
               )}
-            </button>
+            </div>
           )}
         </form>
 

@@ -99,6 +99,26 @@ export const useAppStore = create<AppState>()(
 
       hasHydrated: false,
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+      
+      notifications: [],
+      unreadCount: 0,
+      addNotification: (notification) => set((state) => {
+        const id = crypto.randomUUID();
+        const newNotif = { ...notification, id, read: false };
+        const newList = [newNotif, ...state.notifications].slice(0, 50);
+        return {
+          notifications: newList,
+          unreadCount: newList.filter(n => !n.read).length
+        };
+      }),
+      markAsRead: (id) => set((state) => {
+        const newList = state.notifications.map(n => n.id === id ? { ...n, read: true } : n);
+        return {
+          notifications: newList,
+          unreadCount: newList.filter(n => !n.read).length
+        };
+      }),
+      clearNotifications: () => set({ notifications: [], unreadCount: 0 }),
     }),
     {
       name: 'soji-storage',
@@ -106,6 +126,8 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
+        notifications: state.notifications,
+        unreadCount: state.unreadCount,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import { useAuth } from '@/context/AuthContext';
-import { authService, orderService, reviewService, userService, type Order } from '@/lib/api';
+import { authService, orderService, reviewService, userService, biometricService, type Order } from '@/lib/api';
+import BottomNav from '@/components/ui/BottomNav';
 
-type ProfileTab = 'profile' | 'tracking' | 'history' | 'notifications';
+type ProfileTab = 'profile' | 'tracking' | 'history' | 'notifications' | 'feedback';
 
 const activeStatuses: Order['status'][] = ['pending', 'confirmed', 'preparing', 'dispatched'];
 
@@ -75,6 +76,25 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, { rating: number; review_text: string }>>({});
   const [submittingReviewKey, setSubmittingReviewKey] = useState<string | null>(null);
+  const [feedbackDraft, setFeedbackDraft] = useState({ rating: 5, message: '' });
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isSettingUpBiometrics, setIsSettingUpBiometrics] = useState(false);
+
+  const handleSetupBiometrics = async () => {
+    if (!profile?.id || !profile?.email) return;
+    setIsSettingUpBiometrics(true);
+    try {
+      await biometricService.register(profile.id.toString(), profile.email);
+      addToast('Fingerprint registered! You can now log in faster.', 'success');
+      // Update profile locally to reflect setup
+      setProfile({ ...profile, biometric_id: 'configured' });
+    } catch (err: any) {
+      addToast(err.message || 'Setup failed. Make sure your device supports biometrics.', 'error');
+    } finally {
+      setIsSettingUpBiometrics(false);
+    }
+  };
+  const [loadTimeout, setLoadTimeout] = useState(false);
 
   const effectiveToken = token || persistedToken;
   const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
@@ -120,6 +140,12 @@ export default function ProfilePage() {
     };
 
     fetchProfileData();
+    
+    const timeout = setTimeout(() => {
+      if (loading) setLoadTimeout(true);
+    }, 8000);
+    
+    return () => clearTimeout(timeout);
   }, [effectiveToken, addToast, setUser]);
 
   const displayName = profile?.name || user?.name || (isSignedIn ? 'Loading profile...' : 'Guest User');
@@ -180,9 +206,39 @@ export default function ProfilePage() {
             <span className="material-symbols-outlined text-4xl text-on-primary-container">person</span>
           </div>
           <h2 className="font-headline font-bold text-2xl text-center">{displayName}</h2>
+          {loadTimeout && !profile && (
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-2 text-primary font-label text-xs uppercase font-bold flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-sm">refresh</span>
+              Stuck loading? Tap to refresh
+            </button>
+          )}
           <p className="font-body text-sm text-outline text-center">
             {isSignedIn ? 'Your delivery details and order updates live here.' : 'Sign in to track active orders and receive updates.'}
           </p>
+
+          {isSignedIn && biometricService.isSupported() && (
+            <div className="mt-8 p-6 bg-primary-container/10 border border-primary-container/20 rounded-[32px] w-full max-w-sm mx-auto">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-primary-container/20 rounded-2xl flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary-container">fingerprint</span>
+                </div>
+                <div className="text-left">
+                  <h3 className="font-headline font-bold text-sm">Biometric Login</h3>
+                  <p className="font-body text-[10px] text-outline">Unlock with your fingerprint</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSetupBiometrics}
+                disabled={isSettingUpBiometrics}
+                className="w-full bg-on-surface text-surface py-3 rounded-2xl font-label text-[10px] font-bold uppercase tracking-widest disabled:opacity-50"
+              >
+                {isSettingUpBiometrics ? 'Setting up...' : (profile?.biometric_id ? 'Update biometrics' : 'Setup Now')}
+              </button>
+            </div>
+          )}
         </section>
 
         {!authLoading && hasHydrated && !isSignedIn && (
@@ -212,6 +268,7 @@ export default function ProfilePage() {
           {tabButton('tracking', 'Tracking', activeOrders.length)}
           {tabButton('history', 'History', pastOrders.length)}
           {tabButton('notifications', 'Notifications', notifications.length)}
+          {tabButton('feedback', 'Feedback')}
         </section>
 
         {activeTab === 'profile' && (
@@ -432,17 +489,105 @@ export default function ProfilePage() {
             ))}
           </section>
         )}
+        
+        {activeTab === 'feedback' && (
+          <section className="space-y-6">
+            <div className="bg-surface-container-low rounded-[32px] p-8 space-y-6 shadow-sm border border-outline-variant/10">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-primary-container/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="material-symbols-outlined text-primary-container text-3xl">rate_review</span>
+                </div>
+                <h2 className="font-headline font-bold text-2xl">Service Feedback</h2>
+                <p className="font-body text-sm text-outline">How was your experience today? Your suggestions help Soji grow.</p>
+              </div>
+
+              <div className="space-y-6">
+                {/* Star Rating */}
+                <div className="flex flex-col items-center gap-3">
+                  <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Your Rating</p>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFeedbackDraft({ ...feedbackDraft, rating: star })}
+                        className="active:scale-110 transition-transform duration-200"
+                      >
+                        <span 
+                          className="material-symbols-outlined text-4xl" 
+                          style={{ 
+                            fontVariationSettings: `'FILL' ${star <= feedbackDraft.rating ? 1 : 0}`,
+                            color: star <= feedbackDraft.rating ? '#EAB600' : 'var(--md-sys-color-outline-variant)'
+                          }}
+                        >
+                          star
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="font-label text-xs font-bold text-primary-container uppercase tracking-tight">
+                    {feedbackDraft.rating === 5 ? 'Excellent!' : feedbackDraft.rating === 4 ? 'Great' : feedbackDraft.rating === 3 ? 'Good' : feedbackDraft.rating === 2 ? 'Could be better' : 'Poor experience'}
+                  </p>
+                </div>
+
+                {/* Message */}
+                <div className="space-y-2">
+                  <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold px-1">Improvements or Suggestions</p>
+                  <textarea
+                    rows={4}
+                    value={feedbackDraft.message}
+                    onChange={(e) => setFeedbackDraft({ ...feedbackDraft, message: e.target.value })}
+                    placeholder="Tell us what we can do better..."
+                    className="w-full bg-surface border-none rounded-[24px] p-5 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none shadow-inner"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isSubmittingFeedback || !feedbackDraft.message.trim()}
+                  onClick={async () => {
+                    setIsSubmittingFeedback(true);
+                    try {
+                      const { feedbackService } = await import('@/lib/api');
+                      await feedbackService.submitFeedback({
+                        name: user?.name || 'Guest',
+                        email: user?.email || undefined,
+                        rating: feedbackDraft.rating,
+                        message: feedbackDraft.message,
+                      });
+                      addToast('Thanks for your feedback!', 'success');
+                      setFeedbackDraft({ rating: 5, message: '' });
+                      setActiveTab('profile');
+                    } catch (error: any) {
+                      addToast(error.message || 'Could not send feedback', 'error');
+                    } finally {
+                      setIsSubmittingFeedback(false);
+                    }
+                  }}
+                  className="w-full bg-on-surface text-surface py-5 rounded-full font-label font-bold text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSubmittingFeedback ? (
+                    <span className="animate-spin material-symbols-outlined text-sm">progress_activity</span>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">send</span>
+                      Submit Feedback
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-tertiary/5 border border-tertiary/10 rounded-3xl p-6 text-center">
+              <p className="font-body text-xs text-outline italic">
+                &quot;We are always listening. Every piece of feedback goes directly to the kitchen and management team.&quot;
+              </p>
+            </div>
+          </section>
+        )}
       </main>
 
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-on-surface/90 backdrop-blur-xl rounded-full px-8 py-4 flex justify-between items-center z-50 shadow-2xl border border-white/10">
-        <Link href="/show" className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">home</span></Link>
-        <Link href="/search" className="flex flex-col items-center gap-1 text-white/50"><span className="material-symbols-outlined">search</span></Link>
-        <Link href="/cart" className="flex flex-col items-center gap-1 text-white/50 relative">
-          <span className="material-symbols-outlined">shopping_cart</span>
-          {isMounted && totalItems > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-on-surface">{totalItems}</span>}
-        </Link>
-        <Link href="/profile" className="flex flex-col items-center gap-1 text-primary-container"><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>person</span></Link>
-      </nav>
+      <BottomNav active="profile" />
     </div>
   );
 }

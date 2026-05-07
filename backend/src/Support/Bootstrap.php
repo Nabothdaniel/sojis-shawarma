@@ -59,6 +59,8 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 address TEXT,
                 password_hash TEXT NOT NULL,
                 role TEXT DEFAULT 'user',
+                biometric_id TEXT,
+                biometric_key TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
             "CREATE TABLE IF NOT EXISTS reviews (
@@ -104,6 +106,15 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 expires_at DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE IF NOT EXISTS feedbacks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                name TEXT NOT NULL,
+                email TEXT,
+                rating INTEGER DEFAULT 0,
+                message TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
         ]
         : [
@@ -163,6 +174,8 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 address TEXT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 role VARCHAR(50) DEFAULT 'user',
+                biometric_id VARCHAR(255) NULL,
+                biometric_key TEXT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )",
             "CREATE TABLE IF NOT EXISTS reviews (
@@ -209,6 +222,15 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )",
+            "CREATE TABLE IF NOT EXISTS feedbacks (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NULL,
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NULL,
+                rating TINYINT DEFAULT 0,
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )",
         ];
 
     foreach ($statements as $statement) {
@@ -219,7 +241,7 @@ function ensureBackendSchema(PDO $db, string $driver): void {
         'orders' => ['order_ref', 'total_amount', 'payment_status', 'receipt_path', 'updated_at', 'user_id', 'last_notification_key', 'last_notification_at'],
         'admins' => ['username', 'role'],
         'admin_access_settings' => ['is_enabled', 'access_key', 'expires_at', 'updated_at'],
-        'users' => ['phone', 'address', 'role'],
+        'users' => ['phone', 'address', 'role', 'biometric_id', 'biometric_key'],
     ];
 
     foreach ($columns as $table => $requiredColumns) {
@@ -303,6 +325,12 @@ function addMissingColumn(PDO $db, string $driver, string $table, string $column
         'users.role' => $driver === 'sqlite'
             ? "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'"
             : "ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'user'",
+        'users.biometric_id' => $driver === 'sqlite'
+            ? "ALTER TABLE users ADD COLUMN biometric_id TEXT"
+            : "ALTER TABLE users ADD COLUMN biometric_id VARCHAR(255) NULL",
+        'users.biometric_key' => $driver === 'sqlite'
+            ? "ALTER TABLE users ADD COLUMN biometric_key TEXT"
+            : "ALTER TABLE users ADD COLUMN biometric_key TEXT NULL",
     ];
 
     $key = "$table.$column";

@@ -32,7 +32,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   return (
     <div className="bg-background font-body text-on-surface min-h-screen flex flex-col">
       {/* Top Section (Hero Area) */}
-      <section className="hero-gradient h-[486px] relative flex flex-col items-center justify-start pt-6 overflow-visible">
+      <section className="bg-transparent h-[486px] relative flex flex-col items-center justify-start pt-6 overflow-visible">
         {/* Header Controls */}
         <div className="w-full px-6 flex justify-between items-center z-20">
           <button 
@@ -47,20 +47,22 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         </div>
         {/* Product Image Hero */}
         <div className="relative w-full flex justify-center mt-4 z-10 px-4">
-          <div className="relative w-[85%] max-w-sm aspect-[4/5] rounded-[40px] p-6 bg-white/10 backdrop-blur-sm">
+          <div className="relative w-[85%] max-w-sm aspect-[4/5] rounded-[40px] p-6">
             <ProductImage
               className="custom-shadow rotate-[15deg]"
               alt={product.name}
               src={product.image}
               fill
               priority
+              showBackground={true}
+              blend={true}
             />
           </div>
         </div>
       </section>
 
       {/* Bottom White Card */}
-      <main className="bg-surface-container-lowest rounded-t-[30px] -mt-16 relative z-20 flex-grow px-6 pt-8 pb-32 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      <main className="bg-surface rounded-t-[30px] -mt-16 relative z-20 flex-grow px-6 pt-8 pb-32">
         {/* Category & Badges */}
         <div className="flex justify-between items-center mb-4">
           <span className="font-label text-[12px] uppercase tracking-widest bg-surface-container-high px-4 py-1.5 rounded-full text-on-surface-variant font-bold">

@@ -11,6 +11,7 @@ export interface User {
   id: string;
   name: string;
   username?: string | null;
+  email?: string;
   phone?: string;
   address?: string;
   role: 'user' | 'admin';
@@ -64,4 +65,21 @@ export interface AppState {
   // Hydration
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
+
+  // Notifications
+  notifications: AppNotification[];
+  unreadCount: number;
+  addNotification: (notification: Omit<AppNotification, 'id' | 'read'>) => void;
+  markAsRead: (id: string) => void;
+  clearNotifications: () => void;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  timestamp: string;
+  read: boolean;
+  type: 'order_status' | 'system' | 'promo';
+  link?: string;
 }

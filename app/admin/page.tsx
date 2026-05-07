@@ -50,9 +50,13 @@ export default function AdminDashboard() {
               <span className="material-symbols-outlined">receipt_long</span>
               Orders
             </button>
-            <button className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-3 transition-colors">
+            <button onClick={() => router.push('/admin/products')} className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-3 transition-colors">
               <span className="material-symbols-outlined">inventory_2</span>
               Products
+            </button>
+            <button onClick={() => router.push('/admin/feedbacks')} className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-3 transition-colors">
+              <span className="material-symbols-outlined">rate_review</span>
+              Feedbacks
             </button>
             <button className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-3 transition-colors">
               <span className="material-symbols-outlined">analytics</span>
