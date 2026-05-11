@@ -15,6 +15,7 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   addItem: (item: CartItem) => void;
+  addItems: (items: CartItem[]) => void;
   removeItem: (id: string, size: string) => void;
   updateQuantity: (id: string, size: string, quantity: number) => void;
   clearCart: () => void;
@@ -39,6 +40,28 @@ export const useCartStore = create<CartState>()(
           }
 
           return { items: [...state.items, newItem] };
+        });
+      },
+      addItems: (newItems) => {
+        set((state) => {
+          let updatedItems = [...state.items];
+          
+          newItems.forEach((newItem) => {
+            const existingItemIndex = updatedItems.findIndex(
+              (item) => item.id === newItem.id && item.size === newItem.size
+            );
+
+            if (existingItemIndex > -1) {
+              updatedItems[existingItemIndex] = {
+                ...updatedItems[existingItemIndex],
+                quantity: updatedItems[existingItemIndex].quantity + newItem.quantity,
+              };
+            } else {
+              updatedItems.push(newItem);
+            }
+          });
+
+          return { items: updatedItems };
         });
       },
       removeItem: (id, size) => {

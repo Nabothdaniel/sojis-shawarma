@@ -209,6 +209,7 @@ class OrdersController {
                 $stmt = $this->db->query("SELECT * FROM orders ORDER BY updated_at DESC, created_at DESC");
             }
         } elseif ($currentUser && ($currentUser['type'] ?? 'user') === 'user') {
+            $this->attachGuestOrdersToUser((int) $currentUser['id']);
             if ($status) {
                 $stmt = $this->db->prepare("SELECT * FROM orders WHERE user_id = ? AND status = ? ORDER BY updated_at DESC, created_at DESC");
                 $stmt->execute([$currentUser['id'], $status]);
@@ -328,6 +329,48 @@ class OrdersController {
             'created_at' => $order['created_at'] ?? null,
             'updated_at' => $order['updated_at'] ?? ($order['created_at'] ?? null),
         ];
+    }
+
+    private function normalizePhone(string $phone): string {
+        return preg_replace('/\D+/', '', $phone) ?? '';
+    }
+
+    private function attachGuestOrdersToUser(int $userId): void {
+        if ($userId <= 0) {
+            return;
+        }
+
+        $userStmt = $this->db->prepare("SELECT phone FROM users WHERE id = ? LIMIT 1");
+        $userStmt->execute([$userId]);
+        $user = $userStmt->fetch(PDO::FETCH_ASSOC);
+        $normalizedPhone = $this->normalizePhone((string) ($user['phone'] ?? ''));
+
+        if ($normalizedPhone === '') {
+            return;
+        }
+
+        $stmt = $this->db->prepare("
+            SELECT id, customer_phone
+            FROM orders
+            WHERE (user_id IS NULL OR user_id = 0)
+        ");
+        $stmt->execute();
+
+        $matchingOrderIds = [];
+        while ($order = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            if ($this->normalizePhone((string) ($order['customer_phone'] ?? '')) === $normalizedPhone) {
+                $matchingOrderIds[] = (int) $order['id'];
+            }
+        }
+
+        if ($matchingOrderIds === []) {
+            return;
+        }
+
+        $update = $this->db->prepare("UPDATE orders SET user_id = ? WHERE id = ?");
+        foreach ($matchingOrderIds as $orderId) {
+            $update->execute([$userId, $orderId]);
+        }
     }
 
     private function getReviewedProductIds(int $orderId): array {

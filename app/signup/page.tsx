@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,6 +21,14 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center p-6 font-body text-sm text-outline">Loading signup...</div>}>
+      <SignupPageContent />
+    </Suspense>
+  );
+}
+
+function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setToken } = useAuth();
@@ -40,7 +48,8 @@ export default function SignupPage() {
       setToken(result.token);
       storeLogin({ ...result.user, role: 'user' }, result.token);
       addToast('Account created successfully', 'success');
-      router.push(searchParams.get('redirect') || '/profile');
+      router.replace(searchParams.get('redirect') || '/profile');
+      router.refresh();
     } catch (error: any) {
       addToast(error.message || 'Could not create account', 'error');
     } finally {

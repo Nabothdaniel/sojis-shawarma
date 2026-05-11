@@ -116,6 +116,13 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 message TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )",
+            "CREATE TABLE IF NOT EXISTS favorites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, product_id)
+            )",
         ]
         : [
             "CREATE TABLE IF NOT EXISTS admins (
@@ -230,6 +237,13 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 rating TINYINT DEFAULT 0,
                 message TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )",
+            "CREATE TABLE IF NOT EXISTS favorites (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                product_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_user_product_favorite (user_id, product_id)
             )",
         ];
 

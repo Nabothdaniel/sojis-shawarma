@@ -95,7 +95,42 @@ try {
 
         "settings" => "key_name VARCHAR(255) PRIMARY KEY,
                         value TEXT,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+
+        "users" => "id INT AUTO_INCREMENT PRIMARY KEY, 
+                     name VARCHAR(255) NOT NULL, 
+                     email VARCHAR(255) UNIQUE NOT NULL, 
+                     phone VARCHAR(50) NULL, 
+                     address TEXT NULL, 
+                     password_hash VARCHAR(255) NOT NULL, 
+                     role VARCHAR(50) DEFAULT 'user', 
+                     biometric_id VARCHAR(255) NULL, 
+                     biometric_key TEXT NULL, 
+                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+
+        "reviews" => "id INT AUTO_INCREMENT PRIMARY KEY, 
+                       user_id INT NOT NULL, 
+                       order_id INT NOT NULL, 
+                       product_id VARCHAR(64) NOT NULL, 
+                       product_name VARCHAR(255) NOT NULL, 
+                       rating TINYINT NOT NULL, 
+                       review_text TEXT NULL, 
+                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+
+        "feedbacks" => "id INT AUTO_INCREMENT PRIMARY KEY, 
+                         user_id INT NULL, 
+                         name VARCHAR(255) NOT NULL, 
+                         email VARCHAR(255) NULL, 
+                         rating TINYINT DEFAULT 0, 
+                         message TEXT NOT NULL, 
+                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+
+        "admin_access_settings" => "id INT AUTO_INCREMENT PRIMARY KEY, 
+                                     is_enabled TINYINT(1) DEFAULT 0, 
+                                     access_key VARCHAR(32) NULL, 
+                                     expires_at TIMESTAMP NULL, 
+                                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+                                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
     ];
 
     foreach ($tables as $name => $fields) {
@@ -108,8 +143,18 @@ try {
     $password = 'Admin@123';
     $hash = password_hash($password, PASSWORD_BCRYPT);
     
-    $stmt = $pdo->prepare("INSERT IGNORE INTO admins (email, password_hash, name) VALUES (?, ?, ?)");
-    $stmt->execute([$email, $hash, 'Soji Admin']);
+    $stmt = $pdo->prepare("SELECT id FROM admins WHERE email = ?");
+    $stmt->execute([$email]);
+    if (!$stmt->fetch()) {
+        $stmt = $pdo->prepare("INSERT INTO admins (email, password_hash, name) VALUES (?, ?, ?)");
+        $stmt->execute([$email, $hash, 'Soji Admin']);
+    }
+
+    // Seed Admin settings
+    $stmt = $pdo->query("SELECT id FROM admin_access_settings LIMIT 1");
+    if (!$stmt->fetch()) {
+        $pdo->exec("INSERT INTO admin_access_settings (is_enabled) VALUES (0)");
+    }
 
     echo "\n🚀 SETUP COMPLETE!\n";
     echo "Default Admin: $email\n";

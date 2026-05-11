@@ -11,6 +11,7 @@ const API_URL = getApiUrl();
 
 const apiClient = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
 });
 
 // Helper for simple encryption using Web Crypto API

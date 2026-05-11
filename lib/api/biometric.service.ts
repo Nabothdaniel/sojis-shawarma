@@ -63,5 +63,9 @@ export const biometricService = {
       authenticatorData: btoa(String.fromCharCode(...new Uint8Array(assertion.response.authenticatorData))),
       signature: btoa(String.fromCharCode(...new Uint8Array(assertion.response.signature))),
     });
+  },
+
+  async removeBiometrics() {
+    return apiClient.post('/auth/biometric/remove');
   }
 };

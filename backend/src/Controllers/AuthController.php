@@ -246,6 +246,20 @@ class AuthController {
         // For demo purposes, we trust the device after match of credentialId
         return json_encode($this->issueAuthPayload($user, 'user'));
     }
+    
+    public function removeBiometric() {
+        $token = getBearerToken();
+        $payload = verifyJwt($token);
+        if (!$payload) {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Unauthorized']);
+        }
+
+        $stmt = $this->db->prepare("UPDATE users SET biometric_id = NULL, biometric_key = NULL WHERE id = ?");
+        $stmt->execute([$payload['id']]);
+
+        return json_encode(['status' => 'success', 'message' => 'Biometrics removed successfully']);
+    }
 
     private function issueAuthPayload(array $user, string $userType): array {
         $payload = [

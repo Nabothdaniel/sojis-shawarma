@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
 import { authService, biometricService } from '@/lib/api';
+import useBiometricSupport from '@/hooks/useBiometricSupport';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Email or WhatsApp number is required'),
@@ -18,10 +19,19 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center p-6 font-body text-sm text-outline">Loading login...</div>}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setToken } = useAuth();
   const { login: storeLogin, addToast } = useAppStore();
+  const biometricSupported = useBiometricSupport();
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
   const [isLocked, setIsLocked] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -53,7 +63,8 @@ export default function LoginPage() {
       storeLogin({ ...result.user, role }, result.token);
       addToast('Login successful', 'success');
       const redirectTo = searchParams.get('redirect');
-      router.push(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
+      router.replace(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
+      router.refresh();
     } catch (error: any) {
       const status = error.response?.status;
       const message = error.response?.data?.message || 'Login failed';
@@ -85,7 +96,8 @@ export default function LoginPage() {
       storeLogin({ ...result.user, role }, result.token);
       addToast('Biometric login successful', 'success');
       const redirectTo = searchParams.get('redirect');
-      router.push(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
+      router.replace(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
+      router.refresh();
     } catch (error: any) {
       addToast(error.response?.data?.message || error.message || 'Biometric login failed', 'error');
     } finally {
@@ -158,7 +170,7 @@ export default function LoginPage() {
                 )}
               </button>
               
-              {biometricService.isSupported() && (
+              {biometricSupported && (
                 <button
                   type="button"
                   onClick={handleBiometricLogin}

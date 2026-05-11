@@ -4,6 +4,8 @@ export interface ToastMessage {
   type: 'success' | 'error' | 'info';
 }
 
+export { default as useBiometricSupport } from './useBiometricSupport';
+
 export interface Transaction {
   id: string;
   type: 'credit' | 'debit';
@@ -64,4 +66,3 @@ export interface AppState {
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
 }
-

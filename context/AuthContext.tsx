@@ -17,7 +17,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { token, setToken, logout, isAuthenticated } = useAppStore();
+  const { token, setToken, logout } = useAppStore();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Separate effect for initial token refresh - runs only once
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearInterval(intervalRef.current);
       }
     };
-  }, []); // Empty dependency array - runs only once
+  }, [setToken, token]);
 
   // Separate effect for admin logout on unauthorized access
   useEffect(() => {
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout();
       router.push('/admin/login');
     }
-  }, [pathname]);
+  }, [isLoading, logout, pathname, router, token]);
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({ token, setToken, isLoading }), [token, setToken, isLoading]);

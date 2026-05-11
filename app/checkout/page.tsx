@@ -33,7 +33,7 @@ export default function CheckoutPage() {
   const checkoutSteps: CheckoutStep[] = ['delivery', 'payment', 'receipt'];
   const stepIndex = checkoutSteps.indexOf(currentStep);
   const effectiveToken = token || persistedToken;
-  const isSignedIn = hasHydrated && Boolean(effectiveToken);
+  const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
 
   useEffect(() => {
     setIsMounted(true);
@@ -62,7 +62,7 @@ export default function CheckoutPage() {
         if (effectiveToken && !profileData) {
           try {
             const res: any = await userService.getProfile();
-            const data = res.data?.data || res.data || res;
+            const data = res.data || res;
             if (data && typeof data === 'object') {
               setProfileData(data);
               setFormData(current => ({

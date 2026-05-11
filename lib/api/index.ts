@@ -8,3 +8,4 @@ export * from './catalog.service';
 export * from './review.service';
 export * from './feedback.service';
 export * from './biometric.service';
+export * from './favorites.service';

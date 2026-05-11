@@ -1,19 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
-import { Product } from '@/lib/products';
+import { favoritesService } from '@/lib/api';
+import type { Product } from '@/lib/products';
+import type { MenuProduct } from '@/lib/menu';
 import ProductImage from '@/components/ui/ProductImage';
 
-export default function ProductDetailClient({ product }: { product: Product }) {
+type ProductDetail = Product | MenuProduct;
+
+export default function ProductDetailClient({ product }: { product: ProductDetail }) {
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState('Regular');
-  
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
+
   const addItem = useCartStore((state) => state.addItem);
-  const addToast = useAppStore((state) => state.addToast);
+  const { addToast, user } = useAppStore((state) => ({
+    addToast: state.addToast,
+    user: state.user,
+  }));
 
   const handleAddToCart = () => {
     addItem({
@@ -28,6 +37,64 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   };
 
   const sizes = ['Small', 'Regular', 'Large'];
+  const favoriteProductId = Number('rawId' in product ? product.rawId : product.id);
+  const canFavorite = Number.isFinite(favoriteProductId) && favoriteProductId > 0;
+  const reviewCount = 'reviewCount' in product ? product.reviewCount ?? 0 : 0;
+  const orderCount = 'orderCount' in product ? product.orderCount ?? 0 : 0;
+
+  useEffect(() => {
+    if (!user || !canFavorite) {
+      setIsFavorite(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    favoritesService
+      .getFavorites()
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+
+        const favorites = Array.isArray(response.data) ? response.data : [];
+        setIsFavorite(favorites.some((item) => Number(item.id) === favoriteProductId));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsFavorite(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canFavorite, favoriteProductId, user]);
+
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      addToast('Sign in to save favorites', 'info');
+      router.push('/login');
+      return;
+    }
+
+    if (!canFavorite || favoriteBusy) {
+      return;
+    }
+
+    setFavoriteBusy(true);
+
+    try {
+      const response = await favoritesService.toggleFavorite(favoriteProductId);
+      const added = response.action === 'added';
+      setIsFavorite(added);
+      addToast(added ? 'Added to favorites' : 'Removed from favorites', added ? 'success' : 'info');
+    } catch {
+      addToast('Could not update favorites', 'error');
+    } finally {
+      setFavoriteBusy(false);
+    }
+  };
 
   return (
     <div className="bg-background font-body text-on-surface min-h-screen flex flex-col">
@@ -41,8 +108,18 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           >
             <span className="material-symbols-outlined text-white">arrow_back_ios_new</span>
           </button>
-          <button className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-lg active:scale-90 transition-transform">
-            <span className="material-symbols-outlined text-white">bookmark</span>
+          <button
+            onClick={handleToggleFavorite}
+            disabled={favoriteBusy || !canFavorite}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-lg active:scale-90 transition-transform disabled:opacity-60 disabled:active:scale-100"
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <span
+              className={`material-symbols-outlined ${isFavorite ? 'text-red-200' : 'text-white'}`}
+              style={{ fontVariationSettings: `'FILL' ${isFavorite ? 1 : 0}` }}
+            >
+              favorite
+            </span>
           </button>
         </div>
         {/* Product Image Hero */}
@@ -93,6 +170,15 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             <span className="material-symbols-outlined text-on-surface-variant text-sm">schedule</span>
             <span className="font-label text-sm text-on-surface-variant">{product.prepTime}</span>
           </div>
+          {(reviewCount > 0 || orderCount > 0) && (
+            <>
+              <div className="w-px h-4 bg-outline-variant/30"></div>
+              <div className="flex items-center gap-3 text-[11px] font-label font-bold uppercase tracking-widest text-on-surface-variant">
+                {reviewCount > 0 && <span>{reviewCount} reviews</span>}
+                {orderCount > 0 && <span>{orderCount} orders</span>}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Description */}
