@@ -39,8 +39,17 @@ class ApiKernel
         $className = "{$controllerName}Controller";
         $controller = new $className($this->resolveDatabaseConnection());
 
-        header('Content-Type: application/json');
-        echo call_user_func_array([$controller, $action], $params);
+        $response = call_user_func_array([$controller, $action], $params);
+
+        if ($response === null) {
+            return;
+        }
+
+        if (!$this->hasContentTypeHeader()) {
+            header('Content-Type: application/json');
+        }
+
+        echo $response;
     }
 
     private function resolveDatabaseConnection(): PDO
@@ -51,6 +60,7 @@ class ApiKernel
             ensureBackendSchema($db, $driver);
             return $db;
         } catch (PDOException $exception) {
+            header('HTTP/1.1 500 Internal Server Error');
             header('Content-Type: application/json');
             echo json_encode([
                 'error' => 'Database connection failed',
@@ -58,5 +68,16 @@ class ApiKernel
             ]);
             exit;
         }
+    }
+
+    private function hasContentTypeHeader(): bool
+    {
+        foreach (headers_list() as $header) {
+            if (stripos($header, 'Content-Type:') === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

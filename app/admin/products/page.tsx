@@ -2,14 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
 import { catalogService, type CatalogCategory, type CatalogProduct } from '@/lib/api';
 import { useAppStore } from '@/store/appStore';
+import useAdminGuard from '@/hooks/useAdminGuard';
 
 export default function AdminProductsPage() {
-  const router = useRouter();
-  const { token, isLoading: authLoading } = useAuth();
+  const { token, authLoading, isAdmin } = useAdminGuard();
   const addToast = useAppStore((state) => state.addToast);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -24,35 +22,32 @@ export default function AdminProductsPage() {
     available: true,
   });
 
-  const loadCatalog = async () => {
-    setLoading(true);
-    try {
-      const [categoryResponse, productResponse] = await Promise.all([
-        catalogService.getCategories(),
-        catalogService.getProducts(),
-      ]);
-      setCategories(Array.isArray(categoryResponse) ? categoryResponse : []);
-      setProducts(Array.isArray(productResponse) ? productResponse : []);
-      if (!form.category_id && Array.isArray(categoryResponse) && categoryResponse[0]) {
-        setForm((current) => ({ ...current, category_id: String(categoryResponse[0].id) }));
-      }
-    } catch (error: any) {
-      addToast(error.message || 'Could not load catalog data', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!authLoading && !token) {
-      router.replace('/admin/login');
+    if (!isAdmin) {
       return;
     }
 
-    if (token) {
-      loadCatalog();
-    }
-  }, [token, authLoading, router]);
+    const loadCatalog = async () => {
+      setLoading(true);
+      try {
+        const [categoryResponse, productResponse] = await Promise.all([
+          catalogService.getCategories(),
+          catalogService.getProducts(),
+        ]);
+        setCategories(Array.isArray(categoryResponse) ? categoryResponse : []);
+        setProducts(Array.isArray(productResponse) ? productResponse : []);
+        if (!form.category_id && Array.isArray(categoryResponse) && categoryResponse[0]) {
+          setForm((current) => ({ ...current, category_id: String(categoryResponse[0].id) }));
+        }
+      } catch (error: any) {
+        addToast(error.message || 'Could not load catalog data', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCatalog();
+  }, [addToast, form.category_id, isAdmin]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -85,7 +80,17 @@ export default function AdminProductsPage() {
         available: true,
       });
       setImageFile(null);
-      await loadCatalog();
+      setLoading(true);
+      try {
+        const [categoryResponse, productResponse] = await Promise.all([
+          catalogService.getCategories(),
+          catalogService.getProducts(),
+        ]);
+        setCategories(Array.isArray(categoryResponse) ? categoryResponse : []);
+        setProducts(Array.isArray(productResponse) ? productResponse : []);
+      } finally {
+        setLoading(false);
+      }
     } catch (error: any) {
       addToast(error.message || 'Could not upload product', 'error');
     } finally {
@@ -93,7 +98,7 @@ export default function AdminProductsPage() {
     }
   };
 
-  if (authLoading || !token) {
+  if (authLoading || !isAdmin) {
     return null;
   }
 
@@ -174,4 +179,3 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-

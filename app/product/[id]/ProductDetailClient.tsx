@@ -2,27 +2,30 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCartStore } from '@/store/cartStore';
-import { useAppStore } from '@/store/appStore';
+import { useAddCartItem } from '@/store/cartStore.selectors';
+import { useAddToast, useAppUser } from '@/store/appStore.selectors';
 import { favoritesService } from '@/lib/api';
+import { useServerEvents } from '@/hooks/useServerEvents';
 import type { Product } from '@/lib/products';
 import type { MenuProduct } from '@/lib/menu';
+import type { ProductRatingUpdate } from '@/lib/api';
 import ProductImage from '@/components/ui/ProductImage';
 
 type ProductDetail = Product | MenuProduct;
 
 export default function ProductDetailClient({ product }: { product: ProductDetail }) {
   const router = useRouter();
+  const addItem = useAddCartItem();
+  const addToast = useAddToast();
+  const user = useAppUser();
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState('Regular');
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
-
-  const addItem = useCartStore((state) => state.addItem);
-  const { addToast, user } = useAppStore((state) => ({
-    addToast: state.addToast,
-    user: state.user,
-  }));
+  const [liveRating, setLiveRating] = useState(product.rating);
+  const [liveReviewCount, setLiveReviewCount] = useState(
+    'reviewCount' in product ? product.reviewCount ?? 0 : 0
+  );
 
   const handleAddToCart = () => {
     addItem({
@@ -39,8 +42,30 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
   const sizes = ['Small', 'Regular', 'Large'];
   const favoriteProductId = Number('rawId' in product ? product.rawId : product.id);
   const canFavorite = Number.isFinite(favoriteProductId) && favoriteProductId > 0;
-  const reviewCount = 'reviewCount' in product ? product.reviewCount ?? 0 : 0;
+  const reviewCount = liveReviewCount;
   const orderCount = 'orderCount' in product ? product.orderCount ?? 0 : 0;
+
+  useEffect(() => {
+    setLiveRating(product.rating);
+    setLiveReviewCount('reviewCount' in product ? product.reviewCount ?? 0 : 0);
+  }, [product]);
+
+  useServerEvents(
+    {
+      product_rating_updated: (payload: ProductRatingUpdate) => {
+        const payloadProductId = String(payload.product_id ?? '');
+
+        if (payloadProductId !== String('rawId' in product ? product.rawId : product.id)) {
+          return;
+        }
+
+        const averageRating = Number(payload.average_rating ?? 0);
+        setLiveRating(averageRating > 0 ? averageRating.toFixed(1) : 'New');
+        setLiveReviewCount(Number(payload.review_count ?? 0));
+      },
+    },
+    { enabled: true }
+  );
 
   useEffect(() => {
     if (!user || !canFavorite) {
@@ -163,7 +188,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
         <div className="flex items-center gap-6 mb-8 py-3 bg-surface-container-low/50 rounded-2xl px-4">
           <div className="flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[#F5C518]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-            <span className="font-label font-bold text-sm">{product.rating}</span>
+            <span className="font-label font-bold text-sm">{liveRating}</span>
           </div>
           <div className="w-px h-4 bg-outline-variant/30"></div>
           <div className="flex items-center gap-1.5">

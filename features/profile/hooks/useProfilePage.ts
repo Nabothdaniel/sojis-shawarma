@@ -45,6 +45,7 @@ export function useProfilePage() {
     hasHydrated,
     logout,
     addToast,
+    notifications: appNotifications,
     setUser,
   } = useAppStore();
   const addItems = useCartStore((state) => state.addItems);
@@ -192,22 +193,56 @@ export function useProfilePage() {
     [orders]
   );
 
-  const notifications = useMemo(
-    () =>
-      [...orders]
-        .sort(
-          (a, b) =>
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        )
-        .slice(0, 6)
-        .map((order) => ({
-          ...statusCopy[order.status],
-          id: order.id,
-          orderRef: order.order_ref,
-          timestamp: order.updated_at,
-        })),
-    [orders]
-  );
+  const notifications = useMemo(() => {
+    const derivedNotifications = [...orders]
+      .sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )
+      .slice(0, 6)
+      .map((order) => ({
+        ...statusCopy[order.status],
+        id: order.id,
+        orderRef: order.order_ref,
+        timestamp: order.updated_at,
+        read: true,
+        type: 'order_status' as const,
+        eventKey: `${order.status}:${order.id}:${order.updated_at}`,
+      }));
+
+    const liveNotifications = appNotifications.map((notification) => ({
+      id: notification.orderId ?? notification.id,
+      orderRef: notification.orderRef ?? 'Update',
+      timestamp: notification.timestamp,
+      title: notification.title,
+      body: notification.body,
+      icon: notification.icon || 'notifications',
+      read: notification.read,
+      type: notification.type,
+      eventKey: notification.eventKey,
+    }));
+
+    const merged = [...liveNotifications, ...derivedNotifications];
+    const seen = new Set<string>();
+
+    return merged
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+      .filter((notification) => {
+        const key =
+          notification.eventKey ||
+          `${notification.orderRef}:${notification.title}:${notification.timestamp}`;
+
+        if (seen.has(key)) {
+          return false;
+        }
+
+        seen.add(key);
+        return true;
+      });
+  }, [appNotifications, orders]);
 
   const handleReorder = (order: Order) => {
     const itemsToCart = order.items.map((item) => ({

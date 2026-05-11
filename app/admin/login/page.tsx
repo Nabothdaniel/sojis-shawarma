@@ -55,6 +55,10 @@ function AdminLoginPageContent() {
   useEffect(() => {
     const run = async () => {
       try {
+        if (searchParams.get('expired') === 'true') {
+          addToast('Your admin session expired. Please sign in again.', 'info');
+        }
+
         const access = searchParams.get('access') || undefined;
         const result: any = await authService.getAdminAccessStatus(access);
         setAccessStatus(result.data ?? null);
@@ -74,9 +78,18 @@ function AdminLoginPageContent() {
 
     try {
       const result: any = await authService.login(data);
-      if (result.user?.role !== 'admin') {
-        throw new Error('This login is reserved for admins');
+      if (!result?.token || !result?.user) {
+        throw Object.assign(new Error(result?.message || result?.error || 'Login service is unavailable right now'), {
+          status: 500,
+        });
       }
+
+      if (result.user?.role !== 'admin') {
+        throw Object.assign(new Error('This login is reserved for admins'), {
+          status: 403,
+        });
+      }
+
       setToken(result.token);
       storeLogin({ ...result.user, role: 'admin' }, result.token);
       addToast('Login successful', 'success');
@@ -86,7 +99,7 @@ function AdminLoginPageContent() {
         setIsLocked(true);
         setCountdown(15 * 60);
         addToast('Too many attempts. Locked for 15 mins.', 'error');
-      } else {
+      } else if (err.status === 401 || err.status === 403) {
         const remaining = attemptsRemaining - 1;
         setAttemptsRemaining(remaining);
         addToast(`${err.message || 'Invalid credentials'}. ${remaining} attempts left.`, 'error');
@@ -94,6 +107,8 @@ function AdminLoginPageContent() {
           setIsLocked(true);
           setCountdown(15 * 60);
         }
+      } else {
+        addToast(err.message || 'Admin login is temporarily unavailable. Check the backend and database connection.', 'error');
       }
     } finally {
       setIsLoading(false);

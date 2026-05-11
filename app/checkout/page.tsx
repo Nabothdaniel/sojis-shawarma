@@ -7,22 +7,67 @@ import { useAppStore } from '@/store/appStore';
 import { useMutation } from '@tanstack/react-query';
 import { orderService, userService } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import type { Order } from '@/lib/api';
 
 type CheckoutStep = 'delivery' | 'payment' | 'receipt' | 'success';
+type ProfileData = {
+  id?: string | number;
+  name?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  email?: string | null;
+};
+
+function mergeDeliveryDetails(
+  current: {
+    name: string;
+    phone: string;
+    address: string;
+    note: string;
+  },
+  sources: Array<{
+    name?: string | null;
+    phone?: string | null;
+    address?: string | null;
+  } | null | undefined>
+) {
+  const next = { ...current };
+
+  for (const source of sources) {
+    if (!source) {
+      continue;
+    }
+
+    if (!next.name && source.name) {
+      next.name = source.name;
+    }
+
+    if (!next.phone && source.phone) {
+      next.phone = source.phone;
+    }
+
+    if (!next.address && source.address) {
+      next.address = source.address;
+    }
+  }
+
+  return next;
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { token, isLoading: authLoading } = useAuth();
   const { user, token: persistedToken, hasHydrated } = useAppStore();
   const { items, totalPrice, clearCart } = useCartStore();
-  const { addToast } = useAppStore();
+  const { addToast, setUser } = useAppStore();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('delivery');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
-  const [profileData, setProfileData] = useState<any>(null);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [orderRef, setOrderRef] = useState('');
   const [isMounted, setIsMounted] = useState(false);
+  const [hasAttemptedAutofill, setHasAttemptedAutofill] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -32,6 +77,7 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const checkoutSteps: CheckoutStep[] = ['delivery', 'payment', 'receipt'];
   const stepIndex = checkoutSteps.indexOf(currentStep);
+  const progressStepIndex = currentStep === 'success' ? checkoutSteps.length - 1 : stepIndex;
   const effectiveToken = token || persistedToken;
   const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
 
@@ -47,46 +93,112 @@ export default function CheckoutPage() {
   }, [authLoading, hasHydrated, isSignedIn, addToast, router]);
 
   useEffect(() => {
-    const checkProfile = async () => {
-      // If we are signed in but missing form data, try to fetch/refill
-      if (isSignedIn) {
-        // First, fill from what we have in the local store immediately
-        setFormData(current => ({
-          ...current,
-          name: current.name || user?.name || '',
-          phone: current.phone || user?.phone || '',
-          address: current.address || user?.address || ''
-        }));
+    if (!hasHydrated || !isSignedIn) {
+      return;
+    }
 
-        // Then try to get the freshest data from the profile API
-        if (effectiveToken && !profileData) {
-          try {
-            const res: any = await userService.getProfile();
-            const data = res.data || res;
-            if (data && typeof data === 'object') {
-              setProfileData(data);
-              setFormData(current => ({
-                ...current,
-                name: data.name || current.name || user?.name || '',
-                phone: data.phone || current.phone || user?.phone || '',
-                address: data.address || current.address || user?.address || ''
-              }));
+    setFormData((current) => mergeDeliveryDetails(current, [user, profileData]));
+  }, [hasHydrated, isSignedIn, profileData, user]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isSignedIn || !effectiveToken || hasAttemptedAutofill) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateDeliveryDetails = async () => {
+      setHasAttemptedAutofill(true);
+
+      try {
+        const [profileResponse, ordersResponse] = await Promise.allSettled([
+          userService.getProfile(),
+          orderService.getAllOrders(),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        let fetchedProfile: ProfileData | null = null;
+        let latestOrder: Order | null = null;
+
+        if (profileResponse.status === 'fulfilled') {
+          const data = profileResponse.value?.data ?? profileResponse.value;
+          if (data && typeof data === 'object') {
+            fetchedProfile = data as ProfileData;
+            setProfileData(fetchedProfile);
+
+            if (fetchedProfile.name) {
+              setUser({
+                id: String(fetchedProfile.id ?? user?.id ?? ''),
+                name: String(fetchedProfile.name),
+                username: user?.username ?? null,
+                email:
+                  typeof fetchedProfile.email === 'string'
+                    ? fetchedProfile.email
+                    : user?.email,
+                phone:
+                  typeof fetchedProfile.phone === 'string'
+                    ? fetchedProfile.phone
+                    : user?.phone,
+                address:
+                  typeof fetchedProfile.address === 'string'
+                    ? fetchedProfile.address
+                    : user?.address,
+                role: user?.role ?? 'user',
+                balance: user?.balance,
+              });
             }
-          } catch (e) {
-            console.error('Auto-fill fetch failed', e);
           }
+        }
+
+        if (ordersResponse.status === 'fulfilled') {
+          const orders = Array.isArray(ordersResponse.value?.data)
+            ? ordersResponse.value.data
+            : [];
+          latestOrder = orders[0] ?? null;
+        }
+
+        setFormData((current) =>
+          mergeDeliveryDetails(current, [
+            user,
+            fetchedProfile,
+            latestOrder
+              ? {
+                  name: latestOrder.customer_name,
+                  phone: latestOrder.customer_phone,
+                  address: latestOrder.delivery_address,
+                }
+              : null,
+          ])
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Auto-fill fetch failed', error);
         }
       }
     };
-    if (hasHydrated) checkProfile();
-  }, [user, effectiveToken, profileData, isSignedIn, hasHydrated]);
+
+    hydrateDeliveryDetails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveToken, hasAttemptedAutofill, hasHydrated, isSignedIn, setUser, user]);
 
   const subtotal = totalPrice();
 
   const { mutate: placeOrder, isPending: isLoading } = useMutation({
     mutationFn: (orderData: any) => orderService.createOrder(orderData),
     onSuccess: (response: any) => {
-      const result = response.data;
+      const result = response?.data ?? response;
+
+      if (!result?.id || !result?.order_ref) {
+        addToast('Order was created, but the response was incomplete', 'error');
+        return;
+      }
+
       setOrderId(result.id);
       setOrderRef(result.order_ref);
       setCurrentStep('payment');
@@ -211,9 +323,9 @@ export default function CheckoutPage() {
       <main className="flex-1 px-6 space-y-8 max-w-md mx-auto w-full">
         {/* Progress indicator */}
         <div className="flex gap-2 h-1.5 w-full">
-          <div className={`flex-1 rounded-full ${stepIndex >= 0 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
-          <div className={`flex-1 rounded-full ${stepIndex >= 1 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
-          <div className={`flex-1 rounded-full ${stepIndex >= 2 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
+          <div className={`flex-1 rounded-full ${progressStepIndex >= 0 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
+          <div className={`flex-1 rounded-full ${progressStepIndex >= 1 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
+          <div className={`flex-1 rounded-full ${progressStepIndex >= 2 ? 'bg-primary-container' : 'bg-outline-variant/30'}`}></div>
         </div>
 
         {/* STEP 1: Delivery Details */}

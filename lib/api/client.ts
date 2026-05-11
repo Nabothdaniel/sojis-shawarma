@@ -9,6 +9,14 @@ const getApiUrl = () => {
 
 const API_URL = getApiUrl();
 
+const normalizePathname = (pathname: string) => {
+  if (!pathname || pathname === '/') {
+    return '/';
+  }
+
+  return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+};
+
 const apiClient = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -131,12 +139,16 @@ apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
     // Check if we are on a route that requires authentication
+    const pathname = normalizePathname(
+      typeof window !== 'undefined' ? window.location.pathname : ''
+    );
+    const isAdminRoute = pathname.startsWith('/admin');
     const isPublicRoute = typeof window !== 'undefined' &&
-      (window.location.pathname === '/login' ||
-        window.location.pathname === '/signup' ||
-        window.location.pathname === '/register' ||
-        window.location.pathname === '/admin/login' ||
-        window.location.pathname === '/');
+      (pathname === '/login' ||
+        pathname === '/signup' ||
+        pathname === '/register' ||
+        pathname === '/admin/login' ||
+        pathname === '/');
 
     // Auto-logout on 401 (expired/invalid JWT)
     if (error.response?.status === 401 && typeof window !== 'undefined' && !isPublicRoute) {
@@ -151,8 +163,8 @@ apiClient.interceptors.response.use(
           try { sessionStorage.removeItem(k); } catch { }
         });
 
-        // Hard redirect to login — use replace so back button won't return to dashboard
-        window.location.replace('/login?expired=true');
+        // Hard redirect to the appropriate login so back button won't return to a protected page
+        window.location.replace(isAdminRoute ? '/admin/login?expired=true' : '/login?expired=true');
       }
 
       return Promise.reject(new Error('Session expired. Please log in again.'));

@@ -7,7 +7,11 @@ export default function ToastContainer() {
   const { toasts, removeToast } = useAppStore();
 
   return (
-    <div className="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+    <div
+      className="fixed inset-x-0 top-4 flex pointer-events-none px-4 sm:top-6 sm:justify-end sm:px-6"
+      style={{ zIndex: 2147483647 }}
+    >
+      <div className="flex w-full max-w-md flex-col gap-3 sm:w-auto">
       {toasts.map((toast) => (
         <div 
           key={toast.id}
@@ -30,6 +34,7 @@ export default function ToastContainer() {
           </button>
         </div>
       ))}
+      </div>
     </div>
   );
 }

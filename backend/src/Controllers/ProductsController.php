@@ -25,13 +25,16 @@ class ProductsController {
                 continue;
             }
 
+            $countedProductIds = [];
+
             foreach ($items as $item) {
                 $productId = (string) ($item['id'] ?? '');
-                if ($productId === '') {
+                if ($productId === '' || isset($countedProductIds[$productId])) {
                     continue;
                 }
 
-                $orderStats[$productId] = ($orderStats[$productId] ?? 0) + (int) ($item['quantity'] ?? 1);
+                $countedProductIds[$productId] = true;
+                $orderStats[$productId] = ($orderStats[$productId] ?? 0) + 1;
             }
         }
 

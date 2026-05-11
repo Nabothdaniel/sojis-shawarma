@@ -13,6 +13,13 @@ export interface ProductReview {
   created_at: string;
 }
 
+export interface ProductRatingUpdate {
+  product_id: string;
+  product_name: string;
+  average_rating: number;
+  review_count: number;
+}
+
 export const reviewService = {
   createReview: (payload: {
     order_id: number;
@@ -22,4 +29,3 @@ export const reviewService = {
   }) => apiClient.post('/reviews', payload),
   getAllReviews: (): Promise<{ status: string; data: ProductReview[] }> => apiClient.get('/reviews'),
 };
-

@@ -7,8 +7,8 @@ require_once __DIR__ . '/../src/Support/Env.php';
 require_once __DIR__ . '/../src/Config/cors.php';
 require_once __DIR__ . '/../src/Http/ApiKernel.php';
 
-applyCorsHeaders();
 loadEnv(__DIR__ . '/../.env');
+applyCorsHeaders();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header("HTTP/1.1 200 OK");

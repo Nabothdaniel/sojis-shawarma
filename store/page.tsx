@@ -37,7 +37,13 @@ export default function CheckoutPage() {
   const { mutate: placeOrder, isPending: isLoading } = useMutation({
     mutationFn: (orderData: any) => orderService.createOrder(orderData),
     onSuccess: (response: any) => {
-      const result = response.data;
+      const result = response?.data ?? response;
+
+      if (!result?.id || !result?.order_ref) {
+        addToast('Order was created, but the response was incomplete', 'error');
+        return;
+      }
+
       setOrderId(result.id);
       setOrderRef(result.order_ref);
       setCurrentStep('payment');

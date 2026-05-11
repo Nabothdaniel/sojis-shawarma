@@ -30,9 +30,10 @@ const formatDate = (value: string) =>
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { token, user, isAuthenticated, hasHydrated, addToast } = useAppStore();
+  const { isAuthenticated, hasHydrated, addToast } = useAppStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
@@ -78,12 +79,38 @@ export default function OrdersPage() {
       </header>
 
       <main className="px-6 py-6 space-y-8 max-w-md mx-auto w-full">
-        {/* Active Orders Section */}
+        <section className="flex gap-2 overflow-x-auto no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setActiveTab('active')}
+            className={`flex-1 rounded-full px-4 py-3 text-xs font-label font-bold uppercase tracking-widest transition-colors ${
+              activeTab === 'active'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-low text-outline'
+            }`}
+          >
+            Active Orders ({activeOrders.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 rounded-full px-4 py-3 text-xs font-label font-bold uppercase tracking-widest transition-colors ${
+              activeTab === 'history'
+                ? 'bg-on-surface text-surface'
+                : 'bg-surface-container-low text-outline'
+            }`}
+          >
+            Order History ({historyOrders.length})
+          </button>
+        </section>
+
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-headline font-bold text-lg">Active Tracking</h2>
+            <h2 className="font-headline font-bold text-lg">
+              {activeTab === 'active' ? 'Active Tracking' : 'Past Delights'}
+            </h2>
             <span className="bg-primary-container text-on-primary-container px-3 py-1 rounded-full text-[10px] font-bold uppercase">
-              {activeOrders.length} Running
+              {activeTab === 'active' ? `${activeOrders.length} Running` : `${historyOrders.length} Saved`}
             </span>
           </div>
 
@@ -93,7 +120,7 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {!loading && activeOrders.length === 0 && (
+          {!loading && activeTab === 'active' && activeOrders.length === 0 && (
             <div className="bg-surface-container-low rounded-3xl p-8 text-center space-y-3">
               <div className="w-16 h-16 bg-surface-container-high rounded-full flex items-center justify-center mx-auto mb-2">
                 <span className="material-symbols-outlined text-outline/30 text-3xl">delivery_truck_speed</span>
@@ -106,7 +133,7 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {activeOrders.map((order) => (
+          {activeTab === 'active' && activeOrders.map((order) => (
             <Link key={order.id} href={`/orders/${order.id}`} className="block bg-surface-container-low rounded-[32px] p-6 space-y-4 border border-outline-variant/5 shadow-sm active:scale-[0.98] transition-transform">
               <div className="flex justify-between items-start">
                 <div>
@@ -131,30 +158,31 @@ export default function OrdersPage() {
               </div>
             </Link>
           ))}
-        </section>
 
-        {/* Order History Section */}
-        {historyOrders.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="font-headline font-bold text-lg">Past Delights</h2>
-            <div className="space-y-3">
-              {historyOrders.map((order) => (
-                <div key={order.id} className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 flex justify-between items-center">
-                  <div>
-                    <p className="font-body font-bold text-sm">{order.order_ref}</p>
-                    <p className="font-body text-[10px] text-outline">{formatDate(order.updated_at)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-label font-bold text-sm mb-1">{formatCurrency(order.total_amount)}</p>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusTone[order.status]}`}>
-                      {order.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+          {!loading && activeTab === 'history' && historyOrders.length === 0 && (
+            <div className="bg-surface-container-low rounded-3xl p-8 text-center space-y-3">
+              <p className="font-headline font-bold text-base">No past orders yet</p>
+              <p className="font-body text-xs text-outline">
+                Delivered and cancelled orders will show up here after your first checkout.
+              </p>
             </div>
-          </section>
-        )}
+          )}
+
+          {activeTab === 'history' && historyOrders.map((order) => (
+            <div key={order.id} className="bg-surface-container-lowest border border-outline-variant/20 rounded-2xl p-4 flex justify-between items-center">
+              <div>
+                <p className="font-body font-bold text-sm">{order.order_ref}</p>
+                <p className="font-body text-[10px] text-outline">{formatDate(order.updated_at)}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-label font-bold text-sm mb-1">{formatCurrency(order.total_amount)}</p>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusTone[order.status]}`}>
+                  {order.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </section>
       </main>
 
       <BottomNav active="orders" />

@@ -1,46 +1,50 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
 import { analyticsService, AnalyticsData } from '@/lib/api';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell 
 } from 'recharts';
+import useAdminGuard from '@/hooks/useAdminGuard';
 
 export default function AnalyticsPage() {
-  const router = useRouter();
-  const { token, isLoading: authLoading } = useAuth();
+  const { token, authLoading, isAdmin } = useAdminGuard();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = async () => {
-    if (!token) return;
-
-    try {
-      const response = await analyticsService.getSummary();
-      setData(response.data);
-    } catch (err) {
-      console.error('Failed to fetch analytics');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!authLoading && !token) {
-      router.push('/admin/login');
+    if (!isAdmin || !token) {
       return;
     }
-    if (token) {
-      fetchData();
-      const interval = setInterval(fetchData, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [token, authLoading, router]);
 
-  if (isLoading || authLoading) return <div className="p-10 font-headline font-bold">Loading Insights...</div>;
+    let active = true;
+
+    const fetchData = async () => {
+      try {
+        const response = await analyticsService.getSummary();
+        if (active) {
+          setData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch analytics');
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 60000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [isAdmin, token]);
+
+  if (isLoading || authLoading || !isAdmin) return <div className="p-10 font-headline font-bold">Loading Insights...</div>;
 
   if (!data) return <div className="p-10 font-headline font-bold">No data available</div>;
 

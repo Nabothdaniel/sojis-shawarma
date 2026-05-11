@@ -26,6 +26,7 @@ return [
     ],
     'GET' => [
         '/' => 'Orders@health',
+        '/events/stream' => 'Events@stream',
         '/products' => 'Products@getAll',
         '/categories' => 'Categories@getAll',
         '/orders' => 'Orders@getAll',

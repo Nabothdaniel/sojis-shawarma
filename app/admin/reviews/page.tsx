@@ -2,24 +2,33 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
 import { reviewService, type ProductReview } from '@/lib/api';
+import { useServerEvents } from '@/hooks/useServerEvents';
 import { useAppStore } from '@/store/appStore';
+import useAdminGuard from '@/hooks/useAdminGuard';
 
 export default function AdminReviewsPage() {
-  const router = useRouter();
-  const { token, isLoading: authLoading } = useAuth();
+  const { token, authLoading, isAdmin } = useAdminGuard();
   const addToast = useAppStore((state) => state.addToast);
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!authLoading && !token) {
-      router.replace('/admin/login');
-      return;
-    }
+  useServerEvents(
+    {
+      review_created: (payload: ProductReview) => {
+        setReviews((current) => {
+          if (current.some((review) => review.id === payload.id)) {
+            return current;
+          }
 
+          return [payload, ...current];
+        });
+      },
+    },
+    { enabled: isAdmin, token }
+  );
+
+  useEffect(() => {
     const loadReviews = async () => {
       setLoading(true);
       try {
@@ -32,12 +41,12 @@ export default function AdminReviewsPage() {
       }
     };
 
-    if (token) {
+    if (isAdmin) {
       loadReviews();
     }
-  }, [token, authLoading, router, addToast]);
+  }, [addToast, isAdmin]);
 
-  if (authLoading || !token) {
+  if (authLoading || !isAdmin) {
     return null;
   }
 
@@ -95,4 +104,3 @@ export default function AdminReviewsPage() {
     </div>
   );
 }
-

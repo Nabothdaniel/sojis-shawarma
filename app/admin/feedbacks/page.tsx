@@ -3,24 +3,43 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import { useQuery } from '@tanstack/react-query';
-import { feedbackService } from '@/lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { feedbackService, type FeedbackItem } from '@/lib/api';
+import { useServerEvents } from '@/hooks/useServerEvents';
+import useAdminGuard from '@/hooks/useAdminGuard';
 
 export default function AdminFeedbacks() {
   const router = useRouter();
-  const { isAuthenticated, user, logout } = useAppStore();
+  const queryClient = useQueryClient();
+  const { token, authLoading, isAdmin } = useAdminGuard();
+  const logout = useAppStore((state) => state.logout);
   
-  const { data: feedbacks, isLoading } = useQuery<any[]>({
+  const { data: feedbacks, isLoading } = useQuery<FeedbackItem[]>({
     queryKey: ['feedbacks'],
     queryFn: async () => {
       const response: any = await feedbackService.getAllFeedbacks();
       return response.data || [];
     },
-    enabled: isAuthenticated && user?.role === 'admin',
+    enabled: isAdmin,
     initialData: [],
   });
 
-  if (isLoading) return <div className="p-10">Loading Feedbacks...</div>;
+  useServerEvents(
+    {
+      feedback_created: (payload: FeedbackItem) => {
+        queryClient.setQueryData<FeedbackItem[]>(['feedbacks'], (current = []) => {
+          if (current.some((feedback) => feedback.id === payload.id)) {
+            return current;
+          }
+
+          return [payload, ...current];
+        });
+      },
+    },
+    { enabled: isAdmin, token }
+  );
+
+  if (authLoading || !isAdmin || isLoading) return <div className="p-10">Loading Feedbacks...</div>;
 
   return (
     <div className="bg-surface min-h-screen flex flex-col md:flex-row">
@@ -34,7 +53,7 @@ export default function AdminFeedbacks() {
             <h1 className="font-headline font-bold text-xl">Soji Admin</h1>
           </div>
           <nav className="space-y-2">
-            <button onClick={() => router.push('/admin')} className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-3 transition-colors">
+            <button onClick={() => router.push('/admin/dashboard')} className="w-full text-left px-4 py-3 hover:bg-white/5 rounded-xl flex items-center gap-3 transition-colors">
               <span className="material-symbols-outlined">receipt_long</span>
               Orders
             </button>

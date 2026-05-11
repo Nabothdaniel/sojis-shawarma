@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Support/Auth.php';
+require_once __DIR__ . '/../Support/EventStream.php';
 
 class OrdersController {
     private $db;
@@ -82,6 +83,17 @@ class OrdersController {
 
             $update = $this->db->prepare("UPDATE orders SET order_ref = ? WHERE id = ?");
             $update->execute([$orderRef, $orderId]);
+
+            $freshOrder = $this->getOrderRecord($orderId);
+            if ($freshOrder) {
+                $this->publishOrderEvent(
+                    'order_created',
+                    $freshOrder,
+                    [
+                        'message' => 'Your order has been received and is awaiting payment review.',
+                    ]
+                );
+            }
 
             $this->incrementSessionOrderCount($data['session_id'] ?? null);
             $this->sendTelegramNotification($orderRef, [
@@ -182,6 +194,13 @@ class OrdersController {
             $customerName = (string) ($freshOrder['customer_name'] ?? 'Customer');
             $orderRef = (string) ($freshOrder['order_ref'] ?? sprintf('SJI-%s-%04d', date('Ymd'), $id));
             $customerPhone = (string) ($freshOrder['customer_phone'] ?? '');
+            $this->publishOrderEvent(
+                'payment_receipt_submitted',
+                $freshOrder,
+                [
+                    'message' => 'Your transfer receipt has been received and is being reviewed.',
+                ]
+            );
             $this->sendOrderWhatsAppNotification(
                 (int) $id,
                 'payment_submitted',
@@ -295,6 +314,13 @@ class OrdersController {
 
         $order = $this->getOrderRecord((int) $id);
         if ($order) {
+            $this->publishOrderEvent(
+                'order_status_changed',
+                $order,
+                [
+                    'message' => $this->getStatusNotificationCopy($status),
+                ]
+            );
             $this->notifyUserForStatusChange($order, $status);
         }
 
@@ -418,6 +444,53 @@ class OrdersController {
         }
 
         $this->sendOrderWhatsAppNotification($orderId, "status_{$status}", $customerPhone, $messages[$status]);
+    }
+
+    private function publishOrderEvent(string $type, array $order, array $extraPayload = []): void {
+        $visibility = $this->getOrderVisibility($order);
+        if ($visibility === null) {
+            return;
+        }
+
+        $payload = array_merge(
+            [
+                'id' => (int) ($order['id'] ?? 0),
+                'user_id' => isset($order['user_id']) ? (int) $order['user_id'] : null,
+                'order_ref' => (string) ($order['order_ref'] ?? ''),
+                'status' => (string) ($order['status'] ?? 'pending'),
+                'payment_status' => (string) ($order['payment_status'] ?? 'pending'),
+                'updated_at' => (string) ($order['updated_at'] ?? gmdate('c')),
+                'event_key' => sprintf(
+                    '%s:%s:%s',
+                    $type,
+                    (string) ($order['id'] ?? '0'),
+                    (string) ($order['updated_at'] ?? gmdate('c'))
+                ),
+            ],
+            $extraPayload
+        );
+
+        publishEvent($type, $payload, $visibility);
+    }
+
+    private function getOrderVisibility(array $order): ?string {
+        $userId = isset($order['user_id']) ? (int) $order['user_id'] : 0;
+        if ($userId <= 0) {
+            return null;
+        }
+
+        return sprintf('user:%d', $userId);
+    }
+
+    private function getStatusNotificationCopy(string $status): string {
+        return match ($status) {
+            'confirmed' => 'Your payment has been confirmed and the kitchen queue is locked in.',
+            'preparing' => 'Your shawarma is now being prepared.',
+            'dispatched' => 'Your rider is on the way with your order.',
+            'delivered' => 'Your order has been marked as delivered.',
+            'cancelled' => 'Your order was cancelled. Contact support if this looks wrong.',
+            default => sprintf('Your order status is now %s.', $status),
+        };
     }
 
     private function sendOrderWhatsAppNotification(int $orderId, string $notificationKey, string $phone, string $message): void {

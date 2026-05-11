@@ -8,6 +8,7 @@ import axiosInstance from '@/lib/axios';
 interface AuthContextType {
   token: string | null;
   isLoading: boolean;
+  setToken: (token: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,18 +48,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearInterval(intervalRef.current);
       }
     };
-  }, []); // Empty dependency array - runs only once
+  }, [setToken]);
 
   // Separate effect for admin logout on unauthorized access
   useEffect(() => {
     if (pathname.startsWith('/admin') && token === null && !isLoading) {
       logout();
-      router.push('/login');
+      router.replace('/admin/login');
     }
-  }, [pathname]);
+  }, [isLoading, logout, pathname, router, token]);
 
   // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({ token, isLoading }), [token, isLoading]);
+  const contextValue = useMemo(
+    () => ({ token, isLoading, setToken }),
+    [token, isLoading, setToken]
+  );
 
   return (
     <AuthContext.Provider value={contextValue}>

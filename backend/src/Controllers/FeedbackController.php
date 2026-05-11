@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Support/Auth.php';
+require_once __DIR__ . '/../Support/EventStream.php';
 
 class FeedbackController {
     private $db;
@@ -39,10 +40,18 @@ class FeedbackController {
             $message
         ]);
 
+        $feedbackId = (int) $this->db->lastInsertId();
+        $feedback = $this->fetchFeedbackById($feedbackId);
+
+        if ($feedback !== null) {
+            publishEvent('feedback_created', $feedback, 'admin');
+        }
+
         header("HTTP/1.1 201 Created");
         return json_encode([
             'status' => 'success',
-            'message' => 'Feedback submitted successfully'
+            'message' => 'Feedback submitted successfully',
+            'data' => $feedback,
         ]);
     }
 
@@ -64,5 +73,14 @@ class FeedbackController {
         $token = getBearerToken();
         $payload = $token ? verifyJwt($token) : false;
         return $payload ?: null;
+    }
+
+    private function fetchFeedbackById(int $feedbackId): ?array
+    {
+        $stmt = $this->db->prepare("SELECT * FROM feedbacks WHERE id = ? LIMIT 1");
+        $stmt->execute([$feedbackId]);
+        $feedback = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $feedback ?: null;
     }
 }

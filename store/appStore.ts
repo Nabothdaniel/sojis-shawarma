@@ -105,7 +105,10 @@ export const useAppStore = create<AppState>()(
       addNotification: (notification) => set((state) => {
         const id = crypto.randomUUID();
         const newNotif = { ...notification, id, read: false };
-        const newList = [newNotif, ...state.notifications].slice(0, 50);
+        const deduped = notification.eventKey
+          ? state.notifications.filter((item) => item.eventKey !== notification.eventKey)
+          : state.notifications;
+        const newList = [newNotif, ...deduped].slice(0, 50);
         return {
           notifications: newList,
           unreadCount: newList.filter(n => !n.read).length

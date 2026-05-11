@@ -37,7 +37,8 @@ export const catalogService = {
     apiClient.post('/categories', payload),
   updateCategory: (id: number, payload: { name: string; image_url?: string; active?: number }) =>
     apiClient.put(`/categories/${id}`, payload),
-  getProducts: (): Promise<CatalogProduct[]> => apiClient.get('/products'),
+  getProducts: (options?: { signal?: AbortSignal }): Promise<CatalogProduct[]> =>
+    apiClient.get('/products', { signal: options?.signal }),
   createProduct: (payload: {
     category_id: number;
     name: string;

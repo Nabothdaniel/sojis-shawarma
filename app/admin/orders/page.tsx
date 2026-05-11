@@ -1,41 +1,45 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
 import { orderService, Order, OrderItem } from '@/lib/api';
+import useAdminGuard from '@/hooks/useAdminGuard';
 
 export default function AdminOrders() {
-  const router = useRouter();
-  const { token, isLoading: authLoading } = useAuth();
+  const { token, authLoading, isAdmin } = useAdminGuard();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchOrders = async () => {
-    if (!token) return;
-
-    setLoading(true);
-    try {
-      const response = await orderService.getAllOrders(filter === 'all' ? undefined : filter);
-      setOrders(response.data || []);
-    } catch (err) {
-      console.error('Fetch orders failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!authLoading && !token) router.push('/admin/login');
-    if (token) fetchOrders();
-  }, [token, filter, authLoading]);
+    if (!isAdmin || !token) {
+      return;
+    }
+
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const response = await orderService.getAllOrders(filter === 'all' ? undefined : filter);
+        setOrders(response.data || []);
+      } catch (err) {
+        console.error('Fetch orders failed');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [filter, isAdmin, token]);
+
+  if (authLoading || !isAdmin) {
+    return null;
+  }
 
   const updateStatus = async (id: number, status: string) => {
     try {
       await orderService.updateOrderStatus(id, status);
-      fetchOrders(); // Refresh the list
+      const response = await orderService.getAllOrders(filter === 'all' ? undefined : filter);
+      setOrders(response.data || []);
       setSelectedOrder(null);
     } catch (err) {
       console.error('Update status failed');

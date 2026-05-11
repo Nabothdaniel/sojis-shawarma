@@ -82,4 +82,8 @@ export interface AppNotification {
   read: boolean;
   type: 'order_status' | 'system' | 'promo';
   link?: string;
+  icon?: string;
+  orderRef?: string;
+  orderId?: number;
+  eventKey?: string;
 }

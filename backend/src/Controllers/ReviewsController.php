@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Support/Auth.php';
+require_once __DIR__ . '/../Support/EventStream.php';
 
 class ReviewsController {
     private $db;
@@ -74,8 +75,30 @@ class ReviewsController {
             return json_encode(['message' => 'You have already reviewed this item from this order']);
         }
 
+        $reviewId = (int) $this->db->lastInsertId();
+        $review = $this->fetchReviewById($reviewId);
+        $summary = $this->getProductRatingSummary($productId);
+
+        if ($review !== null) {
+            publishEvent('review_created', $review, 'admin');
+        }
+
+        publishEvent('product_rating_updated', [
+            'product_id' => $productId,
+            'product_name' => $matchedItem['name'] ?? 'Product',
+            'average_rating' => $summary['average_rating'],
+            'review_count' => $summary['review_count'],
+        ], 'public');
+
         header("HTTP/1.1 201 Created");
-        return json_encode(['status' => 'success', 'message' => 'Review submitted']);
+        return json_encode([
+            'status' => 'success',
+            'message' => 'Review submitted',
+            'data' => [
+                'review' => $review,
+                'summary' => $summary,
+            ],
+        ]);
     }
 
     public function getAll() {
@@ -102,5 +125,37 @@ class ReviewsController {
         $token = getBearerToken();
         $payload = $token ? verifyJwt($token) : false;
         return $payload ?: null;
+    }
+
+    private function fetchReviewById(int $reviewId): ?array
+    {
+        $stmt = $this->db->prepare("
+            SELECT r.*, u.name AS user_name, u.email AS user_email
+            FROM reviews r
+            LEFT JOIN users u ON u.id = r.user_id
+            WHERE r.id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$reviewId]);
+        $review = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $review ?: null;
+    }
+
+    private function getProductRatingSummary(string $productId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT COUNT(*) AS review_count, ROUND(AVG(rating), 1) AS average_rating
+            FROM reviews
+            WHERE product_id = ?
+        ");
+        $stmt->execute([$productId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        return [
+            'product_id' => $productId,
+            'review_count' => (int) ($row['review_count'] ?? 0),
+            'average_rating' => round((float) ($row['average_rating'] ?? 0), 1),
+        ];
     }
 }
