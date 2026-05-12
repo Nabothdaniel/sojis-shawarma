@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { feedbackService, type FeedbackItem } from '@/lib/api';
 import { useServerEvents } from '@/hooks/useServerEvents';
 import useAdminGuard from '@/hooks/useAdminGuard';
+import { AdminSidebarPageSkeleton } from '@/components/ui/AdminSkeletons';
 
 export default function AdminFeedbacks() {
   const router = useRouter();
@@ -39,7 +40,9 @@ export default function AdminFeedbacks() {
     { enabled: isAdmin, token }
   );
 
-  if (authLoading || !isAdmin || isLoading) return <div className="p-10">Loading Feedbacks...</div>;
+  if (authLoading || (isAdmin && isLoading)) return <AdminSidebarPageSkeleton />;
+
+  if (!isAdmin) return null;
 
   return (
     <div className="bg-surface min-h-screen flex flex-col md:flex-row">

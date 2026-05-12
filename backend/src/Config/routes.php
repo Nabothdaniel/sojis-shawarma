@@ -23,6 +23,7 @@ return [
         '/telegram/webhook' => 'Telegram@handle',
         '/feedbacks' => 'Feedback@create',
         '/favorites/toggle' => 'Favorites@toggle',
+        '/admin/store-settings' => 'Settings@updateAdminSettings',
     ],
     'GET' => [
         '/' => 'Orders@health',
@@ -37,6 +38,8 @@ return [
         '/analytics/sessions' => 'Analytics@getSessions',
         '/admin/access-link' => 'AdminAccess@getAdminConfig',
         '/admin/access-link/public' => 'AdminAccess@getPublicConfig',
+        '/admin/store-settings' => 'Settings@getAdminSettings',
+        '/store-settings/payment' => 'Settings@getPaymentSettings',
         '/feedbacks' => 'Feedback@getAll',
         '/favorites' => 'Favorites@list',
     ],
@@ -44,6 +47,7 @@ return [
         '/products/(\d+)' => 'Products@update',
         '/categories/(\d+)' => 'Categories@update',
         '/orders/(\d+)/status' => 'Orders@updateStatus',
+        '/orders/(\d+)/payment-review' => 'Orders@reviewPayment',
         '/sessions/(.+)' => 'Sessions@update',
     ],
     'DELETE' => [

@@ -1,30 +1,121 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCartStore } from '@/store/cartStore';
+import { useAppStore } from '@/store/appStore';
+import ProductImage from '@/components/ui/ProductImage';
 import BottomNav from '@/components/ui/BottomNav';
-import { MenuProductGrid } from '@/features/show-menu/components/MenuProductGrid';
-import { PopularProducts } from '@/features/show-menu/components/PopularProducts';
-import { useDeliveryMenu } from '@/features/show-menu/hooks/useDeliveryMenu';
+import useInstallPrompt from '@/hooks/useInstallPrompt';
+import { catalogService, favoritesService } from '@/lib/api';
+import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
 
 export default function DeliveryMenu() {
-  const {
-    activeCategory,
-    categories,
-    displayName,
-    favoriteIds,
-    filteredProducts,
-    handleInstall,
-    handleQuickAdd,
-    installAvailable,
-    loadingProducts,
-    normalizedSearch,
-    popularProducts,
-    searchQuery,
-    setActiveCategory,
-    setSearchQuery,
-    toggleFavorite,
-    unreadCount,
-  } = useDeliveryMenu();
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [isMounted,setIsMounted] = useState(false);
+  const { install, installAvailable } = useInstallPrompt();
+  
+  const addItem = useCartStore((state) => state.addItem);
+  const totalItems = useCartStore((state) => state.totalItems());
+  const { user, addToast, unreadCount } = useAppStore();
+   const [menuProducts, setMenuProducts] = useState<MenuProduct[]>(getFallbackMenuProducts());
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (user && isMounted) {
+      favoritesService.getFavorites()
+        .then((res) => {
+          const ids = new Set((res.data || []).map((f: any) => f.id));
+          setFavoriteIds(ids);
+        })
+        .catch(() => {});
+    }
+  }, [user, isMounted]);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoadingProducts(true);
+
+      try {
+        const response = await catalogService.getProducts();
+        const normalized = Array.isArray(response)
+          ? response.filter((product) => Number(product.available ?? 1) === 1).map(normalizeCatalogProduct)
+          : [];
+
+        if (normalized.length > 0) {
+          setMenuProducts(normalized);
+        }
+      } catch {
+        setMenuProducts(getFallbackMenuProducts());
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  const handleInstall = async () => {
+    await install({
+      onUnsupported: () => {
+        addToast('Use browser menu to "Add to Home Screen"', 'info');
+      },
+      onAccepted: () => {
+        addToast('App installed successfully!', 'success');
+      },
+    });
+  };
+
+  const categories = ['All', ...Array.from(new Set(menuProducts.map((product) => product.category.split('•')[0].trim())))];
+  const handleQuickAdd = (item: MenuProduct) => {
+    addItem({ ...item, quantity: 1, size: 'Regular' });
+    addToast(`${item.name} added to cart`, 'success');
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent, productId: string | number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      addToast('Sign in to save favorites', 'info');
+      router.push('/login');
+      return;
+    }
+    try {
+      const res = await favoritesService.toggleFavorite(productId);
+      const newIds = new Set(favoriteIds);
+      if (res.action === 'added') {
+        newIds.add(Number(productId));
+        addToast('Added to favorites', 'success');
+      } else {
+        newIds.delete(Number(productId));
+        addToast('Removed from favorites', 'info');
+      }
+      setFavoriteIds(newIds);
+    } catch {
+      addToast('Could not update favorites', 'error');
+    }
+  };
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredProducts = menuProducts.filter((product) => {
+    const categoryMatches = activeCategory === 'All' || product.category.toLowerCase().includes(activeCategory.toLowerCase());
+    const searchMatches = !normalizedSearch || [product.name, product.category, product.description].some((value) => value.toLowerCase().includes(normalizedSearch));
+    return categoryMatches && searchMatches;
+  });
+
+  const popularProducts = [...menuProducts]
+    .sort((a, b) => (b.popularScore ?? 0) - (a.popularScore ?? 0))
+    .slice(0, 3);
+
+  const displayName = user?.name?.split(' ')[0] || 'Guest';
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32">
@@ -87,15 +178,78 @@ export default function DeliveryMenu() {
           </div>
         </section>
 
-        {!normalizedSearch && <PopularProducts products={popularProducts} />}
+        {popularProducts.length > 0 && !normalizedSearch && (
+          <section className="space-y-3">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="font-label text-[10px] uppercase tracking-[0.3em] text-outline font-bold">Popular right now</p>
+                <h2 className="font-headline font-bold text-xl">Chosen from repeat orders and ratings</h2>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {popularProducts.map((product) => (
+                <Link key={`popular-${product.id}`} href={buildProductHref(product.id)} className="bg-surface-container-low rounded-[28px] p-4 flex items-center gap-4 hover:shadow-lg transition-all duration-300">
+                  <div className="w-20 h-20 rounded-[24px] overflow-hidden shrink-0">
+                    <ProductImage src={product.image} alt={product.name} fill blend={true} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-body font-bold text-sm">{product.name}</p>
+                    <p className="font-body text-xs text-outline line-clamp-1">{product.description}</p>
+                    <div className="mt-2 flex items-center gap-3 text-[11px] font-label font-bold uppercase tracking-widest text-outline">
+                      <span>{product.orderCount || 0} orders</span>
+                      <span>{product.rating} stars</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
-        <MenuProductGrid
-          favoriteIds={favoriteIds}
-          loading={loadingProducts}
-          products={filteredProducts}
-          onQuickAdd={handleQuickAdd}
-          onToggleFavorite={toggleFavorite}
-        />
+        {loadingProducts ? (
+          <div className="col-span-2 space-y-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-surface-container-low h-40 rounded-[32px] animate-pulse"></div>
+            ))}
+          </div>
+        ) : (
+          <section className="grid grid-cols-2 gap-4">
+            {filteredProducts.map((item) => (
+              <div key={item.id} className="bg-transparent rounded-lg overflow-hidden flex flex-col group">
+                <Link href={buildProductHref(item.id)} className="relative h-44 overflow-hidden rounded-3xl">
+                  <ProductImage src={item.image} alt={item.name} fill className="group-hover:scale-110 transition-transform duration-500" blend={true} />
+                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                    <span className="material-symbols-outlined text-primary-container text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    <span className="font-label text-[10px] font-bold">{item.rating}</span>
+                  </div>
+                  <button 
+                    onClick={(e) => toggleFavorite(e, item.id)}
+                    className="absolute bottom-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"
+                  >
+                    <span 
+                      className={`material-symbols-outlined text-base ${favoriteIds.has(Number(item.id)) ? 'text-red-500' : 'text-outline/40'}`} 
+                      style={{ fontVariationSettings: `'FILL' ${favoriteIds.has(Number(item.id)) ? 1 : 0}` }}
+                    >
+                      favorite
+                    </span>
+                  </button>
+                </Link>
+                <div className="p-4 flex flex-col flex-1">
+                  <h4 className="font-body font-bold text-sm mb-1 line-clamp-1">{item.name}</h4>
+                  <div className="mt-auto flex justify-between items-center">
+                    <span className="font-label font-bold text-secondary">₦{item.price.toLocaleString()}</span>
+                    <button onClick={() => handleQuickAdd(item)} className="w-8 h-8 bg-primary-container text-on-surface rounded-full flex items-center justify-center shadow-lg shadow-primary-container/20"><span className="material-symbols-outlined text-lg">add</span></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {filteredProducts.length === 0 && (
+              <div className="col-span-2 bg-surface-container-low rounded-[28px] p-8 text-center text-outline">
+                No matching menu items yet.
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
       <BottomNav active="home" />

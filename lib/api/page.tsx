@@ -13,29 +13,40 @@ export default function AdminOrders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchOrders = async () => {
-    if (!token) return;
-
-    setLoading(true);
-    try {
-      const response = await orderService.getAllOrders(filter === 'all' ? undefined : filter);
-      setOrders(response.data || []);
-    } catch (err) {
-      console.error('Fetch orders failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!authLoading && !token) router.push('/login');
-    if (token) fetchOrders();
-  }, [token, filter, authLoading]);
+    if (!authLoading && !token) {
+      router.push('/login');
+      return;
+    }
+
+    if (!token) {
+      return;
+    }
+
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const response = await orderService.getAllOrders(
+          filter === 'all' ? undefined : filter
+        );
+        setOrders(response.data || []);
+      } catch (err) {
+        console.error('Fetch orders failed');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [token, filter, authLoading, router]);
 
   const updateStatus = async (id: number, status: string) => {
     try {
       await orderService.updateOrderStatus(id, status);
-      fetchOrders(); // Refresh the list
+      const response = await orderService.getAllOrders(
+        filter === 'all' ? undefined : filter
+      );
+      setOrders(response.data || []);
       setSelectedOrder(null);
     } catch (err) {
       console.error('Update status failed');

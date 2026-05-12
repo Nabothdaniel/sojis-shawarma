@@ -43,6 +43,14 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 total_amount REAL NOT NULL DEFAULT 0,
                 status TEXT DEFAULT 'pending',
                 payment_status TEXT DEFAULT 'pending',
+                order_type TEXT DEFAULT 'delivery',
+                payment_method TEXT DEFAULT 'bank_transfer',
+                pickup_time TEXT,
+                payment_reference TEXT,
+                admin_note TEXT,
+                payment_submitted_at DATETIME,
+                payment_reviewed_at DATETIME,
+                payment_reviewed_by INTEGER,
                 delivery_address TEXT,
                 lat REAL DEFAULT 0,
                 lng REAL DEFAULT 0,
@@ -123,6 +131,11 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(user_id, product_id)
             )",
+            "CREATE TABLE IF NOT EXISTS settings (
+                key_name TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )",
         ]
         : [
             "CREATE TABLE IF NOT EXISTS admins (
@@ -165,6 +178,14 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
                 status VARCHAR(30) DEFAULT 'pending',
                 payment_status VARCHAR(30) DEFAULT 'pending',
+                order_type VARCHAR(20) DEFAULT 'delivery',
+                payment_method VARCHAR(30) DEFAULT 'bank_transfer',
+                pickup_time VARCHAR(100) NULL,
+                payment_reference VARCHAR(255) NULL,
+                admin_note TEXT NULL,
+                payment_submitted_at TIMESTAMP NULL,
+                payment_reviewed_at TIMESTAMP NULL,
+                payment_reviewed_by INT NULL,
                 delivery_address TEXT,
                 lat DECIMAL(10, 8) DEFAULT 0,
                 lng DECIMAL(11, 8) DEFAULT 0,
@@ -245,6 +266,11 @@ function ensureBackendSchema(PDO $db, string $driver): void {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE KEY unique_user_product_favorite (user_id, product_id)
             )",
+            "CREATE TABLE IF NOT EXISTS settings (
+                key_name VARCHAR(255) PRIMARY KEY,
+                value TEXT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )",
         ];
 
     foreach ($statements as $statement) {
@@ -252,7 +278,7 @@ function ensureBackendSchema(PDO $db, string $driver): void {
     }
 
     $columns = [
-        'orders' => ['order_ref', 'total_amount', 'payment_status', 'receipt_path', 'updated_at', 'user_id', 'last_notification_key', 'last_notification_at'],
+        'orders' => ['order_ref', 'total_amount', 'payment_status', 'receipt_path', 'updated_at', 'user_id', 'last_notification_key', 'last_notification_at', 'order_type', 'payment_method', 'pickup_time', 'payment_reference', 'admin_note', 'payment_submitted_at', 'payment_reviewed_at', 'payment_reviewed_by'],
         'admins' => ['username', 'role'],
         'admin_access_settings' => ['is_enabled', 'access_key', 'expires_at', 'updated_at'],
         'users' => ['phone', 'address', 'role', 'biometric_id', 'biometric_key'],
@@ -268,6 +294,7 @@ function ensureBackendSchema(PDO $db, string $driver): void {
 
     seedDefaultAdmin($db);
     seedAdminAccessSettings($db);
+    seedStoreSettings($db);
 }
 
 function columnExists(PDO $db, string $driver, string $table, string $column): bool {
@@ -312,6 +339,30 @@ function addMissingColumn(PDO $db, string $driver, string $table, string $column
         'orders.last_notification_at' => $driver === 'sqlite'
             ? "ALTER TABLE orders ADD COLUMN last_notification_at DATETIME"
             : "ALTER TABLE orders ADD COLUMN last_notification_at TIMESTAMP NULL",
+        'orders.order_type' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT 'delivery'"
+            : "ALTER TABLE orders ADD COLUMN order_type VARCHAR(20) DEFAULT 'delivery'",
+        'orders.payment_method' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'bank_transfer'"
+            : "ALTER TABLE orders ADD COLUMN payment_method VARCHAR(30) DEFAULT 'bank_transfer'",
+        'orders.pickup_time' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN pickup_time TEXT"
+            : "ALTER TABLE orders ADD COLUMN pickup_time VARCHAR(100) NULL",
+        'orders.payment_reference' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN payment_reference TEXT"
+            : "ALTER TABLE orders ADD COLUMN payment_reference VARCHAR(255) NULL",
+        'orders.admin_note' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN admin_note TEXT"
+            : "ALTER TABLE orders ADD COLUMN admin_note TEXT NULL",
+        'orders.payment_submitted_at' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN payment_submitted_at DATETIME"
+            : "ALTER TABLE orders ADD COLUMN payment_submitted_at TIMESTAMP NULL",
+        'orders.payment_reviewed_at' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN payment_reviewed_at DATETIME"
+            : "ALTER TABLE orders ADD COLUMN payment_reviewed_at TIMESTAMP NULL",
+        'orders.payment_reviewed_by' => $driver === 'sqlite'
+            ? "ALTER TABLE orders ADD COLUMN payment_reviewed_by INTEGER"
+            : "ALTER TABLE orders ADD COLUMN payment_reviewed_by INT NULL",
         'admins.username' => $driver === 'sqlite'
             ? "ALTER TABLE admins ADD COLUMN username TEXT"
             : "ALTER TABLE admins ADD COLUMN username VARCHAR(255) NULL",
@@ -381,4 +432,28 @@ function seedAdminAccessSettings(PDO $db): void {
 
     $insert = $db->prepare("INSERT INTO admin_access_settings (is_enabled, access_key, expires_at) VALUES (?, ?, ?)");
     $insert->execute([0, null, null]);
+}
+
+function seedStoreSettings(PDO $db): void {
+    $defaults = [
+        'payment_account_name' => 'Soji Shawarma',
+        'payment_account_number' => '0000000000',
+        'payment_bank_name' => 'Your Bank',
+        'payment_note' => 'Send your transfer receipt after payment so the admin can verify it.',
+        'support_whatsapp' => '',
+        'pickup_address' => 'Soji Shawarma pickup counter',
+        'pickup_instructions' => 'Come with your order number and wait for admin confirmation before pickup.',
+    ];
+
+    $select = $db->prepare("SELECT value FROM settings WHERE key_name = ?");
+    $insert = $db->prepare("INSERT INTO settings (key_name, value) VALUES (?, ?)");
+
+    foreach ($defaults as $key => $value) {
+        $select->execute([$key]);
+        if ($select->fetch(PDO::FETCH_ASSOC)) {
+            continue;
+        }
+
+        $insert->execute([$key, $value]);
+    }
 }

@@ -6,6 +6,7 @@ import { reviewService, type ProductReview } from '@/lib/api';
 import { useServerEvents } from '@/hooks/useServerEvents';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
+import { AdminListPageSkeleton, SkeletonBlock } from '@/components/ui/AdminSkeletons';
 
 export default function AdminReviewsPage() {
   const { token, authLoading, isAdmin } = useAdminGuard();
@@ -46,7 +47,11 @@ export default function AdminReviewsPage() {
     }
   }, [addToast, isAdmin]);
 
-  if (authLoading || !isAdmin) {
+  if (authLoading || (isAdmin && loading && reviews.length === 0)) {
+    return <AdminListPageSkeleton />;
+  }
+
+  if (!isAdmin) {
     return null;
   }
 
@@ -65,7 +70,26 @@ export default function AdminReviewsPage() {
         </header>
 
         <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10">
-          {loading && <div className="rounded-2xl bg-surface-container-low p-4 text-sm text-outline">Loading reviews...</div>}
+          {loading && (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="rounded-[28px] bg-surface-container-low p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <SkeletonBlock className="h-5 w-36" />
+                      <SkeletonBlock className="h-3 w-44" />
+                    </div>
+                    <div className="space-y-2">
+                      <SkeletonBlock className="ml-auto h-4 w-24" />
+                      <SkeletonBlock className="ml-auto h-3 w-16" />
+                    </div>
+                  </div>
+                  <SkeletonBlock className="mt-4 h-16 w-full" />
+                  <SkeletonBlock className="mt-3 h-3 w-28" />
+                </div>
+              ))}
+            </div>
+          )}
           {!loading && reviews.length === 0 && (
             <div className="rounded-2xl bg-surface-container-low p-8 text-center text-sm text-outline">
               No reviews yet. Delivered orders will feed this screen once customers submit them.

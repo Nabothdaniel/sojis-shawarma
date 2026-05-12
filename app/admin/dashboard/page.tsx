@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AdminRouteLoadingScreen } from '@/components/ui/AdminSkeletons';
 
 export default function AdminDashboardRedirectPage() {
   const router = useRouter();
@@ -11,8 +12,6 @@ export default function AdminDashboardRedirectPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center font-headline font-bold">
-      Redirecting to admin home...
-    </div>
+    <AdminRouteLoadingScreen />
   );
 }

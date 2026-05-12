@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import  { createContext,useState, useContext, useEffect, useMemo, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
 import axiosInstance from '@/lib/axios';
@@ -14,10 +14,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { token, setToken, logout } = useAppStore();
+  const { token, setToken, logout, isAuthenticated } = useAppStore();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Separate effect for initial token refresh - runs only once

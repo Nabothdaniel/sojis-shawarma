@@ -27,12 +27,27 @@ class OrdersController {
         // Sanitize inputs
         $customerName = isset($data['customer_name']) ? htmlspecialchars(strip_tags(trim($data['customer_name']))) : null;
         $customerPhone = isset($data['customer_phone']) ? htmlspecialchars(strip_tags(trim($data['customer_phone']))) : null;
+        $orderType = strtolower(trim((string) ($data['order_type'] ?? 'delivery')));
+        if (!in_array($orderType, ['delivery', 'pickup'], true)) {
+            $orderType = 'delivery';
+        }
+
         $deliveryAddress = isset($data['delivery_address']) ? htmlspecialchars(strip_tags(trim($data['delivery_address']))) : 'Pickup';
         $notes = isset($data['notes']) ? htmlspecialchars(strip_tags(trim($data['notes']))) : (isset($data['note']) ? htmlspecialchars(strip_tags(trim($data['note']))) : '');
+        $paymentMethod = strtolower(trim((string) ($data['payment_method'] ?? 'bank_transfer')));
+        if (!in_array($paymentMethod, ['bank_transfer', 'cash_on_pickup'], true)) {
+            $paymentMethod = 'bank_transfer';
+        }
+        $pickupTime = trim((string) ($data['pickup_time'] ?? ''));
+        $paymentReference = trim((string) ($data['payment_reference'] ?? ''));
         
         $items = $data['items'] ?? [];
         $subtotal = (float) ($data['subtotal'] ?? $data['total_amount'] ?? $data['total'] ?? 0);
         $deliveryFee = (float) ($data['delivery_fee'] ?? 0);
+        if ($orderType === 'pickup') {
+            $deliveryFee = 0;
+            $deliveryAddress = $pickupTime !== '' ? 'Pickup order' : 'Pickup';
+        }
         $total = (float) ($data['total_amount'] ?? $data['total'] ?? ($subtotal + $deliveryFee));
 
         // Backend Validation
@@ -49,14 +64,20 @@ class OrdersController {
             return json_encode(['message' => 'Order items are required']);
         }
 
+        if ($orderType === 'pickup' && $pickupTime === '') {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'Pickup time is required for pickup orders']);
+        }
+
         try {
             $currentUser = $this->getCurrentUser();
             $stmt = $this->db->prepare("
                 INSERT INTO orders (
                     order_ref, session_id, user_id, customer_name, customer_phone, items,
                     subtotal, delivery_fee, total, total_amount, status, payment_status,
+                    order_type, payment_method, pickup_time, payment_reference,
                     delivery_address, lat, lng, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -71,7 +92,11 @@ class OrdersController {
                 $total,
                 $total,
                 'pending',
-                $data['payment_status'] ?? 'pending',
+                'pending',
+                $orderType,
+                $paymentMethod,
+                $pickupTime !== '' ? $pickupTime : null,
+                $paymentReference !== '' ? $paymentReference : null,
                 $deliveryAddress,
                 (float) ($data['lat'] ?? 0),
                 (float) ($data['lng'] ?? 0),
@@ -102,12 +127,17 @@ class OrdersController {
                 'address' => $deliveryAddress,
                 'items' => $items,
                 'total' => $total,
+                'order_type' => $orderType,
+                'pickup_time' => $pickupTime,
+                'payment_method' => $paymentMethod,
             ]);
             $this->sendOrderWhatsAppNotification(
                 $orderId,
                 'order_created',
                 $customerPhone,
-                "Hi {$customerName}, your order {$orderRef} has been received by Soji's Shawarma. We will notify you again as soon as payment is confirmed and your order moves to the next stage."
+                $paymentMethod === 'cash_on_pickup'
+                    ? "Hi {$customerName}, your {$orderType} order {$orderRef} has been received. The admin will review it and notify you before pickup."
+                    : "Hi {$customerName}, your {$orderType} order {$orderRef} has been received. Send payment and upload your receipt so the admin can review it."
             );
 
             header("HTTP/1.1 201 Created");
@@ -142,7 +172,7 @@ class OrdersController {
         $isOwner = ($currentUser['type'] ?? 'user') === 'user' && (int) ($order['user_id'] ?? 0) === (int) $currentUser['id'];
         if (!$isAdmin && !$isOwner) {
             header("HTTP/1.1 403 Forbidden");
-            return json_encode(['message' => 'You can only confirm payment for your own orders']);
+            return json_encode(['message' => 'You can only submit payment for your own orders']);
         }
 
         if (!isset($_FILES['receipt'])) {
@@ -186,8 +216,9 @@ class OrdersController {
             return json_encode(['message' => 'Failed to save receipt to ' . $targetPath]);
         }
 
-        $stmt = $this->db->prepare("UPDATE orders SET payment_status = ?, receipt_path = ? WHERE id = ?");
-        $stmt->execute(['submitted', $filename, $id]);
+        $paymentReference = trim((string) ($_POST['payment_reference'] ?? ''));
+        $stmt = $this->db->prepare("UPDATE orders SET payment_status = ?, receipt_path = ?, payment_reference = ?, payment_submitted_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $stmt->execute(['submitted', $filename, $paymentReference !== '' ? $paymentReference : null, $id]);
 
         $freshOrder = $this->getOrderRecord((int) $id);
         if ($freshOrder) {
@@ -198,21 +229,78 @@ class OrdersController {
                 'payment_receipt_submitted',
                 $freshOrder,
                 [
-                    'message' => 'Your transfer receipt has been received and is being reviewed.',
+                    'message' => 'Your payment proof has been received and is being reviewed by the admin.',
                 ]
             );
             $this->sendOrderWhatsAppNotification(
                 (int) $id,
                 'payment_submitted',
                 $customerPhone,
-                "Hi {$customerName}, we have received your payment receipt for order {$orderRef}. Our team is reviewing it now."
+                "Hi {$customerName}, we have received your payment proof for order {$orderRef}. The admin is reviewing it now."
             );
         }
 
         return json_encode([
             'status' => 'success',
-            'message' => 'Receipt uploaded successfully',
+            'message' => 'Payment proof submitted successfully',
             'data' => ['receipt_path' => $filename]
+        ]);
+    }
+
+    public function reviewPayment($id) {
+        $currentUser = $this->getCurrentUser();
+        if (!$currentUser || ($currentUser['role'] ?? 'user') !== 'admin') {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Admin access required']);
+        }
+
+        $order = $this->getOrderRecord((int) $id);
+        if (!$order) {
+            header("HTTP/1.1 404 Not Found");
+            return json_encode(['message' => 'Order not found']);
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true) ?: [];
+        $action = strtolower(trim((string) ($data['action'] ?? '')));
+        $adminNote = trim((string) ($data['admin_note'] ?? ''));
+
+        if (!in_array($action, ['confirm', 'reject'], true)) {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'Payment review action must be confirm or reject']);
+        }
+
+        $paymentStatus = $action === 'confirm' ? 'confirmed' : 'rejected';
+        $nextStatus = $action === 'confirm'
+            ? (($order['order_type'] ?? 'delivery') === 'pickup' ? 'confirmed' : 'confirmed')
+            : 'pending';
+
+        $stmt = $this->db->prepare("
+            UPDATE orders
+            SET payment_status = ?, status = ?, admin_note = ?, payment_reviewed_at = CURRENT_TIMESTAMP, payment_reviewed_by = ?
+            WHERE id = ?
+        ");
+        $stmt->execute([$paymentStatus, $nextStatus, $adminNote !== '' ? $adminNote : null, (int) $currentUser['id'], $id]);
+
+        $freshOrder = $this->getOrderRecord((int) $id);
+        if ($freshOrder) {
+            $message = $action === 'confirm'
+                ? 'Your payment has been confirmed by the admin.'
+                : 'Your payment proof was rejected. Please review the admin note and submit again.';
+
+            $this->publishOrderEvent('payment_reviewed', $freshOrder, ['message' => $message]);
+            $this->sendOrderWhatsAppNotification(
+                (int) $id,
+                "payment_{$paymentStatus}",
+                (string) ($freshOrder['customer_phone'] ?? ''),
+                $action === 'confirm'
+                    ? "Hi {$freshOrder['customer_name']}, your payment for order {$freshOrder['order_ref']} has been confirmed."
+                    : "Hi {$freshOrder['customer_name']}, your payment for order {$freshOrder['order_ref']} was not approved yet. Please check the order note and resubmit."
+            );
+        }
+
+        return json_encode([
+            'status' => 'success',
+            'message' => $action === 'confirm' ? 'Payment confirmed' : 'Payment rejected',
         ]);
     }
 
@@ -290,27 +378,33 @@ class OrdersController {
 
         $data = json_decode(file_get_contents('php://input'), true);
         $status = $data['status'] ?? null;
-        $allowed = ['pending', 'confirmed', 'preparing', 'dispatched', 'delivered', 'cancelled'];
+        $allowed = ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'dispatched', 'delivered', 'cancelled'];
 
         if (!$status || !in_array($status, $allowed, true)) {
             header("HTTP/1.1 422 Unprocessable Entity");
             return json_encode(['message' => 'Invalid order status']);
         }
 
-        $paymentStatus = null;
-        if (in_array($status, ['confirmed', 'preparing', 'dispatched', 'delivered'], true)) {
-            $paymentStatus = 'confirmed';
-        } elseif ($status === 'cancelled') {
-            $paymentStatus = 'rejected';
+        $order = $this->getOrderRecord((int) $id);
+        if (!$order) {
+            header("HTTP/1.1 404 Not Found");
+            return json_encode(['message' => 'Order not found']);
         }
 
-        if ($paymentStatus) {
-            $stmt = $this->db->prepare("UPDATE orders SET status = ?, payment_status = ? WHERE id = ?");
-            $stmt->execute([$status, $paymentStatus, $id]);
-        } else {
-            $stmt = $this->db->prepare("UPDATE orders SET status = ? WHERE id = ?");
-            $stmt->execute([$status, $id]);
+        $paymentStatus = (string) ($order['payment_status'] ?? 'pending');
+        $paymentMethod = (string) ($order['payment_method'] ?? 'bank_transfer');
+
+        if (
+            $paymentMethod !== 'cash_on_pickup' &&
+            in_array($status, ['confirmed', 'preparing', 'ready_for_pickup', 'dispatched', 'delivered'], true) &&
+            $paymentStatus !== 'confirmed'
+        ) {
+            header("HTTP/1.1 422 Unprocessable Entity");
+            return json_encode(['message' => 'Confirm payment before moving this order forward']);
         }
+
+        $stmt = $this->db->prepare("UPDATE orders SET status = ? WHERE id = ?");
+        $stmt->execute([$status, $id]);
 
         $order = $this->getOrderRecord((int) $id);
         if ($order) {
@@ -342,6 +436,9 @@ class OrdersController {
             'customer_name' => $order['customer_name'],
             'customer_phone' => $order['customer_phone'],
             'delivery_address' => $order['delivery_address'] ?? 'Pickup',
+            'order_type' => $order['order_type'] ?? 'delivery',
+            'payment_method' => $order['payment_method'] ?? 'bank_transfer',
+            'pickup_time' => $order['pickup_time'] ?? null,
             'items' => is_array($items) ? $items : [],
             'subtotal' => (float) ($order['subtotal'] ?? $totalAmount),
             'delivery_fee' => (float) ($order['delivery_fee'] ?? 0),
@@ -349,6 +446,11 @@ class OrdersController {
             'total_amount' => $totalAmount,
             'status' => $order['status'] ?? 'pending',
             'payment_status' => $order['payment_status'] ?? 'pending',
+            'payment_reference' => $order['payment_reference'] ?? null,
+            'payment_submitted_at' => $order['payment_submitted_at'] ?? null,
+            'payment_reviewed_at' => $order['payment_reviewed_at'] ?? null,
+            'payment_reviewed_by' => isset($order['payment_reviewed_by']) ? (int) $order['payment_reviewed_by'] : null,
+            'admin_note' => $order['admin_note'] ?? '',
             'notes' => $order['notes'] ?? '',
             'receipt_path' => $order['receipt_path'] ?? null,
             'reviewed_product_ids' => $reviewedProductIds,
@@ -434,6 +536,7 @@ class OrdersController {
         $messages = [
             'confirmed' => "Hi {$customerName}, your payment for order {$orderRef} has been confirmed. The kitchen queue is now locked in.",
             'preparing' => "Hi {$customerName}, your order {$orderRef} is now being prepared.",
+            'ready_for_pickup' => "Hi {$customerName}, your order {$orderRef} is ready for pickup.",
             'dispatched' => "Hi {$customerName}, your order {$orderRef} is out for delivery.",
             'delivered' => "Hi {$customerName}, your order {$orderRef} has been marked as delivered. Enjoy your meal.",
             'cancelled' => "Hi {$customerName}, your order {$orderRef} has been cancelled. Please contact support if this was unexpected.",
@@ -486,6 +589,7 @@ class OrdersController {
         return match ($status) {
             'confirmed' => 'Your payment has been confirmed and the kitchen queue is locked in.',
             'preparing' => 'Your shawarma is now being prepared.',
+            'ready_for_pickup' => 'Your order is packed and ready for pickup.',
             'dispatched' => 'Your rider is on the way with your order.',
             'delivered' => 'Your order has been marked as delivered.',
             'cancelled' => 'Your order was cancelled. Contact support if this looks wrong.',
@@ -553,10 +657,17 @@ class OrdersController {
             $itemsText .= "  - {$name} x{$quantity} ({$size})\n";
         }
 
+        $orderType = $data['order_type'] ?? 'delivery';
+        $pickupLine = $orderType === 'pickup' && !empty($data['pickup_time'])
+            ? "Pickup Time: {$data['pickup_time']}\n"
+            : '';
         $message = "*NEW ORDER {$orderRef}*\n\n" .
+                   "Type: {$orderType}\n" .
                    "Name: {$data['name']}\n" .
                    "Phone: {$data['phone']}\n" .
-                   "Address: {$data['address']}\n\n" .
+                   "Address: {$data['address']}\n" .
+                   $pickupLine .
+                   "Payment Method: " . ($data['payment_method'] ?? 'bank_transfer') . "\n\n" .
                    "Items:\n{$itemsText}\n" .
                    "Total: NGN " . number_format($data['total'], 2);
 

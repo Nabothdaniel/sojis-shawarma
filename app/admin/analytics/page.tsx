@@ -7,6 +7,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell 
 } from 'recharts';
 import useAdminGuard from '@/hooks/useAdminGuard';
+import { AdminAnalyticsSkeleton } from '@/components/ui/AdminSkeletons';
 
 export default function AnalyticsPage() {
   const { token, authLoading, isAdmin } = useAdminGuard();
@@ -44,7 +45,9 @@ export default function AnalyticsPage() {
     };
   }, [isAdmin, token]);
 
-  if (isLoading || authLoading || !isAdmin) return <div className="p-10 font-headline font-bold">Loading Insights...</div>;
+  if (authLoading || (isAdmin && isLoading)) return <AdminAnalyticsSkeleton />;
+
+  if (!isAdmin) return null;
 
   if (!data) return <div className="p-10 font-headline font-bold">No data available</div>;
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import { useMutation } from '@tanstack/react-query';
-import { orderService, userService } from '@/lib/api';
+import { orderService, userService, type PaymentSettings } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { Order } from '@/lib/api';
 
@@ -64,6 +64,7 @@ export default function CheckoutPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [orderRef, setOrderRef] = useState('');
   const [isMounted, setIsMounted] = useState(false);
@@ -72,7 +73,11 @@ export default function CheckoutPage() {
     name: '',
     phone: '',
     address: '',
-    note: ''
+    note: '',
+    orderType: 'delivery' as 'delivery' | 'pickup',
+    pickupTime: '',
+    paymentMethod: 'bank_transfer' as 'bank_transfer' | 'cash_on_pickup',
+    paymentReference: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const checkoutSteps: CheckoutStep[] = ['delivery', 'payment', 'receipt'];
@@ -187,6 +192,29 @@ export default function CheckoutPage() {
     };
   }, [effectiveToken, hasAttemptedAutofill, hasHydrated, isSignedIn, setUser, user]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPaymentSettings = async () => {
+      try {
+        const response = await orderService.getPaymentSettings();
+        if (!cancelled) {
+          setPaymentSettings(response.data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Could not load payment settings', error);
+        }
+      }
+    };
+
+    loadPaymentSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const subtotal = totalPrice();
 
   const { mutate: placeOrder, isPending: isLoading } = useMutation({
@@ -201,8 +229,13 @@ export default function CheckoutPage() {
 
       setOrderId(result.id);
       setOrderRef(result.order_ref);
-      setCurrentStep('payment');
-      addToast('Order details saved! Proceed with payment', 'success');
+      setCurrentStep(formData.paymentMethod === 'cash_on_pickup' ? 'success' : 'payment');
+      addToast(
+        formData.paymentMethod === 'cash_on_pickup'
+          ? 'Order submitted. Wait for admin confirmation before pickup.'
+          : 'Order details saved. Proceed with payment.',
+        'success'
+      );
     },
     onError: (err: any) => {
       addToast(err.message || 'Error creating order', 'error');
@@ -217,12 +250,15 @@ export default function CheckoutPage() {
 
       const uploadData = new FormData();
       uploadData.append('receipt', receiptFile);
+      if (formData.paymentReference.trim()) {
+        uploadData.append('payment_reference', formData.paymentReference.trim());
+      }
       return orderService.confirmPayment(orderId, uploadData);
     },
     onSuccess: () => {
       setCurrentStep('success');
       clearCart();
-      addToast('Payment confirmed! Order is being prepared', 'success');
+      addToast('Payment proof submitted. Await admin confirmation.', 'success');
     },
     onError: (err: any) => {
       addToast(err.message || 'Error confirming payment', 'error');
@@ -237,7 +273,12 @@ export default function CheckoutPage() {
     } else if (!/^\+?[\d\s-]{10,}$/.test(formData.phone)) {
       newErrors.phone = 'Invalid phone number format';
     }
-    if (!formData.address.trim()) newErrors.address = 'Delivery address is required';
+    if (formData.orderType === 'delivery' && !formData.address.trim()) {
+      newErrors.address = 'Delivery address is required';
+    }
+    if (formData.orderType === 'pickup' && !formData.pickupTime.trim()) {
+      newErrors.pickupTime = 'Pickup time is required';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -254,9 +295,15 @@ export default function CheckoutPage() {
     placeOrder({
       customer_name: formData.name.trim(),
       customer_phone: formData.phone.trim(),
-      delivery_address: formData.address.trim(),
+      delivery_address: formData.orderType === 'pickup'
+        ? (paymentSettings?.pickup_address || 'Pickup')
+        : formData.address.trim(),
+      order_type: formData.orderType,
+      payment_method: formData.paymentMethod,
+      pickup_time: formData.orderType === 'pickup' ? formData.pickupTime.trim() : '',
       items: items,
       total_amount: subtotal,
+      payment_reference: formData.paymentReference.trim() || undefined,
       notes: formData.note.trim(),
       payment_status: 'pending'
     });
@@ -277,13 +324,17 @@ export default function CheckoutPage() {
         <div className="w-24 h-24 bg-tertiary/10 rounded-full flex items-center justify-center mb-6 text-tertiary">
           <span className="material-symbols-outlined text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
         </div>
-        <h1 className="font-headline font-bold text-3xl mb-3">Payment Confirmed! ✓</h1>
+        <h1 className="font-headline font-bold text-3xl mb-3">
+          {formData.paymentMethod === 'cash_on_pickup' ? 'Order Sent! ✓' : 'Payment Submitted! ✓'}
+        </h1>
         <p className="text-outline font-body text-base mb-2">Order Ref: <span className="font-bold text-primary-container">{orderRef}</span></p>
         <p className="text-outline font-body text-base mb-10 max-w-[280px]">
-          Your shawarma is being prepared. We&apos;ll notify you in-app and by WhatsApp when your order status changes.
+          {formData.paymentMethod === 'cash_on_pickup'
+            ? 'Your order is awaiting admin confirmation. We’ll notify you when it is accepted and when it is ready for pickup.'
+            : 'Your payment proof is awaiting admin review. We’ll notify you in-app and by WhatsApp once it is confirmed.'}
         </p>
         <button
-          onClick={() => router.push('/profile')}
+          onClick={() => router.push(orderId ? `/orders/${orderId}` : '/orders')}
           className="mb-4 bg-primary-container text-on-primary-container font-headline font-bold px-12 py-4 rounded-full shadow-xl active:scale-95 transition-transform"
         >
           Track this order
@@ -295,7 +346,7 @@ export default function CheckoutPage() {
           Back to Home
         </button>
         <a
-          href={`https://wa.me/2348012345678?text=${encodeURIComponent(`Hello, I just placed an order with reference ${orderRef}. I would like to chat.`)}`}
+          href={`https://wa.me/${(paymentSettings?.support_whatsapp || '2348012345678').replace(/\D/g, '')}?text=${encodeURIComponent(`Hello, I just placed an order with reference ${orderRef}. I would like to chat.`)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-4 flex items-center justify-center gap-2 bg-green-500 text-white font-headline font-bold px-12 py-4 rounded-full shadow-lg active:scale-95 transition-transform"
@@ -334,10 +385,29 @@ export default function CheckoutPage() {
             <section>
               <h2 className="font-headline font-bold text-lg mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary-container">location_on</span>
-                Delivery Details
+                Fulfilment Details
               </h2>
 
               <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFormData((current) => ({ ...current, orderType: 'delivery' }))}
+                    className={`rounded-2xl border px-4 py-4 text-left ${formData.orderType === 'delivery' ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant/30 bg-transparent'}`}
+                  >
+                    <p className="font-headline font-bold text-sm">Delivery</p>
+                    <p className="text-xs text-outline mt-1">Send to customer address</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData((current) => ({ ...current, orderType: 'pickup' }))}
+                    className={`rounded-2xl border px-4 py-4 text-left ${formData.orderType === 'pickup' ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant/30 bg-transparent'}`}
+                  >
+                    <p className="font-headline font-bold text-sm">Pickup</p>
+                    <p className="text-xs text-outline mt-1">Customer comes to collect</p>
+                  </button>
+                </div>
+
                 <div className="space-y-1">
                   <input
                     type="text"
@@ -366,6 +436,7 @@ export default function CheckoutPage() {
                   {errors.phone && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.phone}</p>}
                 </div>
 
+                {formData.orderType === 'delivery' ? (
                 <div className="space-y-1">
                   <div className="flex justify-between items-center mb-2 px-1">
                     <label className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Delivery Address</label>
@@ -411,6 +482,53 @@ export default function CheckoutPage() {
                   />
                   {errors.address && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.address}</p>}
                 </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-low px-5 py-4 text-sm">
+                      <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Pickup Address</p>
+                      <p className="mt-2 font-body">{paymentSettings?.pickup_address || 'Pickup counter'}</p>
+                      {paymentSettings?.pickup_instructions && (
+                        <p className="mt-2 text-xs text-outline">{paymentSettings.pickup_instructions}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <input
+                        type="text"
+                        placeholder="Preferred pickup time e.g. 5:30 PM"
+                        className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.pickupTime ? 'ring-2 ring-red-500/50' : ''}`}
+                        value={formData.pickupTime}
+                        onChange={(e) => {
+                          setFormData({ ...formData, pickupTime: e.target.value });
+                          if (errors.pickupTime) setErrors({ ...errors, pickupTime: '' });
+                        }}
+                      />
+                      {errors.pickupTime && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.pickupTime}</p>}
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-3">
+                  <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold px-1">Payment Method</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData((current) => ({ ...current, paymentMethod: 'bank_transfer' }))}
+                      className={`rounded-2xl border px-4 py-4 text-left ${formData.paymentMethod === 'bank_transfer' ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant/30 bg-transparent'}`}
+                    >
+                      <p className="font-headline font-bold text-sm">Bank transfer</p>
+                      <p className="text-xs text-outline mt-1">Customer pays now, admin confirms after receipt review.</p>
+                    </button>
+                    {formData.orderType === 'pickup' && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData((current) => ({ ...current, paymentMethod: 'cash_on_pickup' }))}
+                        className={`rounded-2xl border px-4 py-4 text-left ${formData.paymentMethod === 'cash_on_pickup' ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant/30 bg-transparent'}`}
+                      >
+                        <p className="font-headline font-bold text-sm">Pay on pickup</p>
+                        <p className="text-xs text-outline mt-1">Customer places the order now and the admin confirms payment later.</p>
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <input
                   type="text"
                   placeholder="Note for rider (optional)"
@@ -430,7 +548,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-outline">Delivery</span>
-                  <span className="font-label font-bold text-secondary">Free</span>
+                  <span className="font-label font-bold text-secondary">{formData.orderType === 'pickup' ? 'Pickup' : 'Free'}</span>
                 </div>
                 <div className="pt-3 border-t border-outline-variant/20 flex justify-between items-center">
                   <span className="font-headline font-bold">Total</span>
@@ -446,7 +564,7 @@ export default function CheckoutPage() {
               disabled={isLoading || isGeoLoading}
               className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-full shadow-lg active:scale-95 transition-transform disabled:opacity-70"
             >
-              {isLoading ? '...Saving Order' : 'Next: Payment Method'}
+              {isLoading ? '...Saving Order' : formData.paymentMethod === 'cash_on_pickup' ? 'Submit Pickup Order' : 'Next: Payment'}
             </button>
           </form>
         )}
@@ -457,42 +575,75 @@ export default function CheckoutPage() {
             <div className="bg-primary-container/10 border-2 border-primary-container rounded-3xl p-6">
               <h2 className="font-headline font-bold text-lg mb-4 flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary-container">bank</span>
-                Bank Transfer
+                {formData.paymentMethod === 'cash_on_pickup' ? 'Pay on Pickup' : 'Bank Transfer'}
               </h2>
-              <p className="text-outline font-body text-sm mb-6">Transfer exactly <span className="font-bold text-primary-container">₦{subtotal.toLocaleString()}</span> to the account below:</p>
+              {formData.paymentMethod === 'cash_on_pickup' ? (
+                <p className="text-outline font-body text-sm mb-6">Your order is waiting for admin approval. Payment will be confirmed later when you arrive for pickup.</p>
+              ) : (
+                <p className="text-outline font-body text-sm mb-6">Transfer exactly <span className="font-bold text-primary-container">₦{subtotal.toLocaleString()}</span> to the account below:</p>
+              )}
               
+              {formData.paymentMethod === 'bank_transfer' && (
               <div className="bg-surface rounded-2xl p-4 space-y-3 mb-6">
                 <div className="flex justify-between items-center">
                   <span className="font-label text-xs uppercase text-outline">Bank Name</span>
-                  <span className="font-bold">Access Bank</span>
+                  <span className="font-bold">{paymentSettings?.payment_bank_name || 'Bank'}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-outline-variant/20">
                   <span className="font-label text-xs uppercase text-outline">Account Name</span>
-                  <span className="font-bold">Soji Shawarma Spot</span>
+                  <span className="font-bold">{paymentSettings?.payment_account_name || 'Store Account'}</span>
                 </div>
                 <div className="flex justify-between items-center pb-3 border-b border-outline-variant/20">
                   <span className="font-label text-xs uppercase text-outline">Account Number</span>
-                  <span className="font-bold text-lg font-mono">0123456789</span>
+                  <span className="font-bold text-lg font-mono">{paymentSettings?.payment_account_number || '0000000000'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="font-label text-xs uppercase text-outline">Reference</span>
                   <span className="font-bold font-mono text-sm">{orderRef}</span>
                 </div>
               </div>
+              )}
 
               <div className="bg-secondary/10 border border-secondary/30 rounded-2xl p-4 mb-6">
                 <p className="text-secondary text-xs font-body">
-                  ✓ Use the order reference as your transfer description<br/>
-                  ✓ Screenshot the receipt after transfer<br/>
-                  ✓ Upload receipt on next step for verification
+                  {formData.paymentMethod === 'bank_transfer' ? (
+                    <>
+                      ✓ Use the order reference as your transfer description<br/>
+                      ✓ Screenshot the receipt after transfer<br/>
+                      ✓ Upload receipt on the next step for admin verification
+                    </>
+                  ) : (
+                    <>
+                      ✓ The admin will confirm this order before pickup<br/>
+                      ✓ Bring your order reference when you arrive<br/>
+                      ✓ Payment remains pending until the admin marks it confirmed
+                    </>
+                  )}
                 </p>
               </div>
 
+              {formData.paymentMethod === 'bank_transfer' && (
+                <input
+                  type="text"
+                  placeholder="Transfer reference or sender name (optional)"
+                  className="mb-6 w-full rounded-2xl border border-outline-variant/30 bg-transparent px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30"
+                  value={formData.paymentReference}
+                  onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
+                />
+              )}
+
               <button
-                onClick={() => setCurrentStep('receipt')}
+                onClick={() => {
+                  if (formData.paymentMethod === 'cash_on_pickup') {
+                    clearCart();
+                    setCurrentStep('success');
+                    return;
+                  }
+                  setCurrentStep('receipt');
+                }}
                 className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-full shadow-lg active:scale-95 transition-transform"
               >
-                I&apos;ve Transferred, Next Step
+                {formData.paymentMethod === 'cash_on_pickup' ? 'Finish Order Request' : 'I&apos;ve Transferred, Next Step'}
               </button>
             </div>
           </section>
@@ -534,13 +685,20 @@ export default function CheckoutPage() {
                   • Your reference number
                 </p>
               </div>
+              <input
+                type="text"
+                placeholder="Transfer reference or sender name (optional)"
+                className="w-full rounded-2xl border border-outline-variant/30 bg-transparent px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30"
+                value={formData.paymentReference}
+                onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
+              />
             </section>
 
             <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-3xl p-6">
               <h3 className="font-headline font-bold text-base mb-4">Delivery To</h3>
               <p className="font-body text-sm text-outline mb-2"><span className="font-bold text-on-surface">{formData.name}</span></p>
               <p className="font-body text-xs text-outline mb-4">{formData.phone}</p>
-              <p className="font-body text-xs text-outline">📍 {formData.address}</p>
+              <p className="font-body text-xs text-outline">📍 {formData.orderType === 'pickup' ? (paymentSettings?.pickup_address || 'Pickup') : formData.address}</p>
             </div>
 
             <button
@@ -548,7 +706,7 @@ export default function CheckoutPage() {
               disabled={isConfirming}
               className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-full shadow-lg active:scale-95 transition-transform disabled:opacity-70"
             >
-              {isConfirming ? '...Verifying Receipt' : 'Confirm Payment & Complete Order'}
+              {isConfirming ? '...Submitting Proof' : 'Submit Proof & Complete Order'}
             </button>
           </form>
         )}

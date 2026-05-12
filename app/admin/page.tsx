@@ -2,16 +2,20 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { adminService, analyticsService, orderService } from '@/lib/api';
+import { adminService, analyticsService, orderService, type Order, type StoreSettings } from '@/lib/api';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
+import { AdminRouteLoadingScreen } from '@/components/ui/AdminSkeletons';
 
 export default function AdminHomePage() {
   const { authLoading, isAdmin, user } = useAdminGuard();
   const addToast = useAppStore((state) => state.addToast);
   const [stats, setStats] = useState<any>(null);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<Order[]>([]);
+  const [pickupQueue, setPickupQueue] = useState<Order[]>([]);
   const [accessSettings, setAccessSettings] = useState<any>(null);
+  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [accessKeyInput, setAccessKeyInput] = useState('');
   const [isSavingAccess, setIsSavingAccess] = useState(false);
 
@@ -26,19 +30,24 @@ export default function AdminHomePage() {
 
     const fetchDashboardData = async () => {
       try {
-        const [summaryResponse, ordersResponse, accessResponse] = await Promise.all([
+        const [summaryResponse, ordersResponse, accessResponse, storeResponse] = await Promise.all([
           analyticsService.getSummary(),
           orderService.getAllOrders(),
           adminService.getAccessLinkSettings(),
+          adminService.getStoreSettings(),
         ]);
 
         if (!active) {
           return;
         }
 
+        const orders = (ordersResponse.data || []) as Order[];
         setStats(summaryResponse.data);
-        setRecentOrders((ordersResponse.data || []).slice(0, 5));
+        setRecentOrders(orders.slice(0, 5));
+        setPendingPayments(orders.filter((order) => order.payment_status === 'submitted').slice(0, 4));
+        setPickupQueue(orders.filter((order) => order.order_type === 'pickup' && ['confirmed', 'preparing', 'ready_for_pickup'].includes(order.status)).slice(0, 4));
         setAccessSettings(accessResponse.data);
+        setStoreSettings(storeResponse.data);
         setAccessKeyInput(accessResponse.data?.access_key || '');
       } catch {
         if (active) {
@@ -72,8 +81,12 @@ export default function AdminHomePage() {
 
   const currentAccessUrl = `${origin}${accessSettings?.login_path || '/admin/login'}`;
 
-  if (authLoading || !isAdmin || !stats) {
-    return <div className="p-10 font-headline font-bold">Warming Up Dashboard...</div>;
+  if (authLoading || (isAdmin && !stats)) {
+    return <AdminRouteLoadingScreen />;
+  }
+
+  if (!isAdmin) {
+    return null;
   }
 
   return (
@@ -97,9 +110,86 @@ export default function AdminHomePage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <DashboardStat label="Today Items" value={stats.orders_today} icon="shopping_bag" />
           <DashboardStat label="Pending" value={stats.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0} icon="timer" color="text-secondary" />
+          <DashboardStat label="Payment Reviews" value={pendingPayments.length} icon="credit_score" color="text-secondary" />
           <DashboardStat label="Sales Today" value={`₦${stats.revenue_today.toLocaleString()}`} icon="payments" color="text-tertiary" />
-          <DashboardStat label="Top Product" value={stats.top_products?.[0]?.name || 'N/A'} icon="star" />
         </div>
+
+        <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="font-headline font-bold text-2xl">Immediate Actions</h2>
+                <p className="font-body text-sm text-outline mt-2">Use the dashboard for the items that need admin attention right now.</p>
+              </div>
+              <Link href="/admin/orders" className="rounded-full bg-on-surface px-5 py-3 text-xs font-bold uppercase tracking-widest text-surface">Open order desk</Link>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded-[28px] bg-surface-container-low p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-headline font-bold text-lg">Pending payment reviews</p>
+                    <p className="text-sm text-outline mt-1">Customers have uploaded payment proof and are waiting for approval.</p>
+                  </div>
+                  <span className="rounded-full bg-secondary/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-secondary">{pendingPayments.length}</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {pendingPayments.length === 0 && <p className="text-sm text-outline">No payment proofs are waiting right now.</p>}
+                  {pendingPayments.map((order) => (
+                    <div key={order.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                      <div>
+                        <p className="font-bold text-sm">{order.customer_name}</p>
+                        <p className="text-xs text-outline">{order.order_ref}</p>
+                      </div>
+                      <span className="text-sm font-bold">₦{order.total_amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[28px] bg-surface-container-low p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-headline font-bold text-lg">Pickup queue</p>
+                    <p className="text-sm text-outline mt-1">These customers are coming in person and need coordination.</p>
+                  </div>
+                  <span className="rounded-full bg-tertiary/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-tertiary">{pickupQueue.length}</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {pickupQueue.length === 0 && <p className="text-sm text-outline">No pickup orders are active right now.</p>}
+                  {pickupQueue.map((order) => (
+                    <div key={order.id} className="rounded-2xl bg-white px-4 py-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="font-bold text-sm">{order.customer_name}</p>
+                          <p className="text-xs text-outline">{order.pickup_time || 'Pickup time not set'} • {order.status.replace(/_/g, ' ')}</p>
+                        </div>
+                        <span className="text-sm font-bold">₦{order.total_amount.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
+            <div>
+              <h2 className="font-headline font-bold text-2xl">Customer-Facing Store Info</h2>
+              <p className="font-body text-sm text-outline mt-2">These details appear during checkout for transfer and pickup orders.</p>
+            </div>
+            <div className="rounded-3xl bg-surface-container-low p-5 space-y-3 text-sm">
+              <p><span className="font-bold">Bank:</span> {storeSettings?.payment_bank_name || 'Not set'}</p>
+              <p><span className="font-bold">Account Name:</span> {storeSettings?.payment_account_name || 'Not set'}</p>
+              <p><span className="font-bold">Account Number:</span> {storeSettings?.payment_account_number || 'Not set'}</p>
+              <p><span className="font-bold">Pickup Address:</span> {storeSettings?.pickup_address || 'Not set'}</p>
+              <p><span className="font-bold">Support WhatsApp:</span> {storeSettings?.support_whatsapp || 'Not set'}</p>
+            </div>
+            <Link href="/admin/products" className="inline-flex rounded-full bg-primary-container px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-primary-container">
+              Edit payment and catalog settings
+            </Link>
+          </div>
+        </section>
 
         <section className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -184,6 +274,11 @@ export default function AdminHomePage() {
           </div>
 
           <div className="space-y-6">
+            {recentOrders.length === 0 && (
+              <div className="rounded-[28px] bg-surface-container-low p-6">
+                <p className="font-body text-sm text-outline">No recent orders yet. New checkouts will appear here automatically.</p>
+              </div>
+            )}
             {recentOrders.map((order) => (
               <div key={order.id} className="flex justify-between items-center p-6 bg-surface-container-low rounded-3xl group hover:bg-primary-container/10 transition-colors">
                 <div className="flex gap-4 items-center">

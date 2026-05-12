@@ -75,6 +75,16 @@ export interface AdminAccessLinkSettings {
   refresh_hours: number;
 }
 
+export interface StoreSettings {
+  payment_account_name: string;
+  payment_account_number: string;
+  payment_bank_name: string;
+  payment_note: string;
+  support_whatsapp: string;
+  pickup_address: string;
+  pickup_instructions: string;
+}
+
 export const adminService = {
   // Get paginated users
   getUsers: (params: { page: number; limit: number; search?: string; role?: string }): Promise<{ 
@@ -241,4 +251,10 @@ export const adminService = {
     access_key?: string;
   }): Promise<{ status: string; message: string; data: AdminAccessLinkSettings }> =>
     apiClient.post('/admin/access-link', payload),
+
+  getStoreSettings: (): Promise<{ status: string; data: StoreSettings }> =>
+    apiClient.get('/admin/store-settings'),
+
+  updateStoreSettings: (payload: Partial<StoreSettings>): Promise<{ status: string; message: string; data: StoreSettings }> =>
+    apiClient.post('/admin/store-settings', payload),
 };

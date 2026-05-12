@@ -1,5 +1,15 @@
 import type { Metadata, Viewport } from 'next';
+import {
+  Noto_Serif,
+  Plus_Jakarta_Sans,
+  Space_Grotesk,
+} from 'next/font/google';
 import './globals.css';
+import { AuthProvider } from '@/context/AuthContext';
+import OrderNotifications from '@/components/OrderNotifications';
+import ToastContainer from '@/components/ui/ToastContainer';
+import SessionManager from '@/components/ui/SessionManager';
+import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
 
 export const metadata: Metadata = {
   title: "Soji Shawarma Spot - Best Shawarma in Keffi",
@@ -20,27 +30,27 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-import { AuthProvider } from '@/context/AuthContext';
-import OrderNotifications from '@/components/OrderNotifications';
-import ToastContainer from '@/components/ui/ToastContainer';
-import SessionManager from '@/components/ui/SessionManager';
-import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
+const headlineFont = Noto_Serif({
+  subsets: ['latin'],
+  variable: '--font-headline-family',
+});
+
+const bodyFont = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-body-family',
+});
+
+const labelFont = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-label-family',
+});
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="light">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html
+      lang="en"
+      className={`light ${headlineFont.variable} ${bodyFont.variable} ${labelFont.variable}`}
+    >
       <body className="antialiased selection:bg-primary-container selection:text-on-primary-container">
         <ReactQueryProvider>
           <AuthProvider>
@@ -54,5 +64,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-
 
