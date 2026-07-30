@@ -1,6 +1,5 @@
-import { db, storage } from '../firebase/config';
+import { db } from '../firebase/config';
 import { collection, getDocs, getDoc, addDoc, doc, updateDoc, query, orderBy, where } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface OrderItem {
   id: string;
@@ -71,7 +70,13 @@ export const orderService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    const docRef = await addDoc(collection(db, 'orders'), payload);
+    
+    // Firebase doesn't accept undefined values, so we sanitize the payload
+    const sanitizedPayload = Object.fromEntries(
+      Object.entries(payload).filter(([, v]) => v !== undefined)
+    );
+
+    const docRef = await addDoc(collection(db, 'orders'), sanitizedPayload);
     return { status: 'success', data: { id: docRef.id, ...payload } };
   },
 
@@ -80,10 +85,26 @@ export const orderService = {
     const paymentRef = receiptData.get('payment_reference') as string;
     if (!file) throw new Error("No receipt file provided");
     
-    const filename = `${Date.now()}-${file.name}`;
-    const storageRef = ref(storage, `receipts/${filename}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    if (!cloudName || !uploadPreset) throw new Error("Cloudinary configuration is missing in .env");
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', uploadPreset);
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || "Failed to upload receipt to Cloudinary");
+    }
+
+    const cloudData = await res.json();
+    const downloadURL = cloudData.secure_url;
     
     const updates: any = {
       receipt_path: downloadURL,

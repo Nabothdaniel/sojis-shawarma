@@ -7,6 +7,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import ProductImage from '@/components/ui/ProductImage';
 import BottomNav from '@/components/ui/BottomNav';
+import SplashScreen from '@/components/ui/SplashScreen';
 import useInstallPrompt from '@/hooks/useInstallPrompt';
 import { catalogService, favoritesService } from '@/lib/api';
 import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
@@ -26,7 +27,8 @@ export default function DeliveryMenu() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [isMounted,setIsMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const { install, installAvailable } = useInstallPrompt();
   
   const addItem = useCartStore((state) => state.addItem);
@@ -135,8 +137,10 @@ export default function DeliveryMenu() {
   const displayName = user?.name?.split(' ')[0] || 'Guest';
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen pb-32">
-      <header className="px-6 pt-10 pb-6 bg-surface sticky top-0 z-40 transition-all duration-300 backdrop-blur-sm bg-surface/90">
+    <>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      <div className={`bg-surface text-on-surface min-h-screen pb-32 transition-opacity duration-700 ${showSplash ? 'opacity-0 h-screen overflow-hidden' : 'opacity-100'}`}>
+        <header className="px-6 pt-10 pb-6 bg-surface fixed top-0 w-full max-w-md z-50 transition-all duration-300 backdrop-blur-sm bg-surface/90">
         <div className="flex justify-between items-center mb-8">
           <div className="w-14 h-14 bg-primary-container rounded-[24px] flex items-center justify-center shadow-xl shadow-primary-container/20 border border-white/20 text-on-primary-container">
             <LuUtensils className="text-3xl" />
@@ -163,7 +167,7 @@ export default function DeliveryMenu() {
         </section>
       </header>
 
-      <main className="px-6 space-y-8 max-w-md mx-auto">
+      <main className="px-6 pt-[200px] space-y-8 max-w-md mx-auto">
         <section>
           <div id="tour-search" className="relative group">
             <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-outline text-xl" />
@@ -265,6 +269,7 @@ export default function DeliveryMenu() {
       </main>
 
       <BottomNav active="home" />
-    </div>
+      </div>
+    </>
   );
 }

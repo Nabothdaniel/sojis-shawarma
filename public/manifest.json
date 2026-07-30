@@ -1,12 +1,18 @@
 {
-  "name": "Soji Shawarma Spot",
-  "short_name": "Soji's",
+  "name": "Uncle Soji Shawarma",
+  "short_name": "Uncle Soji",
   "description": "Fast food delivery app for Nasarawa State University Keffi's juiciest shawarma.",
-  "start_url": "/",
+  "start_url": "/show",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#EAB600",
   "icons": [
+    {
+      "src": "/icons/flame.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",

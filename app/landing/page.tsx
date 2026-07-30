@@ -1,11 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import useInstallPrompt from '@/hooks/useInstallPrompt';
 import { useAddToast } from '@/store/appStore.selectors';
 
 export default function DetailedLanding() {
-  const router = useRouter();
   const { install, installAvailable } = useInstallPrompt();
   const addToast = useAddToast();
 
@@ -29,15 +27,6 @@ export default function DetailedLanding() {
           </div>
           <span className="font-headline font-bold text-lg">Soji&apos;s</span>
         </div>
-        <button 
-          onClick={() => {
-            localStorage.setItem('soji_has_visited', 'true');
-            router.push('/show');
-          }}
-          className="bg-on-surface text-surface px-6 py-2 rounded-full font-label font-bold text-xs uppercase tracking-widest active:scale-95 transition-transform"
-        >
-          Order Now
-        </button>
       </nav>
 
       {/* Hero Section */}
@@ -59,13 +48,7 @@ export default function DetailedLanding() {
             className="bg-primary text-on-primary px-10 py-5 rounded-3xl font-headline font-bold text-xl shadow-2xl shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
           >
             <span className="material-symbols-outlined">install_mobile</span>
-            {installAvailable ? 'Install Mobile App' : 'Save to Home Screen'}
-          </button>
-          <button 
-             onClick={() => router.push('/show')}
-             className="bg-surface-container-high text-on-surface px-10 py-5 rounded-3xl font-headline font-bold text-xl active:scale-95 transition-all"
-          >
-            Browse Menu
+            Download App
           </button>
         </div>
       </section>
