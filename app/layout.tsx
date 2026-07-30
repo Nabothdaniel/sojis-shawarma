@@ -10,29 +10,29 @@ import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
 export const metadata: Metadata = {
   metadataBase: new URL('https://sojis-shawarma.vercel.app'),
   title: {
-    template: "%s | Soji's Shawarma",
-    default: "Soji's Shawarma Spot - Best Shawarma in Keffi",
+    template: "%s | Uncle Soji's Shawarma",
+    default: "Uncle Soji's Shawarma Spot - Best Shawarma in Keffi",
   },
   description: "Authentic shawarma from Nasarawa State University Keffi, delivered fresh and fast. Order now from the girls hostel corner.",
   keywords: ["shawarma", "keffi", "NSUK", "sojis shawarma", "delivery", "food", "nasarawa"],
   openGraph: {
-    title: "Soji's Shawarma Spot - Best Shawarma in Keffi",
+    title: "Uncle Soji's Shawarma Spot - Best Shawarma in Keffi",
     description: "Authentic premium shawarma delivered fresh and fast to your door in Keffi.",
     url: 'https://sojis-shawarma.vercel.app',
-    siteName: "Soji's Shawarma",
+    siteName: "Uncle Soji's Shawarma",
     locale: 'en_NG',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Soji's Shawarma",
+    title: "Uncle Soji's Shawarma",
     description: "Premium shawarma in Keffi.",
   },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: "Soji Shawarma",
+    title: "Uncle Soji",
   },
 };
 

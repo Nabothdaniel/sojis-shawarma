@@ -6,8 +6,9 @@ export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const hasVisited = localStorage.getItem('soji_has_visited');
-    if (hasVisited === 'true') {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in window.navigator && (window.navigator as any).standalone === true);
+    
+    if (isStandalone) {
       router.replace('/show/');
     } else {
       router.replace('/landing/');

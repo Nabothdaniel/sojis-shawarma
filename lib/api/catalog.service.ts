@@ -1,6 +1,5 @@
-import { db, storage } from '../firebase/config';
+import { db } from '../firebase/config';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface CatalogCategory {
   id: string | number;
@@ -94,16 +93,31 @@ export const catalogService = {
     const file = formData.get('file') as File;
     if (!file) throw new Error("No image file found in formData");
     
-    const filename = `${Date.now()}-${file.name}`;
-    const storageRef = ref(storage, `catalog/${filename}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    if (!cloudName || !uploadPreset) throw new Error("Cloudinary configuration missing in .env");
     
+    const uploadForm = new FormData();
+    uploadForm.append('file', file);
+    uploadForm.append('upload_preset', uploadPreset);
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: uploadForm,
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || "Failed to upload asset to Cloudinary");
+    }
+
+    const data = await res.json();
+
     return {
       status: 'success',
       data: {
-        path: downloadURL,
-        filename: filename
+        path: data.secure_url,
+        filename: data.original_filename || file.name
       }
     };
   },
