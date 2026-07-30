@@ -1,15 +1,21 @@
-export interface ToastMessage {
+export interface Transaction {
   id: string;
-  message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'credit' | 'debit';
+  amount: number;
+  description: string;
+  created_at: string;
+  status: 'completed' | 'pending' | 'failed';
 }
 
 export interface User {
   id: string;
   name: string;
+  username?: string | null;
+  email?: string;
   phone?: string;
   address?: string;
   role: 'user' | 'admin';
+  balance?: number;
 }
 
 export interface Order {
@@ -18,6 +24,12 @@ export interface Order {
   total: number;
   status: 'pending' | 'preparing' | 'delivered' | 'cancelled';
   createdAt: string;
+}
+
+export interface ToastMessage {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
 }
 
 export interface AppState {
@@ -33,10 +45,13 @@ export interface AppState {
 
   // Auth
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   login: (user: User, token?: string) => void;
   logout: () => void;
   setUser: (user: User) => void;
+  setToken: (token: string | null) => void;
+  updateUserBalance: (balance: number) => void;
 
   // Toasts
   toasts: ToastMessage[];
@@ -50,5 +65,25 @@ export interface AppState {
   // Hydration
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
+
+  // Notifications
+  notifications: AppNotification[];
+  unreadCount: number;
+  addNotification: (notification: Omit<AppNotification, 'id' | 'read'>) => void;
+  markAsRead: (id: string) => void;
+  clearNotifications: () => void;
 }
 
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  timestamp: string;
+  read: boolean;
+  type: 'order_status' | 'system' | 'promo';
+  link?: string;
+  icon?: string;
+  orderRef?: string;
+  orderId?: number;
+  eventKey?: string;
+}

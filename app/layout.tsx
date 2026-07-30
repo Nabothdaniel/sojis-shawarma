@@ -1,9 +1,33 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import 'driver.js/dist/driver.css';
+import { AuthProvider } from '@/context/AuthContext';
+import OrderNotifications from '@/components/OrderNotifications';
+import ToastContainer from '@/components/ui/ToastContainer';
+import SessionManager from '@/components/ui/SessionManager';
+import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
 
 export const metadata: Metadata = {
-  title: "Soji Shawarma Spot - Best Shawarma in Lagos",
-  description: "Authentic, juicy, and freshly grilled shawarma delivered to your doorstep. Craving? We've got you covered.",
+  metadataBase: new URL('https://sojis-shawarma.vercel.app'),
+  title: {
+    template: "%s | Soji's Shawarma",
+    default: "Soji's Shawarma Spot - Best Shawarma in Keffi",
+  },
+  description: "Authentic shawarma from Nasarawa State University Keffi, delivered fresh and fast. Order now from the girls hostel corner.",
+  keywords: ["shawarma", "keffi", "NSUK", "sojis shawarma", "delivery", "food", "nasarawa"],
+  openGraph: {
+    title: "Soji's Shawarma Spot - Best Shawarma in Keffi",
+    description: "Authentic premium shawarma delivered fresh and fast to your door in Keffi.",
+    url: 'https://sojis-shawarma.vercel.app',
+    siteName: "Soji's Shawarma",
+    locale: 'en_NG',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "Soji's Shawarma",
+    description: "Premium shawarma in Keffi.",
+  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -20,38 +44,25 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-import { AuthProvider } from '@/context/AuthContext';
-import ToastContainer from '@/components/ui/ToastContainer';
-import SessionManager from '@/components/ui/SessionManager';
-import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="light">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="antialiased selection:bg-primary-container selection:text-on-primary-container">
-        <ReactQueryProvider>
-          <AuthProvider>
-            <SessionManager />
-            <ToastContainer />
-            {children}
-          </AuthProvider>
-        </ReactQueryProvider>
+    <html
+      lang="en"
+      className="light"
+    >
+      <body className="antialiased selection:bg-primary-container selection:text-on-primary-container bg-surface-variant flex flex-col items-center min-h-screen">
+        <div className="w-full max-w-md bg-background min-h-[100dvh] relative shadow-2xl overflow-hidden flex flex-col">
+          <ReactQueryProvider>
+            <AuthProvider>
+              <SessionManager />
+              <OrderNotifications />
+              <ToastContainer />
+              {children}
+            </AuthProvider>
+          </ReactQueryProvider>
+        </div>
       </body>
     </html>
   );
 }
-
-
 

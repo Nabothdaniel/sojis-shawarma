@@ -2,33 +2,18 @@
 
 class Router
 {
-    private $routes = [];
-
-    public function add($method, $path, $handler)
+    public function __construct(private array $routes)
     {
-        $this->routes[] = [
-            'method' => $method,
-            'path' => $path,
-            'handler' => $handler
-        ];
     }
 
-    public function handle()
+    public function match(string $method, string $uri): array
     {
-        $method = $_SERVER['REQUEST_METHOD'];
-        $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-
-        // Remove /api prefix if present (cPanel usually handles this)
-        $path = str_replace('/api', '', $path);
-
-        foreach ($this->routes as $route) {
-            if ($route['method'] === $method && $route['path'] === $path) {
-                echo call_user_func($route['handler']);
-                return;
+        foreach ($this->routes[$method] ?? [] as $pattern => $handler) {
+            if (preg_match("#^{$pattern}$#", $uri, $matches)) {
+                return [$handler, array_slice($matches, 1)];
             }
         }
 
-        header("HTTP/1.1 404 Not Found");
-        echo json_encode(['error' => 'Route not found', 'path' => $path]);
+        return [null, []];
     }
 }

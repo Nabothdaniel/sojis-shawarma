@@ -1,7 +1,7 @@
 import { defaultCache } from "@serwist/next/worker";
 import { type PrecacheEntry, Serwist } from "serwist";
 
-declare const self: ServiceWorkerGlobalScope & {
+declare const self: ServiceWorkerGlobalScopeEventMap & {
   __SW_MANIFEST: (string | PrecacheEntry)[] | undefined;
 };
 

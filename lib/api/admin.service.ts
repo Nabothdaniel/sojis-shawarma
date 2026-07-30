@@ -1,4 +1,4 @@
-import apiClient, { decryptSensitive } from './client';
+import apiClient from './client';
 
 export interface AdminUser {
   id: number;
@@ -65,6 +65,24 @@ export interface ManualNumberCancellationRequest {
   status: 'pending' | 'reviewed' | 'resolved';
   admin_note?: string | null;
   created_at: string;
+}
+
+export interface AdminAccessLinkSettings {
+  is_enabled: boolean;
+  access_key: string | null;
+  login_path: string;
+  expires_at: string | null;
+  refresh_hours: number;
+}
+
+export interface StoreSettings {
+  payment_account_name: string;
+  payment_account_number: string;
+  payment_bank_name: string;
+  payment_note: string;
+  support_whatsapp: string;
+  pickup_address: string;
+  pickup_instructions: string;
 }
 
 export const adminService = {
@@ -209,18 +227,28 @@ export const adminService = {
   // Reset a user's recovery key
   resetUserRecoveryKey: async (userId: number): Promise<{ status: string; data: { recovery_key: string }; message: string }> => {
     const res: any = await apiClient.post('/admin/user/reset-recovery-key', { userId });
-    if (res.status === 'success' && res.data?.recovery_key) {
-      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
-    }
     return res;
   },
 
   // Reveal a user's recovery key
   revealUserRecoveryKey: async (userId: number): Promise<{ status: string; data: { recovery_key: string } }> => {
     const res: any = await apiClient.post('/admin/user/reveal-recovery-key', { userId });
-    if (res.status === 'success' && res.data?.recovery_key) {
-      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
-    }
     return res;
   },
+
+  getAccessLinkSettings: (): Promise<{ status: string; data: AdminAccessLinkSettings }> =>
+    apiClient.get('/admin/access-link'),
+
+  updateAccessLinkSettings: (payload: {
+    action?: 'save' | 'regenerate';
+    is_enabled: boolean;
+    access_key?: string;
+  }): Promise<{ status: string; message: string; data: AdminAccessLinkSettings }> =>
+    apiClient.post('/admin/access-link', payload),
+
+  getStoreSettings: (): Promise<{ status: string; data: StoreSettings }> =>
+    apiClient.get('/admin/store-settings'),
+
+  updateStoreSettings: (payload: Partial<StoreSettings>): Promise<{ status: string; message: string; data: StoreSettings }> =>
+    apiClient.post('/admin/store-settings', payload),
 };

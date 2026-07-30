@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Support/Auth.php';
+
 class AnalyticsController {
     private $db;
 
@@ -8,41 +10,104 @@ class AnalyticsController {
     }
 
     public function getSummary() {
-        $data = [];
-        
-        // Orders & Revenue
-        $ranges = ['TODAY' => 'CURDATE()', 'WEEK' => 'DATE_SUB(CURDATE(), INTERVAL 7 DAY)', 'MONTH' => 'DATE_SUB(CURDATE(), INTERVAL 30 DAY)'];
-        
-        foreach ($ranges as $label => $interval) {
-            $sql = "SELECT COUNT(*) as count, SUM(total) as revenue FROM orders WHERE created_at >= $interval";
-            $res = $this->db->query($sql)->fetch();
-            $data['orders_' . strtolower($label)] = $res['count'];
-            $data['revenue_' . strtolower($label)] = $res['revenue'] ?? 0;
+        $user = $this->getCurrentUser();
+        if (!$user || ($user['role'] ?? 'user') !== 'admin') {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Admin access required']);
         }
 
-        // Top Products
-        $data['top_products'] = $this->db->query("
-            SELECT name, COUNT(*) as count 
-            FROM orders, JSON_TABLE(items, '$[*]' COLUMNS(name VARCHAR(255) PATH '$.name')) as jt 
-            GROUP BY name ORDER BY count DESC LIMIT 5
-        ")->fetchAll();
+        $orders = $this->db->query("SELECT * FROM orders")->fetchAll(PDO::FETCH_ASSOC);
+        $today = date('Y-m-d');
+        $weekAgo = date('Y-m-d', strtotime('-7 days'));
+        $monthAgo = date('Y-m-d', strtotime('-30 days'));
 
-        // Order Status Breakdown
-        $data['status_breakdown'] = $this->db->query("SELECT status, COUNT(*) as count FROM orders GROUP BY status")->fetchAll();
+        $ordersToday = 0;
+        $revenueToday = 0.0;
+        $ordersWeek = 0;
+        $revenueWeek = 0.0;
+        $ordersMonth = 0;
+        $revenueMonth = 0.0;
+        $statusBreakdown = [];
+        $topProducts = [];
 
-        // Abandonment Rate
-        $sessions = $this->db->query("SELECT COUNT(*) as total, SUM(cart_abandoned) as abandoned FROM sessions")->fetch();
-        $data['abandonment_rate'] = $sessions['total'] > 0 ? ($sessions['abandoned'] / $sessions['total']) * 100 : 0;
+        foreach ($orders as $order) {
+            $createdAt = (string) ($order['created_at'] ?? '');
+            $createdDay = $createdAt !== '' ? date('Y-m-d', strtotime($createdAt)) : null;
+            $total = (float) ($order['total_amount'] ?? $order['total'] ?? 0);
+            $status = (string) ($order['status'] ?? 'pending');
 
-        return json_encode($data);
+            $statusBreakdown[$status] = ($statusBreakdown[$status] ?? 0) + 1;
+
+            if ($createdDay === $today) {
+                $ordersToday++;
+                $revenueToday += $total;
+            }
+            if ($createdDay !== null && $createdDay >= $weekAgo) {
+                $ordersWeek++;
+                $revenueWeek += $total;
+            }
+            if ($createdDay !== null && $createdDay >= $monthAgo) {
+                $ordersMonth++;
+                $revenueMonth += $total;
+            }
+
+            $items = json_decode((string) ($order['items'] ?? '[]'), true);
+            if (!is_array($items)) {
+                continue;
+            }
+
+            foreach ($items as $item) {
+                $name = (string) ($item['name'] ?? 'Item');
+                $quantity = (int) ($item['quantity'] ?? 1);
+                $topProducts[$name] = ($topProducts[$name] ?? 0) + max(1, $quantity);
+            }
+        }
+
+        arsort($topProducts);
+        $topProductsList = [];
+        foreach (array_slice($topProducts, 0, 5, true) as $name => $count) {
+            $topProductsList[] = ['name' => $name, 'count' => $count];
+        }
+
+        $statusList = [];
+        foreach ($statusBreakdown as $status => $count) {
+            $statusList[] = ['status' => $status, 'count' => $count];
+        }
+
+        return json_encode([
+            'status' => 'success',
+            'data' => [
+                'orders_today' => $ordersToday,
+                'revenue_today' => $revenueToday,
+                'orders_week' => $ordersWeek,
+                'revenue_week' => $revenueWeek,
+                'orders_month' => $ordersMonth,
+                'revenue_month' => $revenueMonth,
+                'top_products' => $topProductsList,
+                'status_breakdown' => $statusList,
+                'abandonment_rate' => 0,
+            ],
+        ]);
     }
 
     public function getSessions() {
-        $data = [];
-        $data['total'] = $this->db->query("SELECT COUNT(*) FROM sessions")->fetchColumn();
-        $data['devices'] = $this->db->query("SELECT device_type, COUNT(*) as count FROM sessions GROUP BY device_type")->fetchAll();
-        $data['recent'] = $this->db->query("SELECT * FROM sessions ORDER BY last_visit DESC LIMIT 50")->fetchAll();
-        
-        return json_encode($data);
+        $user = $this->getCurrentUser();
+        if (!$user || ($user['role'] ?? 'user') !== 'admin') {
+            header("HTTP/1.1 401 Unauthorized");
+            return json_encode(['message' => 'Admin access required']);
+        }
+
+        $sessions = $this->db->query("SELECT * FROM sessions ORDER BY last_visit DESC")->fetchAll(PDO::FETCH_ASSOC);
+
+        return json_encode([
+            'status' => 'success',
+            'data' => $sessions,
+        ]);
+    }
+
+    private function getCurrentUser() {
+        $token = getBearerToken();
+        $payload = $token ? verifyJwt($token) : false;
+        return $payload ?: null;
     }
 }

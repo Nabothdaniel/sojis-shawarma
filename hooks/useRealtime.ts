@@ -14,8 +14,13 @@ const getApiUrl = () => {
 const API_URL = getApiUrl();
 
 export function useRealtime() {
-  const { user, isAuthenticated, updateUserBalance, addToast } = useAppStore();
+  const user = useAppStore((state) => state.user);
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const token = useAppStore((state) => state.token);
+  const updateUserBalance = useAppStore((state) => state.updateUserBalance);
+  const addToast = useAppStore((state) => state.addToast);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const seenEventKeysRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     // Only connect if authenticated
@@ -28,8 +33,6 @@ export function useRealtime() {
     }
 
     // Get token for auth (passed via query param because EventSource doesn't support headers)
-    const token = sessionStorage.getItem('bamzysms-token') || localStorage.getItem('bamzysms-token');
-    
     if (!token) return;
 
     // Initialize SSE connection
@@ -39,6 +42,13 @@ export function useRealtime() {
 
     console.log('Real-time: Connecting to SSE stream...');
 
+    const shouldDisplayEvent = (key: string) => {
+      const now = Date.now();
+      const lastSeen = seenEventKeysRef.current.get(key) ?? 0;
+      seenEventKeysRef.current.set(key, now);
+      return now - lastSeen > 5000;
+    };
+
     // Live Balance Updates
     es.addEventListener('balance_updated', (e) => {
       try {
@@ -47,16 +57,19 @@ export function useRealtime() {
           updateUserBalance(Number(data.new_balance));
         }
         if (data.message) {
-          addToast(data.message, 'success');
-          // Also add to notifications list
-          const { addNotification } = useAppStore.getState();
-          addNotification({
-            id: Date.now(),
-            event_type: 'balance_updated',
-            payload: e.data,
-            is_read: false,
-            created_at: new Date().toISOString()
-          });
+          const dedupeKey = `balance_updated:${data.message}`;
+          if (shouldDisplayEvent(dedupeKey)) {
+            addToast(data.message, 'success');
+          }
+          // TODO: Add notification system
+          // const { addNotification } = useAppStore.getState();
+          // addNotification({
+          //   id: Date.now(),
+          //   event_type: 'balance_updated',
+          //   payload: e.data,
+          //   is_read: false,
+          //   created_at: new Date().toISOString()
+          // });
         }
       } catch (err) {
         console.error('Real-time: Error parsing balance_updated event', err);
@@ -68,16 +81,19 @@ export function useRealtime() {
       try {
         const data = JSON.parse(e.data);
         if (data.message) {
-          addToast(data.message, data.type || 'info');
-          // Also add to notifications list
-          const { addNotification } = useAppStore.getState();
-          addNotification({
-            id: Date.now(),
-            event_type: data.type || 'info',
-            payload: e.data,
-            is_read: false,
-            created_at: new Date().toISOString()
-          });
+          const dedupeKey = `${data.type || 'info'}:${data.message}`;
+          if (shouldDisplayEvent(dedupeKey)) {
+            addToast(data.message, data.type || 'info');
+          }
+          // TODO: Add notification system
+          // const { addNotification } = useAppStore.getState();
+          // addNotification({
+          //   id: Date.now(),
+          //   event_type: data.type || 'info',
+          //   payload: e.data,
+          //   is_read: false,
+          //   created_at: new Date().toISOString()
+          // });
         }
       } catch (err) {
         console.error('Real-time: Error parsing notification event', err);
@@ -96,5 +112,5 @@ export function useRealtime() {
         eventSourceRef.current = null;
       }
     };
-  }, [isAuthenticated, user, updateUserBalance, addToast]);
+  }, [isAuthenticated, user, token, updateUserBalance, addToast]);
 }

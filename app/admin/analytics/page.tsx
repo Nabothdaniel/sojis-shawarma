@@ -1,46 +1,55 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { analyticsService, AnalyticsData } from '@/lib/api';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell 
 } from 'recharts';
+import useAdminGuard from '@/hooks/useAdminGuard';
+import { AdminAnalyticsSkeleton } from '@/components/ui/AdminSkeletons';
 
 export default function AnalyticsPage() {
-  const router = useRouter();
-  const { token, isLoading: authLoading } = useAuth();
-  const [data, setData] = useState<any>(null);
+  const { token, authLoading, isAdmin } = useAdminGuard();
+  const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = async () => {
-    try {
-      const res = await fetch('http://localhost:8000/analytics/summary', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const json = await res.json();
-      setData(json);
-    } catch (err) {
-      console.error('Failed to fetch analytics');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!authLoading && !token) {
-      router.push('/login');
+    if (!isAdmin || !token) {
       return;
     }
-    if (token) {
-      fetchData();
-      const interval = setInterval(fetchData, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [token, authLoading, router]);
 
-  if (isLoading || authLoading) return <div className="p-10 font-headline font-bold">Loading Insights...</div>;
+    let active = true;
+
+    const fetchData = async () => {
+      try {
+        const response = await analyticsService.getSummary();
+        if (active) {
+          setData(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch analytics');
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 60000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [isAdmin, token]);
+
+  if (authLoading || (isAdmin && isLoading)) return <AdminAnalyticsSkeleton />;
+
+  if (!isAdmin) return null;
+
+  if (!data) return <div className="p-10 font-headline font-bold">No data available</div>;
 
   const COLORS = ['#745b00', '#f5c518', '#006c45', '#a53c00', '#1c1b1b'];
 

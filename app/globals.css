@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&family=Plus+Jakarta+Sans:wght@300..800&family=Space+Grotesk:wght@300..700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -27,9 +28,13 @@
   --color-outline: #807660;
   --color-outline-variant: #d1c5ac;
   
-  --font-headline: "Noto Serif", serif;
-  --font-body: "Plus Jakarta Sans", sans-serif;
-  --font-label: "Space Grotesk", sans-serif;
+  --font-headline-family: 'Noto Serif', serif;
+  --font-body-family: 'Plus Jakarta Sans', sans-serif;
+  --font-label-family: 'Space Grotesk', sans-serif;
+
+  --font-headline: var(--font-headline-family), serif;
+  --font-body: var(--font-body-family), sans-serif;
+  --font-label: var(--font-label-family), sans-serif;
   
   --radius-default: 1rem;
   --radius-lg: 2rem;
@@ -81,4 +86,69 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.admin-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(229, 226, 225, 0.92) 0%,
+    rgba(246, 243, 242, 1) 50%,
+    rgba(229, 226, 225, 0.92) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .admin-skeleton {
+    animation: admin-skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes admin-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Driver.js Custom Overlay Style ──────────────── */
+.driver-theme-sojis .driver-popover {
+  border-radius: 1.5rem !important;
+  background-color: var(--surface-container-highest, #ffffff) !important;
+  color: #1c1b1b !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  font-family: inherit !important;
+}
+.driver-theme-sojis .driver-popover-title {
+  font-weight: 700 !important;
+  font-size: 1.125rem !important;
+}
+.driver-theme-sojis .driver-popover-description {
+  font-size: 0.875rem !important;
+  opacity: 0.8 !important;
+  margin-top: 0.25rem !important;
+}
+.driver-theme-sojis .driver-popover-next-btn,
+.driver-theme-sojis .driver-popover-prev-btn,
+.driver-theme-sojis .driver-popover-close-btn {
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 0.75rem !important;
+  padding: 0.5rem 1rem !important;
+  text-shadow: none !important;
+}
+.driver-theme-sojis .driver-popover-next-btn {
+  background-color: #1f2937 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+.driver-theme-sojis .driver-popover-prev-btn {
+  background-color: transparent !important;
+  border: 1px solid #d1d5db !important;
+  color: #4b5563 !important;
 }

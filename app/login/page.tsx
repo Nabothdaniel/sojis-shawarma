@@ -1,28 +1,44 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
+import { authService, biometricService } from '@/lib/api';
+import useBiometricSupport from '@/hooks/useBiometricSupport';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  identifier: z.string().min(1, 'Email or WhatsApp number is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center p-6 font-body text-sm text-outline">Loading login...</div>}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setToken } = useAuth();
   const { login: storeLogin, addToast } = useAppStore();
+  const biometricSupported = useBiometricSupport();
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
   const [isLocked, setIsLocked] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -43,34 +59,49 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8000/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      const result: any = await authService.login(data);
+      const role = result.user?.role === 'admin' ? 'admin' : 'user';
+      setToken(result.token);
+      storeLogin({ ...result.user, role }, result.token);
+      addToast('Login successful', 'success');
+      const redirectTo = searchParams.get('redirect');
+      router.replace(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
+      router.refresh();
+    } catch (error: any) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || 'Login failed';
 
-      const result = await res.json();
-
-      if (res.status === 200) {
-        setToken(result.token);
-        storeLogin(result.user, result.token);
-        addToast('Login successful', 'success');
-        router.push('/admin/dashboard');
-      } else if (res.status === 429) {
+      if (status === 429) {
         setIsLocked(true);
         setCountdown(15 * 60);
         addToast('Too many attempts. Locked for 15 mins.', 'error');
       } else {
         const remaining = attemptsRemaining - 1;
         setAttemptsRemaining(remaining);
-        addToast(`Invalid credentials. ${remaining} attempts left.`, 'error');
+        addToast(`${message}. ${remaining} attempts left.`, 'error');
         if (remaining <= 0) {
           setIsLocked(true);
           setCountdown(15 * 60);
         }
       }
-    } catch (err) {
-      addToast('Backend not responding', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setIsLoading(true);
+    try {
+      const result: any = await biometricService.login();
+      const role = result.user?.role === 'admin' ? 'admin' : 'user';
+      setToken(result.token);
+      storeLogin({ ...result.user, role }, result.token);
+      addToast('Biometric login successful', 'success');
+      const redirectTo = searchParams.get('redirect');
+      router.replace(role === 'admin' ? '/admin/dashboard' : (redirectTo || '/profile'));
+      router.refresh();
+    } catch (error: any) {
+      addToast(error.response?.data?.message || error.message || 'Biometric login failed', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -83,55 +114,83 @@ export default function LoginPage() {
           <div className="w-20 h-20 bg-primary-container rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl shadow-primary-container/20">
             <span className="material-symbols-outlined text-on-primary-container text-4xl">lock</span>
           </div>
-          <h1 className="font-headline font-bold text-3xl">Admin Access</h1>
-          <p className="font-body text-outline text-sm mt-2">Personal use only</p>
+          <h1 className="font-headline font-bold text-3xl">Welcome Back</h1>
+          <p className="font-body text-outline text-sm mt-2">Sign in to manage your orders and delivery details</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="space-y-1">
-            <input
-              {...register('email')}
-              type="email"
-              placeholder="Email Address"
-              disabled={isLocked || isLoading}
-              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
-            />
-            {errors.email && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.email.message}</p>}
-          </div>
-
-          <div className="space-y-1">
-            <input
-              {...register('password')}
-              type="password"
-              placeholder="Password"
-              disabled={isLocked || isLoading}
-              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all disabled:opacity-50"
-            />
-            {errors.password && <p className="text-error text-[10px] uppercase font-bold ml-4 tracking-wider">{errors.password.message}</p>}
-          </div>
+          <Input
+            {...register('identifier')}
+            type="text"
+            placeholder="Email or WhatsApp Number"
+            disabled={isLocked || isLoading}
+            variant="filled"
+            error={errors.identifier?.message}
+          />
+          <Input
+            {...register('password')}
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Password"
+            disabled={isLocked || isLoading}
+            variant="filled"
+            error={errors.password?.message}
+            rightAction={
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                disabled={isLocked || isLoading}
+                className="flex h-full w-full items-center justify-center text-outline disabled:opacity-50"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <span className="material-symbols-outlined text-xl">
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            }
+          />
 
           {isLocked ? (
             <div className="bg-error/10 text-error p-4 rounded-2xl text-center font-label font-bold text-xs uppercase tracking-widest">
               LOCKED: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
             </div>
           ) : (
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-on-surface text-surface font-headline font-bold py-5 rounded-full shadow-2xl active:scale-[0.98] transition-all flex items-center justify-center gap-3"
-            >
-              {isLoading ? (
-                <span className="w-5 h-5 border-2 border-surface/30 border-t-surface rounded-full animate-spin"></span>
-              ) : (
-                <>Sign In <span className="material-symbols-outlined">arrow_forward</span></>
+            <div className="flex gap-4">
+              <Button
+                type="submit"
+                isLoading={isLoading}
+                className="flex-1 gap-3"
+              >
+                Sign In <span className="material-symbols-outlined">arrow_forward</span>
+              </Button>
+              
+              {biometricSupported && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={handleBiometricLogin}
+                  disabled={isLoading}
+                  className="w-auto px-6 h-14 bg-primary-container/20 border-2 border-primary-container/30 text-primary-container"
+                  aria-label="Fingerprint Login"
+                >
+                  <span className="material-symbols-outlined text-3xl">fingerprint</span>
+                </Button>
               )}
-            </button>
+            </div>
           )}
         </form>
 
-        <p className="mt-8 text-center text-outline font-label text-[10px] uppercase tracking-widest font-bold">
-          Unauthorized access is logged
-        </p>
+        <div className="mt-8 text-center space-y-3">
+          <Link href="/reset-password" className="block font-body text-sm text-on-surface underline underline-offset-4">
+            Change password with your name and WhatsApp number
+          </Link>
+          <p className="font-body text-sm text-outline">New here? Create an account before your next order.</p>
+          <Link
+            href={searchParams.get('redirect') ? `/signup?redirect=${encodeURIComponent(searchParams.get('redirect') || '')}` : '/signup'}
+            className="inline-flex items-center justify-center rounded-full bg-surface-container-low px-6 py-3 font-label text-xs font-bold uppercase tracking-widest text-on-surface hover:bg-surface-container-lowest transition-colors"
+          >
+            Create account
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -1,27 +1,22 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import useInstallPrompt from '@/hooks/useInstallPrompt';
+import { useAddToast } from '@/store/appStore.selectors';
 
 export default function DetailedLanding() {
   const router = useRouter();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
-  }, []);
+  const { install, installAvailable } = useInstallPrompt();
+  const addToast = useAddToast();
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDeferredPrompt(null);
-    } else {
-      alert('To install: Tap the browser menu and select "Add to Home Screen"');
-    }
+    await install({
+      onUnsupported: () => {
+        addToast('Use your browser menu and tap Add to Home Screen to install the app.', 'info');
+      },
+      onAccepted: () => addToast('App installation started.', 'success'),
+      onDismissed: () => addToast('Install prompt dismissed.', 'info'),
+    });
   };
 
   return (
@@ -32,7 +27,7 @@ export default function DetailedLanding() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg">
             <span className="material-symbols-outlined text-surface text-xl">restaurant</span>
           </div>
-          <span className="font-headline font-bold text-lg">Soji's</span>
+          <span className="font-headline font-bold text-lg">Soji&apos;s</span>
         </div>
         <button 
           onClick={() => {
@@ -49,13 +44,13 @@ export default function DetailedLanding() {
       <section className="pt-32 pb-20 px-8 text-center max-w-4xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-8">
           <span className="material-symbols-outlined text-sm">verified</span>
-          <span className="font-label font-bold text-[10px] uppercase tracking-widest">Lagos's #1 Shawarma App</span>
+          <span className="font-label font-bold text-[10px] uppercase tracking-widest">Keffi&apos;s Favorite Shawarma App</span>
         </div>
         <h1 className="font-headline font-bold text-6xl md:text-8xl leading-none mb-6">
           The Future of <br/> <span className="text-primary italic">Flavor.</span>
         </h1>
         <p className="font-body text-outline text-lg md:text-xl max-w-lg mx-auto mb-12">
-          Experience the juiciest shawarma in Lagos, delivered with surgical precision. Install our app for the fastest experience.
+          Soji&apos;s Shawarma is right inside Nasarawa State University, Keffi, in front of the old girls hostel. Order fast, track updates, and enjoy fresh shawarma made for students, staff, and everyone nearby.
         </p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center">
@@ -64,7 +59,7 @@ export default function DetailedLanding() {
             className="bg-primary text-on-primary px-10 py-5 rounded-3xl font-headline font-bold text-xl shadow-2xl shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-3"
           >
             <span className="material-symbols-outlined">install_mobile</span>
-            Install Mobile App
+            {installAvailable ? 'Install Mobile App' : 'Save to Home Screen'}
           </button>
           <button 
              onClick={() => router.push('/show')}
@@ -89,8 +84,8 @@ export default function DetailedLanding() {
             <div className="w-16 h-16 bg-tertiary/10 text-tertiary rounded-2xl flex items-center justify-center">
               <span className="material-symbols-outlined text-3xl">send</span>
             </div>
-            <h3 className="font-headline font-bold text-2xl">Telegram Tracking</h3>
-            <p className="font-body text-outline leading-relaxed">No more wondering where your food is. Get instant rich notifications via Telegram for every stage.</p>
+            <h3 className="font-headline font-bold text-2xl">Live Order Updates</h3>
+            <p className="font-body text-outline leading-relaxed">Place your order with confidence and stay in the loop as it moves from confirmation to delivery.</p>
           </div>
           <div className="space-y-4">
             <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
@@ -106,15 +101,15 @@ export default function DetailedLanding() {
       <section className="py-24 px-8 text-center bg-on-surface text-surface relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
         <div className="max-w-2xl mx-auto relative z-10">
-          <h2 className="font-headline font-bold text-4xl mb-6">Share the Soji Experience</h2>
-          <p className="font-body text-surface/60 mb-10">Copy this link to share our app with friends and family. Everyone deserves a great wrap.</p>
+          <h2 className="font-headline font-bold text-4xl mb-6">Keep Soji&apos;s On Your Phone</h2>
+          <p className="font-body text-surface/60 mb-10">On Vercel and other HTTPS hosts, the app can be installed straight from the browser. If your browser does not show a prompt, use the menu and choose Add to Home Screen.</p>
           
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 flex items-center justify-between gap-4 border border-white/10">
             <code className="text-primary-container font-mono text-sm overflow-hidden text-ellipsis whitespace-nowrap">https://soji-shawarma.app</code>
             <button 
               onClick={() => {
                 navigator.clipboard.writeText('https://soji-shawarma.app');
-                alert('App link copied!');
+                addToast('App link copied.', 'success');
               }}
               className="bg-primary text-on-primary px-6 py-2 rounded-xl font-label font-bold text-xs uppercase"
             >

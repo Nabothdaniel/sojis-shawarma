@@ -1,9 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import axiosInstance from '@/lib/axios';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
+import type { User } from '@/types';
 
 interface AuthContextType {
   token: string | null;
@@ -14,42 +17,55 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, logout } = useAppStore();
-
-  const refreshToken = async () => {
-    try {
-      const data: any = await axiosInstance.post('/auth/refresh');
-      if (data.token) {
-        setToken(data.token);
-      } else {
-        throw new Error('Refresh failed');
-      }
-    } catch (err) {
-      setToken(null);
-      if (pathname.startsWith('/admin')) {
-        logout();
-        router.push('/login');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { token, setToken, login, logout } = useAppStore();
 
   useEffect(() => {
-    // Initial check
-    refreshToken();
-    
-    // Auto refresh 1 minute before expiry (assuming 15min expiry)
-    const interval = setInterval(refreshToken, 14 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      try {
+        if (firebaseUser) {
+          const idToken = await firebaseUser.getIdToken();
+          
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const userData = userDoc.exists() ? userDoc.data() : {};
+          const role = userData.role || 'user';
+
+          const mappedUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || userData.name || 'User',
+            email: firebaseUser.email || userData.email || undefined,
+            role: role,
+            phone: userData.phone || undefined,
+            address: userData.address || undefined,
+          };
+          login(mappedUser, idToken);
+        } else {
+          logout();
+        }
+      } catch (error) {
+        console.error("Auth state handling error", error);
+        logout();
+      } finally {
+        setIsLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [login, logout]);
+
+  // Separate effect for admin logout on unauthorized access
+  useEffect(() => {
+    if (pathname.startsWith('/admin') && token === null && !isLoading) {
+      router.push('/admin/login');
+    }
+  }, [isLoading, pathname, router, token]);
+
+  const contextValue = useMemo(() => ({ token, setToken, isLoading }), [token, setToken, isLoading]);
 
   return (
-    <AuthContext.Provider value={{ token, setToken, isLoading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
