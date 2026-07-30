@@ -6,6 +6,7 @@ import { adminService, analyticsService, orderService, type Order, type StoreSet
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminRouteLoadingScreen } from '@/components/ui/AdminSkeletons';
+import { useWalkthrough } from '@/hooks/useWalkthrough';
 
 export default function AdminHomePage() {
   const { authLoading, isAdmin, user } = useAdminGuard();
@@ -65,6 +66,13 @@ export default function AdminHomePage() {
     };
   }, [addToast, isAdmin]);
 
+  useWalkthrough('admin_command_center_v1', [
+    { element: '#tour-nav', popover: { title: 'Global Navigation', description: 'Switch between modules like Orders, Products, Categories, Reviews, and Analytics.', side: 'bottom' } },
+    { element: '#tour-stats', popover: { title: 'Quick Insights', description: 'Real-time overview of today\'s sales and operational metrics.' } },
+    { element: '#tour-actions', popover: { title: 'Immediate Actions', description: 'Requires your attention now: newly submitted transfer receipts or active pickups.' } },
+    { element: '#tour-security', popover: { title: 'Security Settings', description: 'Generate private timed access links to log into this Command Center safely remotely.' } }
+  ], { enabled: isAdmin && !!stats });
+
   const saveAccessSettings = async (payload: { action?: 'save' | 'regenerate'; is_enabled: boolean; access_key?: string }) => {
     try {
       setIsSavingAccess(true);
@@ -99,22 +107,23 @@ export default function AdminHomePage() {
               Signed in as {user?.name || user?.username || 'Admin'}
             </p>
           </div>
-          <div className="flex gap-4">
+          <div id="tour-nav" className="flex gap-4">
             <Link href="/admin/orders" className="text-xs font-label font-bold uppercase tracking-widest bg-on-surface text-surface px-6 py-3 rounded-full">Orders</Link>
             <Link href="/admin/products" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Products</Link>
+            <Link href="/admin/categories" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Categories</Link>
             <Link href="/admin/reviews" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Reviews</Link>
             <Link href="/admin/analytics" className="text-xs font-label font-bold uppercase tracking-widest bg-primary-container text-on-primary-container px-6 py-3 rounded-full">Analytics</Link>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div id="tour-stats" className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <DashboardStat label="Today Items" value={stats.orders_today} icon="shopping_bag" />
           <DashboardStat label="Pending" value={stats.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0} icon="timer" color="text-secondary" />
           <DashboardStat label="Payment Reviews" value={pendingPayments.length} icon="credit_score" color="text-secondary" />
           <DashboardStat label="Sales Today" value={`₦${stats.revenue_today.toLocaleString()}`} icon="payments" color="text-tertiary" />
         </div>
 
-        <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <section id="tour-actions" className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -191,7 +200,7 @@ export default function AdminHomePage() {
           </div>
         </section>
 
-        <section className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
+        <section id="tour-security" className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="font-headline font-bold text-2xl">Admin Login URL</h2>

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useProductDetail } from '@/features/products/hooks/useProductDetail';
-import ProductDetailClient from './[id]/ProductDetailClient';
+import ProductDetailClient from './ProductDetailClient';
 
-export default function ProductDetailPage() {
+function ProductDetailInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const id = searchParams.get('id');
@@ -33,4 +33,12 @@ export default function ProductDetailPage() {
   }
 
   return <ProductDetailClient product={product} />;
+}
+
+export default function ProductDetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-surface flex items-center justify-center font-headline font-bold">Loading product...</div>}>
+      <ProductDetailInner />
+    </Suspense>
+  );
 }

@@ -65,7 +65,7 @@ export default function AdminOrders() {
     return null;
   }
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = async (id: string | number, status: string) => {
     try {
       setActionLoading(true);
       await orderService.updateOrderStatus(id, status);

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
+import { LuHouse, LuReceipt, LuShoppingCart, LuUser } from 'react-icons/lu';
 
 interface BottomNavProps {
   active: 'home' | 'orders' | 'cart' | 'profile' | 'search';
@@ -29,17 +30,17 @@ export default function BottomNav({ active }: BottomNavProps) {
   return (
     <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-on-surface/95 backdrop-blur-2xl rounded-full px-8 py-4 flex justify-between items-center z-50 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10">
       <Link href="/show" className={navClass('home')}>
-        <span className="material-symbols-outlined" style={iconStyle('home')}>home</span>
+        <LuHouse className="text-2xl" />
         {active === 'home' && <span className="w-1 h-1 bg-primary-container rounded-full absolute -bottom-2"></span>}
       </Link>
       
       <Link href="/orders" className={navClass('orders')}>
-        <span className="material-symbols-outlined" style={iconStyle('orders')}>receipt_long</span>
+        <LuReceipt className="text-2xl" />
         {active === 'orders' && <span className="w-1 h-1 bg-primary-container rounded-full absolute -bottom-2"></span>}
       </Link>
 
       <Link href="/cart" className={navClass('cart')}>
-        <span className="material-symbols-outlined" style={iconStyle('cart')}>shopping_cart</span>
+        <LuShoppingCart className="text-2xl" />
         {isMounted && totalItems > 0 && (
           <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary-container text-on-primary-container text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-on-surface animate-bounce-subtle">
             {totalItems}
@@ -49,7 +50,7 @@ export default function BottomNav({ active }: BottomNavProps) {
       </Link>
 
       <Link href="/profile" className={navClass('profile')}>
-        <span className="material-symbols-outlined" style={iconStyle('profile')}>person</span>
+        <LuUser className="text-2xl" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-on-surface"></span>
         )}

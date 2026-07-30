@@ -10,6 +10,17 @@ import BottomNav from '@/components/ui/BottomNav';
 import useInstallPrompt from '@/hooks/useInstallPrompt';
 import { catalogService, favoritesService } from '@/lib/api';
 import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
+import { 
+  LuUtensils, 
+  LuDownload, 
+  LuSmartphone, 
+  LuBell, 
+  LuSearch, 
+  LuStar, 
+  LuHeart, 
+  LuPlus 
+} from 'react-icons/lu';
+import { useWalkthrough } from '@/hooks/useWalkthrough';
 
 export default function DeliveryMenu() {
   const router = useRouter();
@@ -62,6 +73,12 @@ export default function DeliveryMenu() {
 
     loadProducts();
   }, []);
+
+  useWalkthrough('customer_menu_v1', [
+    { element: '#tour-welcome', popover: { title: 'Welcome to Sojis Shawarma', description: 'Your new favorite premium spot in Keffi.' } },
+    { element: '#tour-search', popover: { title: 'Find your cravings', description: 'Quickly search for any custom shawarma or drink here.' } },
+    { element: '#tour-categories', popover: { title: 'Filter by Category', description: 'Tap these chips to narrow down specific types of orders.' } }
+  ], { enabled: !loadingProducts && isMounted });
 
   const handleInstall = async () => {
     await install({
@@ -121,16 +138,16 @@ export default function DeliveryMenu() {
     <div className="bg-surface text-on-surface min-h-screen pb-32">
       <header className="px-6 pt-10 pb-6 bg-surface sticky top-0 z-40 transition-all duration-300 backdrop-blur-sm bg-surface/90">
         <div className="flex justify-between items-center mb-8">
-          <div className="w-14 h-14 bg-primary-container rounded-[24px] flex items-center justify-center shadow-xl shadow-primary-container/20 border border-white/20">
-            <span className="material-symbols-outlined text-on-primary-container text-3xl">restaurant</span>
+          <div className="w-14 h-14 bg-primary-container rounded-[24px] flex items-center justify-center shadow-xl shadow-primary-container/20 border border-white/20 text-on-primary-container">
+            <LuUtensils className="text-3xl" />
           </div>
           
           <div className="flex items-center gap-3">
             <button onClick={handleInstall} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-surface-container-low active:scale-90 transition-transform">
-              <span className="material-symbols-outlined text-primary text-2xl">{installAvailable ? 'download_for_offline' : 'install_mobile'}</span>
+              {installAvailable ? <LuDownload className="text-primary text-2xl" /> : <LuSmartphone className="text-primary text-2xl" />}
             </button>
             <Link href="/notifications" className="relative w-12 h-12 flex items-center justify-center rounded-2xl bg-surface-container-low active:scale-95 transition-transform">
-              <span className="material-symbols-outlined text-outline">notifications</span>
+              <LuBell className="text-outline text-2xl" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-surface animate-pulse-subtle">
                   {unreadCount}
@@ -140,7 +157,7 @@ export default function DeliveryMenu() {
           </div>
         </div>
 
-        <section className="space-y-1">
+        <section id="tour-welcome" className="space-y-1">
           <p className="font-body text-outline font-medium text-base">Hey {displayName} 👋</p>
           <h1 className="font-headline font-bold text-[36px] leading-[1.1] text-on-surface">Order Delivery</h1>
         </section>
@@ -148,8 +165,8 @@ export default function DeliveryMenu() {
 
       <main className="px-6 space-y-8 max-w-md mx-auto">
         <section>
-          <div className="relative group">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline">search</span>
+          <div id="tour-search" className="relative group">
+            <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-outline text-xl" />
             <input 
               className="w-full bg-transparent border border-outline-variant/30 rounded-xl py-4 pl-12 pr-4 font-body placeholder:text-outline focus:ring-2 focus:ring-primary-container transition-all outline-none" 
               placeholder="Search shawarma..." 
@@ -160,7 +177,7 @@ export default function DeliveryMenu() {
           </div>
         </section>
 
-        <section className="overflow-x-auto no-scrollbar -mx-6 px-6">
+        <section id="tour-categories" className="overflow-x-auto no-scrollbar -mx-6 px-6">
           <div className="flex gap-3 whitespace-nowrap">
             {categories.map((cat) => (
               <button 
@@ -219,26 +236,21 @@ export default function DeliveryMenu() {
                 <Link href={buildProductHref(item.id)} className="relative h-44 overflow-hidden rounded-3xl">
                   <ProductImage src={item.image} alt={item.name} fill className="group-hover:scale-110 transition-transform duration-500" blend={true} />
                   <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined text-primary-container text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    <LuStar className="text-primary-container text-[12px]" />
                     <span className="font-label text-[10px] font-bold">{item.rating}</span>
                   </div>
                   <button 
                     onClick={(e) => toggleFavorite(e, item.id)}
                     className="absolute bottom-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"
                   >
-                    <span 
-                      className={`material-symbols-outlined text-base ${favoriteIds.has(Number(item.id)) ? 'text-red-500' : 'text-outline/40'}`} 
-                      style={{ fontVariationSettings: `'FILL' ${favoriteIds.has(Number(item.id)) ? 1 : 0}` }}
-                    >
-                      favorite
-                    </span>
+                    <LuHeart className={`text-base ${favoriteIds.has(Number(item.id)) ? 'text-red-500 fill-red-500' : 'text-outline/40'}`} />
                   </button>
                 </Link>
                 <div className="p-4 flex flex-col flex-1">
                   <h4 className="font-body font-bold text-sm mb-1 line-clamp-1">{item.name}</h4>
                   <div className="mt-auto flex justify-between items-center">
                     <span className="font-label font-bold text-secondary">₦{item.price.toLocaleString()}</span>
-                    <button onClick={() => handleQuickAdd(item)} className="w-8 h-8 bg-primary-container text-on-surface rounded-full flex items-center justify-center shadow-lg shadow-primary-container/20"><span className="material-symbols-outlined text-lg">add</span></button>
+                    <button onClick={() => handleQuickAdd(item)} className="w-8 h-8 bg-primary-container text-on-surface rounded-full flex items-center justify-center shadow-lg shadow-primary-container/20"><LuPlus className="text-lg" /></button>
                   </div>
                 </div>
               </div>

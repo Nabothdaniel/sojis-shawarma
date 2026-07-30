@@ -1,4 +1,4 @@
-import apiClient, { decryptSensitive } from './client';
+import apiClient from './client';
 
 export interface AdminUser {
   id: number;
@@ -227,18 +227,12 @@ export const adminService = {
   // Reset a user's recovery key
   resetUserRecoveryKey: async (userId: number): Promise<{ status: string; data: { recovery_key: string }; message: string }> => {
     const res: any = await apiClient.post('/admin/user/reset-recovery-key', { userId });
-    if (res.status === 'success' && res.data?.recovery_key) {
-      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
-    }
     return res;
   },
 
   // Reveal a user's recovery key
   revealUserRecoveryKey: async (userId: number): Promise<{ status: string; data: { recovery_key: string } }> => {
     const res: any = await apiClient.post('/admin/user/reveal-recovery-key', { userId });
-    if (res.status === 'success' && res.data?.recovery_key) {
-      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
-    }
     return res;
   },
 

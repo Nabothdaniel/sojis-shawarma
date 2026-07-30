@@ -1,9 +1,12 @@
 'use client';
 
-import  { createContext,useState, useContext, useEffect, useMemo, useRef } from 'react';
+import { createContext, useState, useContext, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import axiosInstance from '@/lib/axios';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
+import type { User } from '@/types';
 
 interface AuthContextType {
   token: string | null;
@@ -17,51 +20,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { token, setToken, logout, isAuthenticated } = useAppStore();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { token, setToken, login, logout } = useAppStore();
 
-  // Separate effect for initial token refresh - runs only once
   useEffect(() => {
-    const refreshToken = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
-        const data: any = await axiosInstance.post('/auth/refresh');
-        if (data.token) {
-          setToken(data.token);
+        if (firebaseUser) {
+          const idToken = await firebaseUser.getIdToken();
+          
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const userData = userDoc.exists() ? userDoc.data() : {};
+          const role = userData.role || 'user';
+
+          const mappedUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || userData.name || 'User',
+            email: firebaseUser.email || userData.email || undefined,
+            role: role,
+            phone: userData.phone || undefined,
+            address: userData.address || undefined,
+          };
+          login(mappedUser, idToken);
+        } else {
+          logout();
         }
-      } catch (err) {
-        if (!token) {
-          setToken(null);
-        }
+      } catch (error) {
+        console.error("Auth state handling error", error);
+        logout();
       } finally {
         setIsLoading(false);
       }
-    };
+    });
 
-    if (token) {
-      setIsLoading(false);
-    } else {
-      refreshToken();
-    }
-
-    // Setup auto-refresh interval (14 minutes before 15min expiry)
-    intervalRef.current = setInterval(refreshToken, 14 * 60 * 1000);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [setToken, token]);
+    return () => unsubscribe();
+  }, [login, logout]);
 
   // Separate effect for admin logout on unauthorized access
   useEffect(() => {
     if (pathname.startsWith('/admin') && token === null && !isLoading) {
-      logout();
       router.push('/admin/login');
     }
-  }, [isLoading, logout, pathname, router, token]);
+  }, [isLoading, pathname, router, token]);
 
-  // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({ token, setToken, isLoading }), [token, setToken, isLoading]);
 
   return (

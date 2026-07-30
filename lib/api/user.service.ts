@@ -1,4 +1,4 @@
-import apiClient, { decryptSensitive } from './client';
+import apiClient from './client';
 
 export const userService = {
   getProfile: () => apiClient.get('/user/profile'),
@@ -13,17 +13,11 @@ export const userService = {
   
   regenerateRecoveryKey: async (pin: string) => {
     const res: any = await apiClient.post('/user/regenerate-recovery-key', { pin });
-    if (res.status === 'success' && res.data?.recovery_key) {
-      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
-    }
     return res;
   },
   
   revealRecoveryKey: async (pin: string) => {
     const res: any = await apiClient.post('/user/reveal-recovery-key', { pin });
-    if (res.status === 'success' && res.data?.recovery_key) {
-      res.data.recovery_key = await decryptSensitive(res.data.recovery_key);
-    }
     return res;
   },
 };

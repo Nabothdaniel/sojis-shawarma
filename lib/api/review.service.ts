@@ -3,7 +3,7 @@ import apiClient from './client';
 export interface ProductReview {
   id: number;
   user_id: number;
-  order_id: number;
+  order_id: string | number;
   product_id: string;
   product_name: string;
   rating: number;
@@ -22,7 +22,7 @@ export interface ProductRatingUpdate {
 
 export const reviewService = {
   createReview: (payload: {
-    order_id: number;
+    order_id: string | number;
     product_id: string;
     rating: number;
     review_text?: string;

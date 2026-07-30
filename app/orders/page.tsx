@@ -1,19 +1,20 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { Suspense, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import { useCartStore } from '@/store/cartStore';
 import { orderService, type Order } from '@/lib/api';
 import BottomNav from '@/components/ui/BottomNav';
+import OrderDetailClient from './[id]/OrderDetailClient';
 
-const activeStatuses: Order['status'][] = ['pending', 'confirmed', 'preparing', 'dispatched'];
+const activeStatuses: Order['status'][] = ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'dispatched'];
 
 const statusTone: Record<Order['status'], string> = {
   pending: 'bg-secondary/10 text-secondary',
   confirmed: 'bg-primary-container/20 text-on-surface',
   preparing: 'bg-primary-container/20 text-on-surface',
+  ready_for_pickup: 'bg-primary-container/40 text-on-surface',
   dispatched: 'bg-tertiary/10 text-tertiary',
   delivered: 'bg-tertiary/20 text-tertiary',
   cancelled: 'bg-error/10 text-error',
@@ -28,8 +29,10 @@ const formatDate = (value: string) =>
     minute: '2-digit',
   });
 
-export default function OrdersPage() {
+function OrdersPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get('id');
   const { isAuthenticated, hasHydrated, addToast } = useAppStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +70,10 @@ export default function OrdersPage() {
     [orders]
   );
 
+  if (orderId) {
+    return <OrderDetailClient id={orderId} />;
+  }
+
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32">
       <header className="px-6 py-6 flex items-center justify-between bg-surface sticky top-0 z-40 border-b border-outline-variant/10">
@@ -83,22 +90,20 @@ export default function OrdersPage() {
           <button
             type="button"
             onClick={() => setActiveTab('active')}
-            className={`flex-1 rounded-full px-4 py-3 text-xs font-label font-bold uppercase tracking-widest transition-colors ${
-              activeTab === 'active'
+            className={`flex-1 rounded-full px-4 py-3 text-xs font-label font-bold uppercase tracking-widest transition-colors ${activeTab === 'active'
                 ? 'bg-on-surface text-surface'
                 : 'bg-surface-container-low text-outline'
-            }`}
+              }`}
           >
             Active Orders ({activeOrders.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`flex-1 rounded-full px-4 py-3 text-xs font-label font-bold uppercase tracking-widest transition-colors ${
-              activeTab === 'history'
+            className={`flex-1 rounded-full px-4 py-3 text-xs font-label font-bold uppercase tracking-widest transition-colors ${activeTab === 'history'
                 ? 'bg-on-surface text-surface'
                 : 'bg-surface-container-low text-outline'
-            }`}
+              }`}
           >
             Order History ({historyOrders.length})
           </button>
@@ -116,7 +121,7 @@ export default function OrdersPage() {
 
           {loading && (
             <div className="bg-surface-container-low rounded-3xl p-8 text-center animate-pulse">
-               <p className="font-body text-sm text-outline">Syncing with kitchen...</p>
+              <p className="font-body text-sm text-outline">Syncing with kitchen...</p>
             </div>
           )}
 
@@ -134,7 +139,7 @@ export default function OrdersPage() {
           )}
 
           {activeTab === 'active' && activeOrders.map((order) => (
-            <Link key={order.id} href={`/orders/${order.id}`} className="block bg-surface-container-low rounded-[32px] p-6 space-y-4 border border-outline-variant/5 shadow-sm active:scale-[0.98] transition-transform">
+            <Link key={order.id} href={`/orders?id=${order.id}`} className="block bg-surface-container-low rounded-[32px] p-6 space-y-4 border border-outline-variant/5 shadow-sm active:scale-[0.98] transition-transform">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-headline font-bold text-lg">{order.order_ref}</p>
@@ -144,10 +149,10 @@ export default function OrdersPage() {
                   {order.status}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2 overflow-hidden">
                 {order.items.slice(0, 3).map((item: any, i: number) => (
-                   <span key={i} className="bg-surface-container-high px-3 py-1 rounded-full text-[10px] whitespace-nowrap text-outline">{item.quantity}x {item.name}</span>
+                  <span key={i} className="bg-surface-container-high px-3 py-1 rounded-full text-[10px] whitespace-nowrap text-outline">{item.quantity}x {item.name}</span>
                 ))}
                 {order.items.length > 3 && <span className="text-[10px] text-outline">+{order.items.length - 3} more</span>}
               </div>
@@ -187,5 +192,13 @@ export default function OrdersPage() {
 
       <BottomNav active="orders" />
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-surface flex items-center justify-center font-body text-sm text-outline">Loading orders...</div>}>
+      <OrdersPageInner />
+    </Suspense>
   );
 }

@@ -40,7 +40,7 @@ export default function AdminOrders() {
     fetchOrders();
   }, [token, filter, authLoading, router]);
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = async (id: string | number, status: string) => {
     try {
       await orderService.updateOrderStatus(id, status);
       const response = await orderService.getAllOrders(

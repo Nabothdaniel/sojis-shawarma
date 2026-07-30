@@ -27,16 +27,23 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
     'reviewCount' in product ? product.reviewCount ?? 0 : 0
   );
 
+  const currentPrice = selectedSize === 'Small' 
+    ? Math.max(product.price - 500, 500) 
+    : selectedSize === 'Large' 
+      ? product.price + 1000 
+      : product.price;
+
   const handleAddToCart = () => {
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: currentPrice,
       quantity: quantity,
       size: selectedSize,
       image: product.image,
     });
     addToast(`${quantity}x ${product.name} (${selectedSize}) added to cart`, 'success');
+    router.push('/show');
   };
 
   const sizes = ['Small', 'Regular', 'Large'];
@@ -128,19 +135,19 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
         {/* Header Controls */}
         <div className="w-full px-6 flex justify-between items-center z-20">
           <button 
-            onClick={() => router.back()}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-lg active:scale-90 transition-transform"
+            onClick={() => router.push('/')}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-low border border-outline-variant/30 active:scale-90 transition-transform"
           >
-            <span className="material-symbols-outlined text-white">arrow_back_ios_new</span>
+            <span className="material-symbols-outlined text-on-surface">arrow_back_ios_new</span>
           </button>
           <button
             onClick={handleToggleFavorite}
             disabled={favoriteBusy || !canFavorite}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-lg active:scale-90 transition-transform disabled:opacity-60 disabled:active:scale-100"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-low border border-outline-variant/30 active:scale-90 transition-transform disabled:opacity-60 disabled:active:scale-100"
             aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <span
-              className={`material-symbols-outlined ${isFavorite ? 'text-red-200' : 'text-white'}`}
+              className={`material-symbols-outlined ${isFavorite ? 'text-red-500' : 'text-on-surface'}`}
               style={{ fontVariationSettings: `'FILL' ${isFavorite ? 1 : 0}` }}
             >
               favorite
@@ -180,7 +187,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
         <div className="mb-6">
           <h1 className="font-headline text-[28px] font-bold leading-tight mb-2">{product.name}</h1>
           <p className="font-label text-2xl font-bold text-primary-container" style={{ color: '#EAB600' }}>
-            ₦{product.price.toLocaleString()}
+            ₦{currentPrice.toLocaleString()}
           </p>
         </div>
 
@@ -215,7 +222,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
         </div>
 
         {/* Size Selector */}
-        <div className="mb-8">
+        <div className="mb-8 hidden">
           <h3 className="font-label text-[10px] uppercase tracking-widest mb-3 font-bold text-outline">Select Size</h3>
           <div className="flex gap-3">
             {sizes.map((size) => (
@@ -261,7 +268,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
           >
             <span>Add to Cart</span>
             <span className="text-on-primary-container/60">—</span>
-            <span>₦{(product.price * quantity).toLocaleString()}</span>
+            <span>₦{(currentPrice * quantity).toLocaleString()}</span>
           </button>
         </div>
       </footer>

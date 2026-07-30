@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { useAppStore } from '@/store/appStore';
+import { LuCircleCheck, LuTriangleAlert, LuInfo, LuX } from 'react-icons/lu';
 
 export default function ToastContainer() {
   const { toasts, removeToast } = useAppStore();
 
   return (
     <div
-      className="fixed inset-x-0 top-4 flex pointer-events-none px-4 sm:top-6 sm:justify-end sm:px-6"
+      className="fixed inset-x-0 top-4 flex pointer-events-none px-4 sm:top-6 sm:justify-end sm:px-6 z-[9999]"
       style={{ zIndex: 2147483647 }}
     >
       <div className="flex w-full max-w-md flex-col gap-3 sm:w-auto">
@@ -21,16 +22,15 @@ export default function ToastContainer() {
             'bg-surface-container-highest text-on-surface'
           }`}
         >
-          <span className="material-symbols-outlined text-xl">
-            {toast.type === 'success' ? 'check_circle' :
-             toast.type === 'error' ? 'error' : 'info'}
-          </span>
+          {toast.type === 'success' && <LuCircleCheck className="text-xl" />}
+          {toast.type === 'error' && <LuTriangleAlert className="text-xl" />}
+          {toast.type !== 'success' && toast.type !== 'error' && <LuInfo className="text-xl" />}
           <span className="font-body font-bold text-sm">{toast.message}</span>
           <button 
             onClick={() => removeToast(toast.id)}
             className="ml-2 hover:opacity-70 transition-opacity"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <LuX className="text-xl" />
           </button>
         </div>
       ))}

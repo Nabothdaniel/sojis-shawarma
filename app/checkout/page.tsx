@@ -8,6 +8,18 @@ import { useMutation } from '@tanstack/react-query';
 import { orderService, userService, type PaymentSettings } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { Order } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import {
+  LuCircleCheck,
+  LuMessageCircle,
+  LuArrowLeft,
+  LuMapPin,
+  LuLocateFixed,
+  LuLandmark,
+  LuCloudUpload,
+  LuImage
+} from 'react-icons/lu';
 
 type CheckoutStep = 'delivery' | 'payment' | 'receipt' | 'success';
 type ProfileData = {
@@ -18,13 +30,12 @@ type ProfileData = {
   email?: string | null;
 };
 
-function mergeDeliveryDetails(
-  current: {
-    name: string;
-    phone: string;
-    address: string;
-    note: string;
-  },
+function mergeDeliveryDetails<T extends {
+  name: string;
+  phone: string;
+  address: string;
+}>(
+  current: T,
   sources: Array<{
     name?: string | null;
     phone?: string | null;
@@ -63,12 +74,10 @@ export default function CheckoutPage() {
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('delivery');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isGeoLoading, setIsGeoLoading] = useState(false);
-  const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [orderRef, setOrderRef] = useState('');
   const [isMounted, setIsMounted] = useState(false);
-  const [hasAttemptedAutofill, setHasAttemptedAutofill] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -98,99 +107,12 @@ export default function CheckoutPage() {
   }, [authLoading, hasHydrated, isSignedIn, addToast, router]);
 
   useEffect(() => {
-    if (!hasHydrated || !isSignedIn) {
+    if (!hasHydrated || !isSignedIn || !user) {
       return;
     }
 
-    setFormData((current) => mergeDeliveryDetails(current, [user, profileData]));
-  }, [hasHydrated, isSignedIn, profileData, user]);
-
-  useEffect(() => {
-    if (!hasHydrated || !isSignedIn || !effectiveToken || hasAttemptedAutofill) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const hydrateDeliveryDetails = async () => {
-      setHasAttemptedAutofill(true);
-
-      try {
-        const [profileResponse, ordersResponse] = await Promise.allSettled([
-          userService.getProfile(),
-          orderService.getAllOrders(),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-
-        let fetchedProfile: ProfileData | null = null;
-        let latestOrder: Order | null = null;
-
-        if (profileResponse.status === 'fulfilled') {
-          const data = profileResponse.value?.data ?? profileResponse.value;
-          if (data && typeof data === 'object') {
-            fetchedProfile = data as ProfileData;
-            setProfileData(fetchedProfile);
-
-            if (fetchedProfile.name) {
-              setUser({
-                id: String(fetchedProfile.id ?? user?.id ?? ''),
-                name: String(fetchedProfile.name),
-                username: user?.username ?? null,
-                email:
-                  typeof fetchedProfile.email === 'string'
-                    ? fetchedProfile.email
-                    : user?.email,
-                phone:
-                  typeof fetchedProfile.phone === 'string'
-                    ? fetchedProfile.phone
-                    : user?.phone,
-                address:
-                  typeof fetchedProfile.address === 'string'
-                    ? fetchedProfile.address
-                    : user?.address,
-                role: user?.role ?? 'user',
-                balance: user?.balance,
-              });
-            }
-          }
-        }
-
-        if (ordersResponse.status === 'fulfilled') {
-          const orders = Array.isArray(ordersResponse.value?.data)
-            ? ordersResponse.value.data
-            : [];
-          latestOrder = orders[0] ?? null;
-        }
-
-        setFormData((current) =>
-          mergeDeliveryDetails(current, [
-            user,
-            fetchedProfile,
-            latestOrder
-              ? {
-                  name: latestOrder.customer_name,
-                  phone: latestOrder.customer_phone,
-                  address: latestOrder.delivery_address,
-                }
-              : null,
-          ])
-        );
-      } catch (error) {
-        if (!cancelled) {
-          console.error('Auto-fill fetch failed', error);
-        }
-      }
-    };
-
-    hydrateDeliveryDetails();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [effectiveToken, hasAttemptedAutofill, hasHydrated, isSignedIn, setUser, user]);
+    setFormData((current) => mergeDeliveryDetails(current, [user]));
+  }, [hasHydrated, isSignedIn, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,7 +201,7 @@ export default function CheckoutPage() {
     if (formData.orderType === 'pickup' && !formData.pickupTime.trim()) {
       newErrors.pickupTime = 'Pickup time is required';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -317,12 +239,12 @@ export default function CheckoutPage() {
 
   // Success screen
   if (!isMounted || authLoading || !hasHydrated || !isSignedIn) return null;
-  
+
   if (currentStep === 'success') {
     return (
       <div className="bg-surface text-on-surface min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <div className="w-24 h-24 bg-tertiary/10 rounded-full flex items-center justify-center mb-6 text-tertiary">
-          <span className="material-symbols-outlined text-5xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+          <LuCircleCheck className="text-5xl" />
         </div>
         <h1 className="font-headline font-bold text-3xl mb-3">
           {formData.paymentMethod === 'cash_on_pickup' ? 'Order Sent! ✓' : 'Payment Submitted! ✓'}
@@ -351,7 +273,7 @@ export default function CheckoutPage() {
           rel="noopener noreferrer"
           className="mt-4 flex items-center justify-center gap-2 bg-green-500 text-white font-headline font-bold px-12 py-4 rounded-full shadow-lg active:scale-95 transition-transform"
         >
-          <span className="material-symbols-outlined text-xl">chat</span>
+          <LuMessageCircle className="text-xl" />
           Chat on WhatsApp
         </a>
       </div>
@@ -366,7 +288,7 @@ export default function CheckoutPage() {
           onClick={() => currentStep === 'delivery' ? router.back() : setCurrentStep('delivery')}
           className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low"
         >
-          <span className="material-symbols-outlined text-xl">arrow_back</span>
+          <LuArrowLeft className="text-xl" />
         </button>
         <h1 className="font-headline font-bold text-xl">Checkout</h1>
       </header>
@@ -384,7 +306,7 @@ export default function CheckoutPage() {
           <form onSubmit={handlePlaceOrder} className="space-y-6">
             <section>
               <h2 className="font-headline font-bold text-lg mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary-container">location_on</span>
+                <LuMapPin className="text-primary-container" />
                 Fulfilment Details
               </h2>
 
@@ -408,80 +330,74 @@ export default function CheckoutPage() {
                   </button>
                 </div>
 
-                <div className="space-y-1">
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.name ? 'ring-2 ring-red-500/50' : ''}`}
-                    value={formData.name}
-                    onChange={(e) => {
-                      setFormData({ ...formData, name: e.target.value });
-                      if (errors.name) setErrors({ ...errors, name: '' });
-                    }}
-                  />
-                  {errors.name && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.name}</p>}
-                </div>
+                <Input
+                  type="text"
+                  placeholder="Full Name"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (errors.name) setErrors({ ...errors, name: '' });
+                  }}
+                  error={errors.name}
+                />
 
-                <div className="space-y-1">
-                  <input
-                    type="tel"
-                    placeholder="Phone Number"
-                    className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.phone ? 'ring-2 ring-red-500/50' : ''}`}
-                    value={formData.phone}
-                    onChange={(e) => {
-                      setFormData({ ...formData, phone: e.target.value });
-                      if (errors.phone) setErrors({ ...errors, phone: '' });
-                    }}
-                  />
-                  {errors.phone && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.phone}</p>}
-                </div>
+                <Input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value });
+                    if (errors.phone) setErrors({ ...errors, phone: '' });
+                  }}
+                  error={errors.phone}
+                />
 
                 {formData.orderType === 'delivery' ? (
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center mb-2 px-1">
-                    <label className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Delivery Address</label>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!navigator.geolocation) return alert('Geolocation not supported');
-                        setIsGeoLoading(true);
-                        navigator.geolocation.getCurrentPosition(async (pos) => {
-                          try {
-                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, {
-                              headers: { 'User-Agent': 'SojiShawarmaSpot/1.0' }
-                            });
-                            const data = await res.json();
-                            setFormData({ ...formData, address: data.display_name });
-                            if (errors.address) setErrors({ ...errors, address: '' });
-                            addToast('Location detected!', 'success');
-                          } catch (err) {
-                            addToast('Could not fetch address details', 'error');
-                          } finally {
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center mb-2 px-1">
+                      <label className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Delivery Address</label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!navigator.geolocation) return alert('Geolocation not supported');
+                          setIsGeoLoading(true);
+                          navigator.geolocation.getCurrentPosition(async (pos) => {
+                            try {
+                              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, {
+                                headers: { 'User-Agent': 'SojiShawarmaSpot/1.0' }
+                              });
+                              const data = await res.json();
+                              setFormData({ ...formData, address: data.display_name });
+                              if (errors.address) setErrors({ ...errors, address: '' });
+                              addToast('Location detected!', 'success');
+                            } catch (err) {
+                              addToast('Could not fetch address details', 'error');
+                            } finally {
+                              setIsGeoLoading(false);
+                            }
+                          }, () => {
                             setIsGeoLoading(false);
-                          }
-                        }, () => {
-                          setIsGeoLoading(false);
-                          addToast('Location access denied', 'error');
-                        });
+                            addToast('Location access denied', 'error');
+                          });
+                        }}
+                        className="flex items-center gap-1 text-primary font-label text-[10px] font-bold uppercase active:scale-95 transition-transform"
+                      >
+                        <LuLocateFixed className="text-sm" />
+                        Detect
+                      </button>
+                    </div>
+                    <textarea
+                      placeholder="Street, House No, Keffi"
+                      rows={3}
+                      className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none ${errors.address ? 'ring-2 ring-red-500/50' : ''}`}
+                      value={formData.address}
+                      onChange={(e) => {
+                        setFormData({ ...formData, address: e.target.value });
+                        if (errors.address) setErrors({ ...errors, address: '' });
                       }}
-                      className="flex items-center gap-1 text-primary font-label text-[10px] font-bold uppercase active:scale-95 transition-transform"
-                    >
-                      <span className="material-symbols-outlined text-sm">my_location</span>
-                      Detect
-                    </button>
+                    />
+                    {errors.address && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.address}</p>}
                   </div>
-                  <textarea
-                    placeholder="Street, House No, Keffi"
-                    rows={3}
-                    className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all resize-none ${errors.address ? 'ring-2 ring-red-500/50' : ''}`}
-                    value={formData.address}
-                    onChange={(e) => {
-                      setFormData({ ...formData, address: e.target.value });
-                      if (errors.address) setErrors({ ...errors, address: '' });
-                    }}
-                  />
-                  {errors.address && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.address}</p>}
-                </div>
                 ) : (
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-low px-5 py-4 text-sm">
@@ -491,19 +407,16 @@ export default function CheckoutPage() {
                         <p className="mt-2 text-xs text-outline">{paymentSettings.pickup_instructions}</p>
                       )}
                     </div>
-                    <div className="space-y-1">
-                      <input
-                        type="text"
-                        placeholder="Preferred pickup time e.g. 5:30 PM"
-                        className={`w-full bg-transparent border border-outline-variant/30 rounded-2xl py-4 px-6 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container/30 transition-all ${errors.pickupTime ? 'ring-2 ring-red-500/50' : ''}`}
-                        value={formData.pickupTime}
-                        onChange={(e) => {
-                          setFormData({ ...formData, pickupTime: e.target.value });
-                          if (errors.pickupTime) setErrors({ ...errors, pickupTime: '' });
-                        }}
-                      />
-                      {errors.pickupTime && <p className="text-red-500 text-[10px] font-bold px-4 uppercase tracking-wider">{errors.pickupTime}</p>}
-                    </div>
+                    <Input
+                      type="text"
+                      placeholder="Preferred pickup time e.g. 5:30 PM"
+                      value={formData.pickupTime}
+                      onChange={(e) => {
+                        setFormData({ ...formData, pickupTime: e.target.value });
+                        if (errors.pickupTime) setErrors({ ...errors, pickupTime: '' });
+                      }}
+                      error={errors.pickupTime}
+                    />
                   </div>
                 )}
                 <div className="space-y-3">
@@ -559,13 +472,15 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            <button
+            <Button
               type="submit"
               disabled={isLoading || isGeoLoading}
-              className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-full shadow-lg active:scale-95 transition-transform disabled:opacity-70"
+              isLoading={isLoading}
+              variant="primary"
+              className="w-full"
             >
-              {isLoading ? '...Saving Order' : formData.paymentMethod === 'cash_on_pickup' ? 'Submit Pickup Order' : 'Next: Payment'}
-            </button>
+              {formData.paymentMethod === 'cash_on_pickup' ? 'Submit Pickup Order' : 'Next: Payment'}
+            </Button>
           </form>
         )}
 
@@ -574,7 +489,7 @@ export default function CheckoutPage() {
           <section className="space-y-6">
             <div className="bg-primary-container/10 border-2 border-primary-container rounded-3xl p-6">
               <h2 className="font-headline font-bold text-lg mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary-container">bank</span>
+                <LuLandmark className="text-primary-container" />
                 {formData.paymentMethod === 'cash_on_pickup' ? 'Pay on Pickup' : 'Bank Transfer'}
               </h2>
               {formData.paymentMethod === 'cash_on_pickup' ? (
@@ -582,40 +497,40 @@ export default function CheckoutPage() {
               ) : (
                 <p className="text-outline font-body text-sm mb-6">Transfer exactly <span className="font-bold text-primary-container">₦{subtotal.toLocaleString()}</span> to the account below:</p>
               )}
-              
+
               {formData.paymentMethod === 'bank_transfer' && (
-              <div className="bg-surface rounded-2xl p-4 space-y-3 mb-6">
-                <div className="flex justify-between items-center">
-                  <span className="font-label text-xs uppercase text-outline">Bank Name</span>
-                  <span className="font-bold">{paymentSettings?.payment_bank_name || 'Bank'}</span>
+                <div className="bg-surface rounded-2xl p-4 space-y-3 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="font-label text-xs uppercase text-outline">Bank Name</span>
+                    <span className="font-bold">{paymentSettings?.payment_bank_name || 'Bank'}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-outline-variant/20">
+                    <span className="font-label text-xs uppercase text-outline">Account Name</span>
+                    <span className="font-bold">{paymentSettings?.payment_account_name || 'Store Account'}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-outline-variant/20">
+                    <span className="font-label text-xs uppercase text-outline">Account Number</span>
+                    <span className="font-bold text-lg font-mono">{paymentSettings?.payment_account_number || '0000000000'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-label text-xs uppercase text-outline">Reference</span>
+                    <span className="font-bold font-mono text-sm">{orderRef}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center pb-3 border-b border-outline-variant/20">
-                  <span className="font-label text-xs uppercase text-outline">Account Name</span>
-                  <span className="font-bold">{paymentSettings?.payment_account_name || 'Store Account'}</span>
-                </div>
-                <div className="flex justify-between items-center pb-3 border-b border-outline-variant/20">
-                  <span className="font-label text-xs uppercase text-outline">Account Number</span>
-                  <span className="font-bold text-lg font-mono">{paymentSettings?.payment_account_number || '0000000000'}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-label text-xs uppercase text-outline">Reference</span>
-                  <span className="font-bold font-mono text-sm">{orderRef}</span>
-                </div>
-              </div>
               )}
 
               <div className="bg-secondary/10 border border-secondary/30 rounded-2xl p-4 mb-6">
                 <p className="text-secondary text-xs font-body">
                   {formData.paymentMethod === 'bank_transfer' ? (
                     <>
-                      ✓ Use the order reference as your transfer description<br/>
-                      ✓ Screenshot the receipt after transfer<br/>
+                      ✓ Use the order reference as your transfer description<br />
+                      ✓ Screenshot the receipt after transfer<br />
                       ✓ Upload receipt on the next step for admin verification
                     </>
                   ) : (
                     <>
-                      ✓ The admin will confirm this order before pickup<br/>
-                      ✓ Bring your order reference when you arrive<br/>
+                      ✓ The admin will confirm this order before pickup<br />
+                      ✓ Bring your order reference when you arrive<br />
                       ✓ Payment remains pending until the admin marks it confirmed
                     </>
                   )}
@@ -632,7 +547,9 @@ export default function CheckoutPage() {
                 />
               )}
 
-              <button
+              <Button
+                variant="primary"
+                className="w-full"
                 onClick={() => {
                   if (formData.paymentMethod === 'cash_on_pickup') {
                     clearCart();
@@ -641,10 +558,9 @@ export default function CheckoutPage() {
                   }
                   setCurrentStep('receipt');
                 }}
-                className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-full shadow-lg active:scale-95 transition-transform"
               >
-                {formData.paymentMethod === 'cash_on_pickup' ? 'Finish Order Request' : 'I&apos;ve Transferred, Next Step'}
-              </button>
+                {formData.paymentMethod === 'cash_on_pickup' ? 'Finish Order Request' : 'I\'ve Transferred, Next Step'}
+              </Button>
             </div>
           </section>
         )}
@@ -654,7 +570,7 @@ export default function CheckoutPage() {
           <form onSubmit={handleReceiptUpload} className="space-y-6">
             <section>
               <h2 className="font-headline font-bold text-lg mb-4 flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary-container">cloud_upload</span>
+                <LuCloudUpload className="text-primary-container" />
                 Upload Receipt
               </h2>
 
@@ -671,17 +587,17 @@ export default function CheckoutPage() {
                   }}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
-                <span className="material-symbols-outlined text-5xl text-primary-container/50 mb-3">image</span>
+                <LuImage className="text-5xl text-primary-container/50 mb-3" />
                 <p className="font-headline font-bold text-center mb-1">{receiptFile ? receiptFile.name : 'Tap to Upload'}</p>
                 <p className="font-label text-xs text-outline">{receiptFile ? 'Selected ✓' : 'Screenshot of bank transfer'}</p>
               </div>
 
               <div className="bg-tertiary/10 border border-tertiary/30 rounded-2xl p-4">
                 <p className="text-tertiary text-xs font-body">
-                  📸 Make sure the receipt clearly shows<br/>
-                  • Amount transferred<br/>
-                  • Bank details<br/>
-                  • Date & time<br/>
+                  📸 Make sure the receipt clearly shows<br />
+                  • Amount transferred<br />
+                  • Bank details<br />
+                  • Date & time<br />
                   • Your reference number
                 </p>
               </div>
@@ -701,13 +617,15 @@ export default function CheckoutPage() {
               <p className="font-body text-xs text-outline">📍 {formData.orderType === 'pickup' ? (paymentSettings?.pickup_address || 'Pickup') : formData.address}</p>
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={isConfirming}
-              className="w-full bg-primary-container text-on-primary-container font-headline font-bold py-4 rounded-full shadow-lg active:scale-95 transition-transform disabled:opacity-70"
+              isLoading={isConfirming}
+              variant="primary"
+              className="w-full"
             >
-              {isConfirming ? '...Submitting Proof' : 'Submit Proof & Complete Order'}
-            </button>
+              Submit Proof & Complete Order
+            </Button>
           </form>
         )}
       </main>

@@ -1,0 +1,55 @@
+# Migration Plan: PHP/SQLite to Firebase
+
+## Overview
+This document outlines the step-by-step process of migrating the Soji's Shawarma backend from our custom PHP/SQLite architecture to a serverless Firebase infrastructure (Firestore, Firebase Auth, Cloud Storage, and Firebase Cloud Functions).
+
+## Phase 1: Firebase Project Setup
+- [ ] Create a new Firebase project in the Firebase Console.
+- [ ] Enable Firestore (Native mode).
+- [ ] Enable Firebase Authentication (Email/Password, and potentially Google/Apple).
+- [ ] Enable Firebase Cloud Storage for product images and receipt uploads.
+- [ ] Generate the `google-services.json` / `GoogleService-Info.plist` (if needed for mobile) and the Web App configuration.
+- [ ] Set up Firebase Admin SDK service account key for any server-side Next.js API routes or Cloud Functions.
+
+## Phase 2: Database Schema Migration (Firestore Data Modeling)
+Firestore is NoSQL, so the relational SQLite schema needs flattening and embedding where appropriate.
+- **Users & Admins:**
+  - Create a `/users` collection.
+  - Custom claims (Admin SDK) to differentiate `role: 'admin'` vs `role: 'user'`.
+  - Migrate `users` and `admins` SQLite tables to Firestore auth & `/users` docs.
+- **Products & Categories:**
+  - Create a `/categories` collection.
+  - Create a `/products` collection. (Consider storing the category name directly in the product to reduce document reads).
+- **Orders:**
+  - Create an `/orders` collection. Store the items array directly on the order document.
+  - Utilize Firestore sub-collections (e.g., `/users/{userId}/orders`) if strict user isolation is preferred.
+- **Reviews & Feedback:**
+  - Create `/reviews` and `/feedbacks` collections.
+- **Sessions & Analytics:**
+  - Optionally move to Google Analytics / Firebase Analytics, or retain a `/sessions` collection if custom tracking is strictly required.
+
+## Phase 3: Frontend Refactoring (Bypassing PHP)
+Currently, the frontend uses `axios` and `lib/api/client.ts` points to `http://localhost:8000/api`.
+- [ ] Install Firebase Web SDK: `npm install firebase`.
+- [ ] Create `lib/firebase/config.ts` to initialize the Firebase App.
+- [ ] Replace custom authentication (`AuthContext.tsx`, `sessionStorage` bearer token) with `onAuthStateChanged` from `firebase/auth`.
+- [ ] Refactor Axios calls to use Firestore SDK (`getDocs`, `setDoc`, `updateDoc`).
+  - E.g., `lib/api/client.ts` will either be deprecated, or refactored for strict Server-Side tasks.
+- [ ] Replace WebCrypto payload encryption. With Firebase Auth, passwords are handled securely out-of-the-box via secure endpoints, so the custom encryption layer can be removed.
+- [ ] Update `Zustand` and `React Query` hooks to depend on Firebase promises/snapshots instead of axios responses.
+
+## Phase 4: Serverless Logic (Firebase Cloud Functions / Next.js APIs)
+- [ ] Move Telegram webhook handling (`Telegram@handle`) to a Firebase Cloud Function or Next.js App Router API (`app/api/telegram/route.ts`).
+- [ ] Replicate Admin Access Settings and Rate Limits using Firestore Security Rules and Next.js Edge Middleware.
+- [ ] Webhook processing for confirm payment (if using Paystack/Stripe etc.) moves to a secure Node.js handler.
+
+## Phase 5: Data Migration (The Bridge)
+- [ ] Write a one-off Next.js API script (or Node.js script) that connects to the SQLite database (`backend/database.sql` / `database.db`) and iterates through all records.
+- [ ] Push existing `users`, `products`, `categories`, and `orders` to Firestore. Note: Passwords cannot be migrated in plain text; users may need a forced password reset, or use Firebase Auth's password hash import tool if the hashing algorithm is compatible.
+- [ ] Migrate image files from `backend/public/uploads` to Firebase Cloud Storage, then update the image URLs in the new Firestore `products` documents.
+
+## Phase 6: Final Testing & Deployment
+- [ ] Apply rigorous Firebase Security Rules (`firestore.rules`) to ensure users can only read/write their own orders and only admins can mutate products.
+- [ ] Validate E2E testing (Playwright scripts in `playwright/`) against the new Firebase infrastructure.
+- [ ] Deploy Next.js via Vercel (or preferred hosting) with proper Firebase environment variables.
+- [ ] Note: Keep the `backend/` directory in the repository during development and migration. Only remove it upon the final verified push.
