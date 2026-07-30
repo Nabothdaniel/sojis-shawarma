@@ -1,0 +1,171 @@
+📓 DEV JOURNAL — July 30, 2026
+"The Bug That Wouldn't Die (And How We Finally Killed It)"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+I've been building Soji's Shawarma — a food ordering PWA for a shawarma spot
+in Keffi, Nasarawa. Stack: Next.js 15, Firebase, Tailwind CSS v4, Serwist for
+the service worker. The dream was to ship it as a static export (`output: export`)
+so it could live on any CDN — no server required.
+
+The nightmare? A build error that followed me like pepper on a wrap.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACT 1: THE VILLAIN APPEARS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Every single time I ran `npm run build`, the same message:
+
+  [Error: Page "/product/[id]" is missing "generateStaticParams()"
+  so it cannot be used with "output: export" config.]
+
+I Googled it. I asked around. I added `generateStaticParams()`. The error
+laughed in my face and came back. I tried returning an empty array `[]`.
+Same error. I tried different configs. Same error. This thing had plot armor.
+
+The frustration? I had prompted about this "countless times" and kept getting
+partial fixes that solved it for one build and broke the next.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACT 2: UNDERSTANDING THE ACTUAL VILLAIN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Here's the thing nobody told me clearly:
+
+With `output: export`, Next.js HAS to know every possible URL at build time.
+For a dynamic route like `/product/[id]`, that means it needs the list of
+ALL product IDs before it even starts building. But my IDs come from a
+Firebase database — they don't exist at build time. They exist when users
+browse the app.
+
+So `generateStaticParams() { return []; }` is like saying:
+"Here is the complete list of products: *nothing*."
+And Next.js says: "Then this route cannot exist. Error."
+
+It wasn't a code bug. It was an architectural mismatch.
+Static export + database-driven dynamic routes = impossible.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACT 3: THE PLOT TWIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+While digging, I realized something: the `/product/[id]` route was already
+doing NOTHING useful. It was just redirecting to `/product?id=xxx`. The
+real product page was already using search params. The `[id]` folder was
+a ghost — haunting the build for no reason.
+
+Solution: DELETE it. Gone. The whole folder.
+
+For `/orders/[id]` — which WAS actively used — I moved the logic into the
+`/orders` page itself. Now clicking an order navigates to `/orders?id=42`
+(a search param) instead of `/orders/42` (a path param). Same result,
+zero dynamic routes needed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACT 4: BUT WAIT, THERE'S MORE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build attempt #2. New error:
+
+  Failed to fetch `Noto Serif` from Google Fonts.
+  [AggregateError] { code: 'ETIMEDOUT' }
+
+Of course. `next/font/google` tries to download fonts DURING the build
+from Google's servers. No internet at build time = no fonts = no build.
+
+Fix: rip out `next/font/google` completely. Load fonts via a CSS `@import`
+in globals.css instead. Now the browser fetches fonts when the user opens
+the app — not Node.js at 9am when the server has no internet.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACT 5: THE FINAL BOSS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build attempt #3. So close. New error:
+
+  useSearchParams() should be wrapped in a suspense boundary
+  at page "/product".
+
+Next.js, during static export, pre-renders every page on a server where there
+IS no URL — so `useSearchParams()` has nothing to read. It requires a
+`<Suspense>` boundary so it can render a static shell first, then let the
+browser fill in the real content.
+
+Fix: wrap every page that uses `useSearchParams()` in a `<Suspense>` boundary
+by pulling the logic into an inner component. Six pages total. Done.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THE VICTORY LAP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ Compiled successfully
+  ✓ Linting and checking validity of types
+  ✓ Collecting page data
+  ✓ Generating static pages (30/30)
+  ✓ Exporting (3/3)
+  ✓ Finalizing page optimization
+
+30 pages. All green. The shawarma app ships.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THE LESSONS (aka what to post about)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 LESSON 1 — "output: export" is not magic
+   It means NO server. Every page must be a static HTML file.
+   Dynamic routes need all their params known at build time.
+   If your data lives in a database, use search params instead.
+
+💡 LESSON 2 — next/font/google needs internet at build time
+   If your CI/CD or local build machine has restricted internet,
+   use CSS @import instead. Same fonts. Zero build dependency.
+
+💡 LESSON 3 — useSearchParams() needs a Suspense boundary
+   In static export mode, Next.js pre-renders pages without a URL.
+   Any hook that reads the URL must live inside <Suspense> so
+   the static shell can be built and the browser fills in the rest.
+
+💡 LESSON 4 — Read the error, then read the CAUSE of the error
+   The real bug wasn't missing `generateStaticParams`. The real bug
+   was trying to use path-based dynamic routing when the data to
+   generate those paths didn't exist yet. The error was just a symptom.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SOCIAL CONTENT IDEAS FROM THIS EXPERIENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🐦 TWITTER/X THREAD IDEAS:
+   - "The Next.js static export trap nobody warned me about 🧵"
+   - "3 build errors. 1 morning. Here's what I learned shipping a shawarma app"
+   - "Why generateStaticParams() returning [] still breaks your build"
+   - "next/font/google will betray you at build time. Here's the fix."
+   - "useSearchParams() in Next.js 15 — the Suspense rule explained simply"
+
+📸 INSTAGRAM/LINKEDIN POST IDEAS:
+   - Photo of the terminal showing "✓ Generating static pages (30/30)"
+     Caption: "After a full war with Next.js 15 static exports, we won. 🏆"
+   - Carousel: "3 errors that blocked my deploy. 3 lessons I'll never forget."
+     Slide 1: The error → Slide 2: What it actually means → Slide 3: The fix
+   - Before/After: the broken build output vs the clean green build
+
+🎬 SHORT VIDEO IDEAS (TikTok / YouTube Shorts / Reels):
+   - Screen recording: show the error → explain the cause → apply the fix → green build
+     Title: "Broke my Next.js build 3 different ways in one morning"
+   - "POV: you've been fighting the same error for weeks and FINALLY understand it"
+   - "I built a food ordering app for a local shawarma spot — here's what broke"
+
+📝 BLOG POST IDEAS:
+   - "The Complete Guide to Next.js 15 Static Export Errors (and how to fix them)"
+   - "Why I ditched next/font/google and you might want to too"
+   - "Routing in Next.js static export: path params vs search params"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUOTE TO CAPTION YOUR POSTS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"The error message tells you WHAT broke.
+ Understanding WHY it broke is the actual job."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF JOURNAL ENTRY — July 30, 2026
+Build: PASSING ✅  App: SHIPPED 🌯
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
