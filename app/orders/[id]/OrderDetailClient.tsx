@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import BottomNav from '@/components/ui/BottomNav';
 import { orderService, type Order } from '@/lib/api';
 import { useAppStore } from '@/store/appStore';
@@ -34,17 +34,18 @@ const formatDate = (value: string) =>
     minute: '2-digit',
   });
 
-export default function OrderDetailClient({ id: propId }: { id?: string }) {
+export default function OrderDetailClient() {
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const { addToast, hasHydrated, isAuthenticated } = useAppStore();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const orderId = useMemo(() => Number(propId), [propId]);
+  const orderId = useMemo(() => Number(params?.id), [params?.id]);
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
-      router.replace(`/login?redirect=/orders/${propId ?? ''}`);
+      router.replace(`/login?redirect=/orders/${params?.id ?? ''}`);
       return;
     }
 
@@ -81,7 +82,7 @@ export default function OrderDetailClient({ id: propId }: { id?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [addToast, hasHydrated, isAuthenticated, orderId, propId, router]);
+  }, [addToast, hasHydrated, isAuthenticated, orderId, params?.id, router]);
 
   return (
     <div className="min-h-screen bg-surface pb-32 text-on-surface">
@@ -128,20 +129,11 @@ export default function OrderDetailClient({ id: propId }: { id?: string }) {
                   <p className="font-headline text-2xl font-bold">{order.order_ref}</p>
                   <p className="font-body text-xs text-outline">{formatDate(order.created_at)}</p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span
-                    className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${statusTone[order.status]}`}
-                  >
-                    {order.status}
-                  </span>
-                  <Link
-                    href={`/track?id=${order.id}`}
-                    className="inline-flex rounded-full bg-primary-container px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-on-primary-container items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[12px]">location_on</span>
-                    Track Live
-                  </Link>
-                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${statusTone[order.status]}`}
+                >
+                  {order.status}
+                </span>
               </div>
 
               <div className="mt-6 grid gap-4 text-sm">

@@ -47,8 +47,8 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
   };
 
   const sizes = ['Small', 'Regular', 'Large'];
-  const favoriteProductId = Number('rawId' in product ? product.rawId : product.id);
-  const canFavorite = Number.isFinite(favoriteProductId) && favoriteProductId > 0;
+  const favoriteProductId = String('rawId' in product ? product.rawId : product.id);
+  const canFavorite = favoriteProductId.length > 0;
   const reviewCount = liveReviewCount;
   const orderCount = 'orderCount' in product ? product.orderCount ?? 0 : 0;
 
@@ -84,13 +84,13 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
 
     favoritesService
       .getFavorites()
-      .then((response) => {
+      .then((response: any) => {
         if (cancelled) {
           return;
         }
 
         const favorites = Array.isArray(response.data) ? response.data : [];
-        setIsFavorite(favorites.some((item) => Number(item.id) === favoriteProductId));
+        setIsFavorite(favorites.some((item: any) => String(item.id) === favoriteProductId));
       })
       .catch(() => {
         if (!cancelled) {

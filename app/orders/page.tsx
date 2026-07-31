@@ -14,7 +14,7 @@ const statusTone: Record<Order['status'], string> = {
   pending: 'bg-secondary/10 text-secondary',
   confirmed: 'bg-primary-container/20 text-on-surface',
   preparing: 'bg-primary-container/20 text-on-surface',
-  ready_for_pickup: 'bg-primary-container/40 text-on-surface',
+  ready_for_pickup: 'bg-primary-container/20 text-on-surface',
   dispatched: 'bg-tertiary/10 text-tertiary',
   delivered: 'bg-tertiary/20 text-tertiary',
   cancelled: 'bg-error/10 text-error',

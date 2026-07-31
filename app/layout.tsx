@@ -49,6 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       className="light"
+      style={{
+        '--font-headline-family': '"Noto Serif", serif',
+        '--font-body-family': '"Plus Jakarta Sans", sans-serif',
+        '--font-label-family': '"Space Grotesk", sans-serif',
+      } as React.CSSProperties}
     >
       <body className="antialiased selection:bg-primary-container selection:text-on-primary-container bg-surface-variant flex flex-col items-center min-h-screen">
         <div className="w-full max-w-md bg-background min-h-[100dvh] relative shadow-2xl overflow-hidden flex flex-col">

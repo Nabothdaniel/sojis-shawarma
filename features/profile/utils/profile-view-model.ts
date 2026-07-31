@@ -20,7 +20,7 @@ export const statusTone: Record<Order['status'], string> = {
   pending: 'bg-secondary/10 text-secondary',
   confirmed: 'bg-primary-container/20 text-on-surface',
   preparing: 'bg-primary-container/20 text-on-surface',
-  ready_for_pickup: 'bg-primary-container/40 text-on-surface',
+  ready_for_pickup: 'bg-primary-container/20 text-on-surface',
   dispatched: 'bg-tertiary/10 text-tertiary',
   delivered: 'bg-tertiary/10 text-tertiary',
   cancelled: 'bg-error/10 text-error',
@@ -47,7 +47,7 @@ export const statusCopy: Record<
   },
   ready_for_pickup: {
     title: 'Ready for pickup',
-    body: 'Your order is hot and ready. You can come pick it up now!',
+    body: 'Your order is ready to be picked up.',
     icon: 'storefront',
   },
   dispatched: {
