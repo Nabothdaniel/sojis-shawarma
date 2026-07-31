@@ -129,6 +129,7 @@ export default function DeliveryMenu() {
   });
 
   const popularProducts = [...menuProducts]
+    .filter((product) => (product.orderCount || 0) > 0)
     .sort((a, b) => (b.popularScore ?? 0) - (a.popularScore ?? 0))
     .slice(0, 3);
 
@@ -225,10 +226,8 @@ export default function DeliveryMenu() {
         )}
 
         {loadingProducts ? (
-          <div className="col-span-2 space-y-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-surface-container-low h-40 rounded-[32px] animate-pulse"></div>
-            ))}
+          <div className="col-span-2 flex justify-center py-20">
+            <div className="w-12 h-12 border-4 border-surface-variant border-t-primary rounded-full animate-spin"></div>
           </div>
         ) : (
           <section className="grid grid-cols-2 gap-4">

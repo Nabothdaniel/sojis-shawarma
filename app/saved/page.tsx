@@ -50,13 +50,13 @@ export default function SavedPage() {
               >
                 <ProductImage
                   src={product.image_url || getGenericProductImage()}
-                  alt={product.name}
+                  alt={product.name || 'Menu Item'}
                   fill
                   blend
                 />
               </Link>
               <p className="font-body font-bold text-xs line-clamp-1 px-1">
-                {product.name}
+                {product.name || 'Menu Item'}
               </p>
               <div className="flex items-center justify-between mt-auto pt-3 px-1">
                 <span className="font-label font-bold text-[10px] text-secondary">

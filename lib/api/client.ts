@@ -3,7 +3,7 @@ import { auth } from '../firebase/config';
 
 const getApiUrl = () => {
   // Use env variable if present, otherwise default to local server for development
-  const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const url = process.env.NEXT_PUBLIC_API_URL || '';
   // Strip quotes and semicolons
   return url.replace(/["';]/g, '');
 };

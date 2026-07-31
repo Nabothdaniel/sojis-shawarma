@@ -9,7 +9,7 @@ export default function ToastContainer() {
 
   return (
     <div
-      className="fixed inset-x-0 top-4 flex pointer-events-none px-4 sm:top-6 sm:justify-end sm:px-6 z-[9999]"
+      className="fixed inset-x-0 mx-auto max-w-md top-4 flex pointer-events-none px-4 sm:top-6 sm:justify-end sm:px-6 !z-[2147483647]"
       style={{ zIndex: 2147483647 }}
     >
       <div className="flex w-full max-w-md flex-col gap-3 sm:w-auto">

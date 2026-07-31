@@ -8,11 +8,3 @@ export default function ProductDetailPage() {
     </Suspense>
   );
 }
-
-export default function ProductDetailPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-surface flex items-center justify-center font-headline font-bold">Loading product...</div>}>
-      <ProductDetailInner />
-    </Suspense>
-  );
-}

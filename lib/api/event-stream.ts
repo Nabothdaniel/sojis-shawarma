@@ -3,11 +3,7 @@ function sanitizeBaseUrl(url: string) {
 }
 
 export function getEventStreamBaseUrl() {
-  if (typeof window !== 'undefined') {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:8000/api';
-    }
-  }
+
 
   const envUrl = sanitizeBaseUrl(process.env.NEXT_PUBLIC_API_URL || '');
 

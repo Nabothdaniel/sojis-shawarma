@@ -19,15 +19,7 @@ export default function DetailedLanding() {
 
   return (
     <div className="bg-surface min-h-screen text-on-surface selection:bg-primary/20">
-      {/* Premium Header */}
-      <nav className="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/10 px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg">
-            <span className="material-symbols-outlined text-surface text-xl">restaurant</span>
-          </div>
-          <span className="font-headline font-bold text-lg">Soji&apos;s</span>
-        </div>
-      </nav>
+
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-8 text-center max-w-4xl mx-auto">

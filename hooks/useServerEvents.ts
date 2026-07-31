@@ -21,30 +21,9 @@ export function useServerEvents(
   }, [handlers]);
 
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
-    const source = new EventSource(getEventStreamUrl(token));
-    const listeners = Object.keys(handlersRef.current).map((eventName) => {
-      const listener = (event: MessageEvent<string>) => {
-        try {
-          const payload = JSON.parse(event.data);
-          handlersRef.current[eventName]?.(payload);
-        } catch {
-          // Ignore malformed stream payloads and keep the connection alive.
-        }
-      };
-
-      source.addEventListener(eventName, listener as EventListener);
-      return { eventName, listener };
-    });
-
-    return () => {
-      listeners.forEach(({ eventName, listener }) => {
-        source.removeEventListener(eventName, listener as EventListener);
-      });
-      source.close();
-    };
+    // Legacy SSE to custom backend is deprecated in Firebase serverless migration.
+    // Realtime updates are migrated to individual onSnapshot listeners inside the components
+    // or rely on component-level polling fallbacks (e.g., OrderNotifications).
+    // This hook is preserved as a no-op to prevent broken imports during the migration.
   }, [enabled, token]);
 }

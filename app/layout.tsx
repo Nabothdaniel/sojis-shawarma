@@ -61,8 +61,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <AuthProvider>
               <SessionManager />
               <OrderNotifications />
-              <ToastContainer />
               {children}
+              <ToastContainer />
             </AuthProvider>
           </ReactQueryProvider>
         </div>

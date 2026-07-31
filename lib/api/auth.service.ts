@@ -4,7 +4,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut,
-  updateProfile 
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
@@ -55,10 +56,18 @@ export const authService = {
     };
   },
 
-  resetPassword: (payload: any) => apiClient.post('/auth/reset-password', payload),
+  resetPassword: async (payload: { email: string }) => {
+    await sendPasswordResetEmail(auth, payload.email);
+    return { status: 'success', message: 'Password reset link sent to your email.' };
+  },
   
-  getAdminAccessStatus: (access?: string) =>
-    apiClient.get(`/admin/access-link/public${access ? `?access=${encodeURIComponent(access)}` : ''}`),
+  getAdminAccessStatus: async (access?: string) => {
+    const docRef = doc(db, 'settings', 'access-link');
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) return { status: 'success', data: { is_enabled: false } };
+    const data = docSnap.data();
+    return { status: 'success', data: { ...data, isValid: access === data.access_key } };
+  },
     
   logout: async () => {
     await signOut(auth);

@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useProductDetail } from '@/features/products/hooks/useProductDetail';
-import ProductDetailClient from './[id]/ProductDetailClient';
+import ProductDetailClient from './ProductDetailClient';
 
 export default function ProductDetailContent() {
   const searchParams = useSearchParams();

@@ -34,14 +34,14 @@ const formatDate = (value: string) =>
     minute: '2-digit',
   });
 
-export default function OrderDetailClient() {
+export default function OrderDetailClient({ id: propId }: { id?: string } = {}) {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { addToast, hasHydrated, isAuthenticated } = useAppStore();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const orderId = useMemo(() => Number(params?.id), [params?.id]);
+  const orderId = useMemo(() => Number(propId || params?.id), [propId, params?.id]);
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {

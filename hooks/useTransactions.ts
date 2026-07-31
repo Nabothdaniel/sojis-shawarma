@@ -11,7 +11,7 @@ export function useTransactions(filter?: (transaction: Transaction) => boolean) 
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const transactions = data?.data || [];
+  const transactions: Transaction[] = (data?.data as any) || [];
   const filteredTransactions = filter ? transactions.filter(filter) : transactions;
 
   return {
