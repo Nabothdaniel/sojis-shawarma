@@ -39,7 +39,7 @@ export default function DetailedLanding() {
           The Future of <br/> <span className="text-primary italic">Flavor.</span>
         </h1>
         <p className="font-body text-outline text-lg md:text-xl max-w-lg mx-auto mb-12">
-          Soji&apos;s Shawarma is right inside Nasarawa State University, Keffi, in front of the old girls hostel. Order fast, track updates, and enjoy fresh shawarma made for students, staff, and everyone nearby.
+          Soji&apos;s Shawarma is right inside Nasarawa State University, Keffi, in front of the new  girls hostel. Order fast, track updates, and enjoy fresh shawarma made for students, staff, and everyone nearby.
         </p>
         
         <div className="flex flex-col md:flex-row gap-4 justify-center">
