@@ -1,9 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import {
-  Noto_Serif,
-  Plus_Jakarta_Sans,
-  Space_Grotesk,
-} from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import OrderNotifications from '@/components/OrderNotifications';
@@ -30,26 +25,16 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-const headlineFont = Noto_Serif({
-  subsets: ['latin'],
-  variable: '--font-headline-family',
-});
-
-const bodyFont = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-body-family',
-});
-
-const labelFont = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-label-family',
-});
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      className={`light ${headlineFont.variable} ${bodyFont.variable} ${labelFont.variable}`}
+      className="light"
+      style={{
+        '--font-headline-family': '"Noto Serif", serif',
+        '--font-body-family': '"Plus Jakarta Sans", sans-serif',
+        '--font-label-family': '"Space Grotesk", sans-serif',
+      } as React.CSSProperties}
     >
       <body className="antialiased selection:bg-primary-container selection:text-on-primary-container">
         <ReactQueryProvider>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,7 +21,7 @@ const resetSchema = z.object({
 
 type ResetFormValues = z.infer<typeof resetSchema>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToast } = useAppStore();
@@ -157,5 +157,13 @@ export default function ResetPasswordPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center p-6"><span className="w-10 h-10 border-4 border-surface-container-highest border-t-on-surface rounded-full animate-spin"></span></div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

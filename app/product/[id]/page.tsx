@@ -1,6 +1,9 @@
-import { redirect } from 'next/navigation';
+export const dynamicParams = false;
 
-export default async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  redirect(`/product?id=${encodeURIComponent(id)}`);
+export async function generateStaticParams() {
+  return [{ id: 'placeholder' }];
+}
+
+export default function ProductDetailPage() {
+  return null;
 }
