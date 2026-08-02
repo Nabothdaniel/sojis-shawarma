@@ -6,7 +6,7 @@ import {
 } from '@/lib/menu';
 
 interface FavoriteListItem {
-  id: number;
+  id: string | number;
 }
 
 interface FavoriteListResponse {
@@ -28,9 +28,9 @@ export async function fetchMenuProducts(): Promise<MenuProduct[]> {
   }
 }
 
-export async function fetchFavoriteIds(): Promise<Set<number>> {
+export async function fetchFavoriteIds(): Promise<Set<string>> {
   const response = await favoritesService.getFavorites() as FavoriteListResponse;
-  const ids = (response.data ?? []).map((favorite) => Number(favorite.id));
+  const ids = (response.data ?? []).map((favorite) => String(favorite.id));
   return new Set(ids);
 }
 

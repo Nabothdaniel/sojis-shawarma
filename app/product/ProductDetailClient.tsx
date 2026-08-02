@@ -75,7 +75,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
   );
 
   useEffect(() => {
-    if (!user || !canFavorite) {
+    if (!canFavorite) {
       setIsFavorite(false);
       return;
     }
@@ -104,11 +104,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
   }, [canFavorite, favoriteProductId, user]);
 
   const handleToggleFavorite = async () => {
-    if (!user) {
-      addToast('Sign in to save favorites', 'info');
-      router.push('/login');
-      return;
-    }
+
 
     if (!canFavorite || favoriteBusy) {
       return;
@@ -121,7 +117,8 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
       const added = response.action === 'added';
       setIsFavorite(added);
       addToast(added ? 'Added to favorites' : 'Removed from favorites', added ? 'success' : 'info');
-    } catch {
+    } catch (err) {
+      console.error("Favorite error:", err);
       addToast('Could not update favorites', 'error');
     } finally {
       setFavoriteBusy(false);

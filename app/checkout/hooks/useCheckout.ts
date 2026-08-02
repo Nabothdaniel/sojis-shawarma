@@ -42,6 +42,9 @@ export function useCheckout() {
     pickupTime: '', paymentMethod: 'bank_transfer', paymentReference: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [isPromoLoading, setIsPromoLoading] = useState(false);
 
   const effectiveToken = token || persistedToken;
   const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
@@ -119,6 +122,33 @@ export function useCheckout() {
   }, []);
 
   const subtotal = totalPrice();
+  const deliveryFee = formData.orderType === 'delivery' ? (paymentSettings?.delivery_fee || 0) : 0;
+  
+  let discountAmount = 0;
+  if (appliedPromo) {
+    if (appliedPromo.discount_type === 'percentage') {
+      discountAmount = (subtotal + deliveryFee) * (appliedPromo.discount_value / 100);
+    } else {
+      discountAmount = appliedPromo.discount_value;
+    }
+  }
+  const grandTotal = Math.max(0, subtotal + deliveryFee - discountAmount);
+
+  const applyPromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoCodeInput.trim()) return;
+    setIsPromoLoading(true);
+    try {
+      const response = await orderService.validatePromoCode(promoCodeInput.trim());
+      setAppliedPromo(response.data);
+      addToast('Promo code applied successfully!', 'success');
+    } catch (error: any) {
+      setAppliedPromo(null);
+      addToast(error.message || 'Invalid promo code', 'error');
+    } finally {
+      setIsPromoLoading(false);
+    }
+  };
 
   const { mutate: placeOrder, isPending: isLoading } = useMutation({
     mutationFn: (orderData: any) => orderService.createOrder(orderData),
@@ -171,9 +201,11 @@ export function useCheckout() {
       order_type: formData.orderType,
       payment_method: formData.paymentMethod,
       pickup_time: formData.orderType === 'pickup' ? formData.pickupTime.trim() : '',
-      items, total_amount: subtotal,
+      items, total_amount: grandTotal,
       payment_reference: formData.paymentReference.trim() || undefined,
-      notes: formData.note.trim(), payment_status: 'pending'
+      notes: formData.note.trim(), payment_status: 'pending',
+      user_id: user?.id || null,
+      promo_code: appliedPromo ? appliedPromo.code : undefined,
     });
   };
 
@@ -188,7 +220,8 @@ export function useCheckout() {
     currentStep, setCurrentStep, addToast,
     formData, setFormData, errors, setErrors,
     receiptFile, setReceiptFile, isGeoLoading, setIsGeoLoading,
-    paymentSettings, orderId, orderRef, subtotal, items,
+    paymentSettings, orderId, orderRef, subtotal, grandTotal, discountAmount, deliveryFee, items,
+    promoCodeInput, setPromoCodeInput, appliedPromo, setAppliedPromo, isPromoLoading, applyPromo,
     isLoading, isConfirming, handlePlaceOrder, handleReceiptUpload, clearCart
   };
 }

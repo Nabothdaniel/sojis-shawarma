@@ -22,6 +22,7 @@ export interface CatalogProduct {
   review_count?: number;
   order_count?: number;
   popular_score?: number;
+  specifications?: string;
 }
 
 export interface CatalogUploadResponse {
@@ -84,9 +85,21 @@ export const catalogService = {
     price: number;
     image_url: string;
     available?: number;
+    specifications?: string;
   }) => {
     const docRef = await addDoc(collection(db, 'products'), payload);
     return { id: docRef.id, ...payload };
+  },
+  
+  updateProduct: async (id: string | number, payload: Partial<CatalogProduct>) => {
+    const docRef = doc(db, 'products', id.toString());
+    await updateDoc(docRef, payload as any);
+    return { id, ...payload };
+  },
+  
+  deleteProduct: async (id: string | number) => {
+    await deleteDoc(doc(db, 'products', id.toString()));
+    return { id };
   },
   
   uploadCatalogAsset: async (formData: FormData): Promise<CatalogUploadResponse> => {

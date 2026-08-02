@@ -42,13 +42,20 @@ export function ReceiptStep(props: ReturnType<typeof useCheckout>) {
             • Your reference number
           </p>
         </div>
-        <input
-          type="text"
-          placeholder="Transfer reference or sender name (optional)"
-          className="w-full rounded-2xl border border-outline-variant/30 bg-transparent px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30 mt-6"
-          value={formData.paymentReference}
-          onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
-        />
+        <div>
+          <input
+            type="text"
+            required
+            placeholder="Account name"
+            className="w-full rounded-2xl border border-outline-variant/30 bg-transparent px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30 mt-6"
+            value={formData.paymentReference}
+            onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })}
+          />
+          <p className="text-error text-xs font-label font-bold mt-2 flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">warning</span>
+            Account name is required for double confirmation of payment.
+          </p>
+        </div>
       </section>
 
       <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-3xl p-6">

@@ -15,6 +15,7 @@ const defaultStoreSettings: StoreSettings = {
   support_whatsapp: '',
   pickup_address: '',
   pickup_instructions: '',
+  delivery_fee: 0,
 };
 
 export default function AdminProductsPage() {
@@ -29,10 +30,13 @@ export default function AdminProductsPage() {
   const [categorySaving, setCategorySaving] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
+  const [editingProductId, setEditingProductId] = useState<string | number | null>(null);
+
   const [form, setForm] = useState({
     category_id: '',
     name: '',
     description: '',
+    specifications: '',
     price: '',
     available: true,
   });
@@ -75,40 +79,82 @@ export default function AdminProductsPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!imageFile) {
-      addToast('Please select a product image', 'error');
+    if (!editingProductId && !imageFile) {
+      addToast('Please select a product image for new products', 'error');
       return;
     }
 
     setSaving(true);
     try {
-      const uploadData = new FormData();
-      uploadData.append('file', imageFile);
-      const uploadResponse = await catalogService.uploadCatalogAsset(uploadData);
+      let imageUrl = undefined;
+      
+      if (imageFile) {
+        const uploadData = new FormData();
+        uploadData.append('file', imageFile);
+        const uploadResponse = await catalogService.uploadCatalogAsset(uploadData);
+        imageUrl = uploadResponse.data.path;
+      }
 
-      await catalogService.createProduct({
+      const payload = {
         category_id: Number(form.category_id),
         name: form.name.trim(),
         description: form.description.trim(),
+        specifications: form.specifications.trim(),
         price: Number(form.price),
-        image_url: uploadResponse.data.path,
         available: form.available ? 1 : 0,
-      });
+      };
 
-      addToast('Product uploaded successfully', 'success');
-      setForm((current) => ({
-        ...current,
+      if (editingProductId) {
+        await catalogService.updateProduct(editingProductId, { ...payload, ...(imageUrl ? { image_url: imageUrl } : {}) });
+        addToast('Product updated successfully', 'success');
+      } else {
+        await catalogService.createProduct({
+          ...payload,
+          image_url: imageUrl!,
+        });
+        addToast('Product uploaded successfully', 'success');
+      }
+
+      setForm({
+        category_id: form.category_id,
         name: '',
         description: '',
+        specifications: '',
         price: '',
         available: true,
-      }));
+      });
       setImageFile(null);
+      setEditingProductId(null);
       await loadAdminCatalog();
     } catch (error: any) {
-      addToast(error.message || 'Could not upload product', 'error');
+      addToast(error.message || 'Could not save product', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEditProduct = (product: CatalogProduct) => {
+    setEditingProductId(product.id);
+    setForm({
+      category_id: String(product.category_id || ''),
+      name: product.name,
+      description: product.description || '',
+      specifications: product.specifications || '',
+      price: String(product.price),
+      available: Number(product.available) === 1,
+    });
+    setImageFile(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const handleDeleteProduct = async (id: string | number) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    try {
+      await catalogService.deleteProduct(id);
+      addToast('Product deleted', 'success');
+      await loadAdminCatalog();
+    } catch (error: any) {
+      addToast(error.message || 'Could not delete product', 'error');
     }
   };
 
@@ -164,7 +210,7 @@ export default function AdminProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface p-6 md:p-10">
+    <div className="min-h-screen bg-surface p-6 md:p-10 w-full">
       <div className="mx-auto max-w-7xl space-y-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -174,14 +220,26 @@ export default function AdminProductsPage() {
           </div>
           <div className="flex gap-3">
             <Link href="/admin/orders" className="rounded-full bg-on-surface px-5 py-3 text-xs font-label font-bold uppercase tracking-widest text-surface">Orders</Link>
-            <Link href="/admin/reviews" className="rounded-full bg-surface-container-low px-5 py-3 text-xs font-label font-bold uppercase tracking-widest">Reviews</Link>
+            <Link href="/admin/promos" className="rounded-full bg-surface-container-low px-5 py-3 text-xs font-label font-bold uppercase tracking-widest">Promos</Link>
           </div>
         </header>
 
         <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-8">
-            <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10">
-              <h2 className="mb-4 font-headline text-xl font-bold">Add a menu item</h2>
+            <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10 relative">
+              {editingProductId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingProductId(null);
+                    setForm({ category_id: categories[0]?.id as string, name: '', description: '', specifications: '', price: '', available: true });
+                  }}
+                  className="absolute top-6 right-6 text-xs text-error font-bold font-label uppercase tracking-widest"
+                >
+                  Cancel Edit
+                </button>
+              )}
+              <h2 className="mb-4 font-headline text-xl font-bold">{editingProductId ? 'Edit menu item' : 'Add a menu item'}</h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <select
                   value={form.category_id}
@@ -193,20 +251,25 @@ export default function AdminProductsPage() {
                   ))}
                 </select>
                 <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Product name" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={4} placeholder="Description" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={3} placeholder="Description" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                <textarea value={form.specifications} onChange={(event) => setForm((current) => ({ ...current, specifications: event.target.value }))} rows={2} placeholder="Specifications (e.g. Size Variations, Ingredients)" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                
                 <input value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} type="number" min="0" placeholder="Price" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                
                 <label className="flex items-center justify-between rounded-2xl bg-surface-container-highest px-4 py-4 text-sm">
                   <span>Available for ordering</span>
                   <input type="checkbox" checked={form.available} onChange={(event) => setForm((current) => ({ ...current, available: event.target.checked }))} />
                 </label>
+                
                 <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-outline-variant/40 bg-surface-container-low px-6 py-8 text-center">
                   <input type="file" accept="image/*" className="hidden" onChange={(event) => setImageFile(event.target.files?.[0] || null)} />
                   <span className="material-symbols-outlined mb-3 text-4xl text-outline">image</span>
-                  <p className="font-body font-bold text-sm">{imageFile?.name || 'Select product image'}</p>
+                  <p className="font-body font-bold text-sm">{imageFile?.name || (editingProductId ? 'Select a new image to replace (optional)' : 'Select product image')}</p>
                   <p className="font-body text-xs text-outline mt-1">JPG, PNG, or WEBP up to 5MB</p>
                 </label>
-                <button disabled={saving} className="w-full rounded-full bg-on-surface py-4 text-xs font-label font-bold uppercase tracking-widest text-surface disabled:opacity-60">
-                  {saving ? 'Saving...' : 'Upload product'}
+                
+                <button disabled={saving} className={`w-full rounded-full py-4 text-xs font-label font-bold uppercase tracking-widest disabled:opacity-60 ${editingProductId ? 'bg-primary-container text-on-primary-container' : 'bg-on-surface text-surface'}`}>
+                  {saving ? 'Saving...' : (editingProductId ? 'Update product' : 'Upload product')}
                 </button>
               </form>
             </section>
@@ -246,17 +309,29 @@ export default function AdminProductsPage() {
           <div className="space-y-8">
             <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-headline text-xl font-bold">Payment and pickup info</h2>
-                <span className="text-xs font-label font-bold uppercase tracking-widest text-outline">Checkout settings</span>
+                <h2 className="font-headline text-xl font-bold">Store Settings</h2>
+                <span className="text-xs font-label font-bold uppercase tracking-widest text-outline">Payments & delivery</span>
               </div>
               <form onSubmit={saveStoreSettings} className="space-y-4">
-                <input value={storeSettings.payment_bank_name} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_bank_name: event.target.value }))} placeholder="Bank name" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                <div className="flex gap-4">
+                  <input value={storeSettings.payment_bank_name} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_bank_name: event.target.value }))} placeholder="Bank name" className="flex-1 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                  <input value={storeSettings.payment_account_number} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_account_number: event.target.value }))} placeholder="Account number" className="flex-1 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                </div>
                 <input value={storeSettings.payment_account_name} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_account_name: event.target.value }))} placeholder="Account name" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                <input value={storeSettings.payment_account_number} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_account_number: event.target.value }))} placeholder="Account number" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                <textarea value={storeSettings.payment_note} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_note: event.target.value }))} rows={3} placeholder="Payment note shown to customers" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                
+                <h3 className="text-xs font-label font-bold uppercase tracking-widest text-outline pt-2">Delivery & Contact</h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm">₦</span>
+                  <input 
+                    value={storeSettings.delivery_fee || 0} 
+                    onChange={(event) => setStoreSettings((current) => ({ ...current, delivery_fee: Number(event.target.value) }))} 
+                    type="number" min="0" placeholder="Delivery Fee (0 = Free)" 
+                    className="flex-1 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" 
+                  />
+                </div>
                 <input value={storeSettings.support_whatsapp} onChange={(event) => setStoreSettings((current) => ({ ...current, support_whatsapp: event.target.value }))} placeholder="Support WhatsApp e.g. 2348012345678" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
                 <textarea value={storeSettings.pickup_address} onChange={(event) => setStoreSettings((current) => ({ ...current, pickup_address: event.target.value }))} rows={2} placeholder="Pickup address" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                <textarea value={storeSettings.pickup_instructions} onChange={(event) => setStoreSettings((current) => ({ ...current, pickup_instructions: event.target.value }))} rows={3} placeholder="Pickup instructions" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                
                 <button disabled={settingsSaving} className="w-full rounded-full bg-tertiary py-4 text-xs font-label font-bold uppercase tracking-widest text-white disabled:opacity-60">
                   {settingsSaving ? 'Saving...' : 'Save settings'}
                 </button>
@@ -290,20 +365,30 @@ export default function AdminProductsPage() {
                   </div>
                 )}
                 {!loading && products.map((product) => (
-                  <article key={product.id} className="rounded-2xl bg-surface-container-low p-4">
+                  <article key={product.id} className="rounded-2xl bg-surface-container-low p-4 relative group">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-body font-bold text-sm">{product.name}</p>
-                        <p className="font-body text-xs text-outline">{product.category_name || 'Uncategorized'}</p>
+                        <p className="font-body font-bold text-sm pr-16">{product.name}</p>
+                        <p className="font-body text-xs text-outline line-clamp-1">{product.specifications || product.description || product.category_name}</p>
                       </div>
-                      <span className="font-label font-bold text-sm">₦{Number(product.price).toLocaleString()}</span>
+                      <span className="font-label font-bold text-sm shrink-0">₦{Number(product.price).toLocaleString()}</span>
                     </div>
-                    <div className="mt-2 flex items-center gap-2 text-[10px] font-label font-bold uppercase tracking-widest">
-                      <span className={Number(product.available) === 1 ? 'text-tertiary' : 'text-error'}>
-                        {Number(product.available) === 1 ? 'available' : 'hidden'}
-                      </span>
-                      <span className="text-outline">{product.review_count || 0} reviews</span>
-                      <span className="text-outline">{product.order_count || 0} orders</span>
+                    
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[10px] font-label font-bold uppercase tracking-widest">
+                        <span className={Number(product.available) === 1 ? 'text-tertiary' : 'text-error'}>
+                          {Number(product.available) === 1 ? 'available' : 'hidden'}
+                        </span>
+                        <span className="text-outline">{product.review_count || 0} reviews</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleDeleteProduct(product.id)} className="text-error bg-error/10 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest hidden group-hover:block transition-all">
+                          Delete
+                        </button>
+                        <button onClick={() => handleEditProduct(product)} className="text-on-surface bg-surface-container-highest rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest">
+                          Edit
+                        </button>
+                      </div>
                     </div>
                   </article>
                 ))}

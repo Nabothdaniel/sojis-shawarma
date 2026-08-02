@@ -44,9 +44,11 @@ service cloud.firestore {
     // ORDERS COLLECTION
     // ==========================================
     match /orders/{orderId} {
-      // Users can only read their own orders. Note that anonymous guests can create orders, 
-      // but only identified users or admins can read histories.
-      allow read: if request.auth != null && (
+      // Allows direct URL tracking for orders using their unguessable document ID
+      allow get: if true;
+      
+      // Protects listing querying exclusively to authorized owners or admins
+      allow list: if request.auth != null && (
         resource.data.user_id == request.auth.uid || 
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
       );
@@ -74,6 +76,22 @@ service cloud.firestore {
       allow read: if true;
       
       // Only admins can change store settings
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ==========================================
+    // PROMO CODES COLLECTION
+    // ==========================================
+    match /promo_codes/{promoId} {
+      allow read: if true;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ==========================================
+    // ADMIN INVITES COLLECTION
+    // ==========================================
+    match /admin_invites/{inviteId} {
+      allow read, delete: if true;
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }

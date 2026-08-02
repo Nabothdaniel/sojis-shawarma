@@ -47,7 +47,7 @@ function OrdersPageInner() {
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const response: any = await orderService.getAllOrders();
+        const response: any = await orderService.getAllOrders('all', useAppStore.getState().user?.id);
         const data = response.data || response || [];
         setOrders(Array.isArray(data) ? data : []);
       } catch (err: any) {

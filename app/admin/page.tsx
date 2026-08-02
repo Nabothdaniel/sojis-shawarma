@@ -19,6 +19,8 @@ export default function AdminHomePage() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [accessKeyInput, setAccessKeyInput] = useState('');
   const [isSavingAccess, setIsSavingAccess] = useState(false);
+  const [adminInviteLink, setAdminInviteLink] = useState('');
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -87,6 +89,19 @@ export default function AdminHomePage() {
     }
   };
 
+  const generateInvite = async () => {
+    try {
+      setIsGeneratingInvite(true);
+      const res = await adminService.generateAdminInvite();
+      setAdminInviteLink(`${origin}/admin/invite?token=${res.token}`);
+      addToast('Invite link generated', 'success');
+    } catch (error: any) {
+      addToast(error.message || 'Could not generate invite', 'error');
+    } finally {
+      setIsGeneratingInvite(false);
+    }
+  };
+
   const currentAccessUrl = `${origin}${accessSettings?.login_path || '/admin/login'}`;
 
   if (authLoading || (isAdmin && !stats)) {
@@ -107,12 +122,13 @@ export default function AdminHomePage() {
               Signed in as {user?.name || user?.username || 'Admin'}
             </p>
           </div>
-          <div id="tour-nav" className="flex gap-4">
+          <div id="tour-nav" className="flex flex-wrap gap-4">
             <Link href="/admin/orders" className="text-xs font-label font-bold uppercase tracking-widest bg-on-surface text-surface px-6 py-3 rounded-full">Orders</Link>
             <Link href="/admin/products" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Products</Link>
             <Link href="/admin/categories" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Categories</Link>
             <Link href="/admin/reviews" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Reviews</Link>
-            <Link href="/admin/analytics" className="text-xs font-label font-bold uppercase tracking-widest bg-primary-container text-on-primary-container px-6 py-3 rounded-full">Analytics</Link>
+            <Link href="/admin/analytics" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Analytics</Link>
+            <Link href="/admin/config" className="text-xs font-label font-bold uppercase tracking-widest bg-primary-container text-on-primary-container px-6 py-3 rounded-full">Config</Link>
           </div>
         </header>
 
@@ -194,8 +210,8 @@ export default function AdminHomePage() {
               <p><span className="font-bold">Pickup Address:</span> {storeSettings?.pickup_address || 'Not set'}</p>
               <p><span className="font-bold">Support WhatsApp:</span> {storeSettings?.support_whatsapp || 'Not set'}</p>
             </div>
-            <Link href="/admin/products" className="inline-flex rounded-full bg-primary-container px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-primary-container">
-              Edit payment and catalog settings
+            <Link href="/admin/config" className="inline-flex rounded-full bg-primary-container px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-primary-container">
+              Edit store and payment settings
             </Link>
           </div>
         </section>
@@ -274,6 +290,37 @@ export default function AdminHomePage() {
               Open current login page
             </Link>
           </div>
+        </section>
+
+        <section id="tour-invites" className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
+          <div>
+            <h2 className="font-headline font-bold text-2xl">Invite Admins</h2>
+            <p className="font-body text-sm text-outline mt-2">
+              Generate a one-time link to invite a new administrator. When they open it, their account will be upgraded instantly.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={generateInvite}
+              disabled={isGeneratingInvite}
+              className="rounded-full bg-primary-container px-6 py-4 text-on-primary-container font-label text-xs font-bold uppercase tracking-widest disabled:opacity-60"
+            >
+              {isGeneratingInvite ? 'Generating...' : 'Generate 1-Time Link'}
+            </button>
+            {adminInviteLink && (
+              <button
+                onClick={() => navigator.clipboard.writeText(adminInviteLink).then(() => addToast('Copied to clipboard', 'success'))}
+                className="rounded-full bg-surface-container-low px-6 py-4 text-on-surface font-label text-xs font-bold uppercase tracking-widest"
+              >
+                Copy Link
+              </button>
+            )}
+          </div>
+          {adminInviteLink && (
+            <div className="bg-primary-container/10 border border-primary-container/30 text-primary-container rounded-3xl p-5 break-all font-mono text-xs">
+              {adminInviteLink}
+            </div>
+          )}
         </section>
 
         <div className="bg-white rounded-[40px] p-10 border border-outline-variant/10 shadow-sm">

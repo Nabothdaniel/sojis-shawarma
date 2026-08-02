@@ -19,7 +19,7 @@ export function SuccessStep(props: ReturnType<typeof useCheckout>) {
           : 'Your payment proof is awaiting admin review. We’ll notify you in-app and by WhatsApp once it is confirmed.'}
       </p>
       <button
-        onClick={() => router.push(orderId ? `/orders/${orderId}` : '/orders')}
+        onClick={() => router.push(orderId ? `/orders?id=${orderId}` : '/orders')}
         className="mb-4 bg-primary-container text-on-primary-container font-headline font-bold px-12 py-4 rounded-full shadow-xl active:scale-95 transition-transform"
       >
         Track this order

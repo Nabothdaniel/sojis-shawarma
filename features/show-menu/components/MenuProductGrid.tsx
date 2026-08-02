@@ -3,7 +3,7 @@ import ProductImage from '@/components/ui/ProductImage';
 import { buildProductHref, type MenuProduct } from '@/lib/menu';
 
 interface MenuProductGridProps {
-  favoriteIds: Set<number>;
+  favoriteIds: Set<string>;
   loading: boolean;
   products: MenuProduct[];
   onQuickAdd: (product: MenuProduct) => void;
@@ -33,7 +33,7 @@ export function MenuProductGrid({
   return (
     <section className="grid grid-cols-2 gap-4">
       {products.map((item) => {
-        const isFavorite = favoriteIds.has(Number(item.id));
+        const isFavorite = favoriteIds.has(String(item.id));
 
         return (
           <div

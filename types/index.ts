@@ -84,6 +84,6 @@ export interface AppNotification {
   link?: string;
   icon?: string;
   orderRef?: string;
-  orderId?: number;
+  orderId?: string;
   eventKey?: string;
 }

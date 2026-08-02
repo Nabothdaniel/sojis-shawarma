@@ -36,7 +36,18 @@ export interface StoreSettings {
   support_whatsapp: string;
   pickup_address: string;
   pickup_instructions: string;
+  delivery_fee?: number;
 }
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  active: boolean;
+  times_used: number;
+}
+
 
 const paginateHelper = (data: any[], page: number, limit: number) => {
   const total = data.length;
@@ -170,4 +181,48 @@ export const adminService = {
   revealUserRecoveryKey: async () => ({ status: 'success', data: { recovery_key: 'mocked' } }),
   getAccessLinkSettings: async () => ({ status: 'success', data: {} as any }),
   updateAccessLinkSettings: async (payload: any) => ({ status: 'success', message: 'mocked', data: payload }),
+
+  getPromoCodes: async (): Promise<PromoCode[]> => {
+    const q = query(collection(db, 'promo_codes'), orderBy('code', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PromoCode));
+  },
+
+  createPromoCode: async (payload: Omit<PromoCode, 'id' | 'times_used'>) => {
+    const docRef = await addDoc(collection(db, 'promo_codes'), { ...payload, times_used: 0 });
+    return { id: docRef.id, ...payload, times_used: 0 };
+  },
+
+  togglePromoCode: async (id: string, active: boolean) => {
+    await updateDoc(doc(db, 'promo_codes', id), { active });
+    return { id, active };
+  },
+
+  deletePromoCode: async (id: string) => {
+    await deleteDoc(doc(db, 'promo_codes', id));
+    return { id };
+  },
+
+  generateAdminInvite: async () => {
+    const token = [...Array(16)].map(() => Math.random().toString(36)[2]).join('');
+    const docRef = await addDoc(collection(db, 'admin_invites'), {
+      token,
+      created_at: new Date().toISOString()
+    });
+    return { status: 'success', token };
+  },
+
+  claimAdminInvite: async (token: string, userId: string) => {
+    const q = query(collection(db, 'admin_invites'), where('token', '==', token));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) throw new Error("Invalid or expired invite link");
+    
+    const inviteId = snapshot.docs[0].id;
+    // Upgrade user
+    await updateDoc(doc(db, 'users', userId), { role: 'admin' });
+    // Consume invite
+    await deleteDoc(doc(db, 'admin_invites', inviteId));
+    return { status: 'success' };
+  }
 };
+

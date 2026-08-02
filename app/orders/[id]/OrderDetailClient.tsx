@@ -41,15 +41,10 @@ export default function OrderDetailClient({ id: propId }: { id?: string } = {}) 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const orderId = useMemo(() => Number(propId || params?.id), [propId, params?.id]);
-
+  const orderId = useMemo(() => String(propId || params?.id || ''), [propId, params?.id]);
+  
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.replace(`/login?redirect=/orders/${params?.id ?? ''}`);
-      return;
-    }
-
-    if (!isAuthenticated || !Number.isFinite(orderId)) {
+    if (!orderId) {
       return;
     }
 

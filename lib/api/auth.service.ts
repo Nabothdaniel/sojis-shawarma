@@ -16,7 +16,24 @@ export const authService = {
     
     // Fetch custom role from Firestore
     const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-    const role = userDoc.exists() ? (userDoc.data().role || 'user') : 'user';
+    let role = 'user';
+    
+    if (userDoc.exists()) {
+      role = userDoc.data().role || 'user';
+    } else {
+      // Heal the missing database record if the account was created during permissions failure
+      role = 'user';
+      try {
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          name: userCredential.user.displayName || email,
+          email: email,
+          role: role,
+          createdAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (err) {
+        console.error("Could not heal user document", err);
+      }
+    }
 
     return {
       user: {
@@ -36,14 +53,23 @@ export const authService = {
       displayName: payload.name
     });
     
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
-      name: payload.name,
-      email: payload.email,
-      phone: payload.phone,
-      address: payload.address,
-      role: 'user',
-      createdAt: new Date().toISOString()
-    });
+    try {
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        address: payload.address,
+        role: 'user',
+        createdAt: new Date().toISOString()
+      });
+    } catch (firestoreError: any) {
+      try {
+        await userCredential.user.delete();
+      } catch (rollbackError) {
+        console.error('Failed to rollback orphaned auth profile:', rollbackError);
+      }
+      throw new Error(firestoreError.message || 'Registration failed at database initialization. Please retry.');
+    }
 
     return {
       user: {

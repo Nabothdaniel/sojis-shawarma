@@ -6,8 +6,8 @@ import { orderService } from '@/lib/api';
 import { useAppStore } from '@/store/appStore';
 
 type OrderEventPayload = {
-  id: number;
-  user_id?: number | null;
+  id: string;
+  user_id?: string | null;
   order_ref: string;
   status: 'pending' | 'confirmed' | 'preparing' | 'dispatched' | 'delivered' | 'cancelled';
   payment_status?: string;
@@ -62,7 +62,7 @@ export default function OrderNotifications() {
   const handleOrderEvent = (payload: OrderEventPayload) => {
     const { addNotification: notify, addToast: toast, userId } = latestStateRef.current;
 
-    if (!userId || Number(payload.user_id ?? 0) !== Number(userId)) {
+    if (!userId || String(payload.user_id) !== String(userId)) {
       return;
     }
 
@@ -113,7 +113,8 @@ export default function OrderNotifications() {
 
     const syncOrderStatuses = async () => {
       try {
-        const response: any = await orderService.getAllOrders();
+        const userId = useAppStore.getState().user?.id;
+        const response: any = await orderService.getAllOrders('all', userId);
         const orders = Array.isArray(response?.data) ? response.data : [];
 
         if (!initialSyncRef.current) {
@@ -143,7 +144,8 @@ export default function OrderNotifications() {
 
     const poll = async () => {
       try {
-        const response: any = await orderService.getAllOrders();
+        const userId = useAppStore.getState().user?.id;
+        const response: any = await orderService.getAllOrders('all', userId);
         const orders = Array.isArray(response?.data) ? response.data : [];
 
         orders.forEach((order: OrderEventPayload) => {

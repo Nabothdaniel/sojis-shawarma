@@ -28,8 +28,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (firebaseUser) {
           const idToken = await firebaseUser.getIdToken();
           
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          const userData = userDoc.exists() ? userDoc.data() : {};
+          let userData: any = {};
+          
+          try {
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (userDoc.exists()) {
+              userData = userDoc.data();
+            }
+          } catch (firestoreError) {
+            console.error("Could not fetch user document on reload, proceeding with basic auth payload:", firestoreError);
+            // We do NOT throw here because we still have the authenticated firebaseUser
+          }
+          
           const role = userData.role || 'user';
 
           const mappedUser: User = {
@@ -45,7 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           logout();
         }
       } catch (error) {
-        console.error("Auth state handling error", error);
+        console.error("Critical auth state handling error", error);
+        // Only force logout if the core token logic truly fails
         logout();
       } finally {
         setIsLoading(false);

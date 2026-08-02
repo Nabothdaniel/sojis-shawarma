@@ -6,6 +6,7 @@ import OrderNotifications from '@/components/OrderNotifications';
 import ToastContainer from '@/components/ui/ToastContainer';
 import SessionManager from '@/components/ui/SessionManager';
 import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
+import LayoutWrapper from '@/components/ui/LayoutWrapper';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://sojis-shawarma.vercel.app'),
@@ -56,16 +57,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       } as React.CSSProperties}
     >
       <body className="antialiased selection:bg-primary-container selection:text-on-primary-container bg-surface-variant flex flex-col items-center min-h-screen">
-        <div className="w-full max-w-md bg-background min-h-[100dvh] relative shadow-2xl overflow-hidden flex flex-col">
-          <ReactQueryProvider>
-            <AuthProvider>
-              <SessionManager />
-              <OrderNotifications />
+        <ReactQueryProvider>
+          <AuthProvider>
+            <SessionManager />
+            <OrderNotifications />
+            <LayoutWrapper>
               {children}
-              <ToastContainer />
-            </AuthProvider>
-          </ReactQueryProvider>
-        </div>
+            </LayoutWrapper>
+            <ToastContainer />
+          </AuthProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   );

@@ -4,7 +4,7 @@ import { useCheckout } from '../hooks/useCheckout';
 export function PaymentStep(props: ReturnType<typeof useCheckout>) {
   const {
     formData, setFormData, paymentSettings,
-    subtotal, orderRef, setCurrentStep, clearCart
+    grandTotal, orderRef, setCurrentStep, clearCart
   } = props;
 
   return (
@@ -17,7 +17,7 @@ export function PaymentStep(props: ReturnType<typeof useCheckout>) {
         {formData.paymentMethod === 'cash_on_pickup' ? (
           <p className="text-outline font-body text-sm mb-6">Your order is waiting for admin approval. Payment will be confirmed later when you arrive for pickup.</p>
         ) : (
-          <p className="text-outline font-body text-sm mb-6">Transfer exactly <span className="font-bold text-primary-container">₦{subtotal.toLocaleString()}</span> to the account below:</p>
+          <p className="text-outline font-body text-sm mb-6">Transfer exactly <span className="font-bold text-primary-container">₦{grandTotal.toLocaleString()}</span> to the account below:</p>
         )}
         
         {formData.paymentMethod === 'bank_transfer' && (

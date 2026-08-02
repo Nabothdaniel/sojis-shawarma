@@ -7,13 +7,10 @@ import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import ProductImage from '@/components/ui/ProductImage';
 import BottomNav from '@/components/ui/BottomNav';
-import useInstallPrompt from '@/hooks/useInstallPrompt';
 import { catalogService, favoritesService } from '@/lib/api';
 import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
 import { 
   LuUtensils, 
-  LuDownload, 
-  LuSmartphone, 
   LuBell, 
   LuSearch, 
   LuStar, 
@@ -27,14 +24,13 @@ export default function DeliveryMenu() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [isMounted, setIsMounted] = useState(false);
-  const { install, installAvailable } = useInstallPrompt();
   
   const addItem = useCartStore((state) => state.addItem);
   const totalItems = useCartStore((state) => state.totalItems());
   const { user, addToast, unreadCount } = useAppStore();
    const [menuProducts, setMenuProducts] = useState<MenuProduct[]>(getFallbackMenuProducts());
   const [loadingProducts, setLoadingProducts] = useState(true);
-  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setIsMounted(true);
@@ -44,7 +40,7 @@ export default function DeliveryMenu() {
     if (user && isMounted) {
       favoritesService.getFavorites()
         .then((res) => {
-          const ids = new Set((res.data || []).map((f: any) => f.id));
+          const ids = new Set<string>((res.data || []).map((f: any) => String(f.id)));
           setFavoriteIds(ids);
         })
         .catch(() => {});
@@ -80,16 +76,6 @@ export default function DeliveryMenu() {
     { element: '#tour-categories', popover: { title: 'Filter by Category', description: 'Tap these chips to narrow down specific types of orders.' } }
   ], { enabled: !loadingProducts && isMounted });
 
-  const handleInstall = async () => {
-    await install({
-      onUnsupported: () => {
-        addToast('Use browser menu to "Add to Home Screen"', 'info');
-      },
-      onAccepted: () => {
-        addToast('App installed successfully!', 'success');
-      },
-    });
-  };
 
   const categories = ['All', ...Array.from(new Set(menuProducts.map((product) => product.category.split('•')[0].trim())))];
   const handleQuickAdd = (item: MenuProduct) => {
@@ -109,14 +95,15 @@ export default function DeliveryMenu() {
       const res = await favoritesService.toggleFavorite(productId);
       const newIds = new Set(favoriteIds);
       if (res.action === 'added') {
-        newIds.add(Number(productId));
+        newIds.add(String(productId));
         addToast('Added to favorites', 'success');
       } else {
-        newIds.delete(Number(productId));
+        newIds.delete(String(productId));
         addToast('Removed from favorites', 'info');
       }
       setFavoriteIds(newIds);
-    } catch {
+    } catch (err) {
+      console.error("Favorite error:", err);
       addToast('Could not update favorites', 'error');
     }
   };
@@ -145,9 +132,6 @@ export default function DeliveryMenu() {
           </div>
           
           <div className="flex items-center gap-3">
-            <button onClick={handleInstall} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-surface-container-low active:scale-90 transition-transform">
-              {installAvailable ? <LuDownload className="text-primary text-2xl" /> : <LuSmartphone className="text-primary text-2xl" />}
-            </button>
             <Link href="/notifications" className="relative w-12 h-12 flex items-center justify-center rounded-2xl bg-surface-container-low active:scale-95 transition-transform">
               <LuBell className="text-outline text-2xl" />
               {unreadCount > 0 && (
@@ -243,7 +227,7 @@ export default function DeliveryMenu() {
                     onClick={(e) => toggleFavorite(e, item.id)}
                     className="absolute bottom-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"
                   >
-                    <LuHeart className={`text-base ${favoriteIds.has(Number(item.id)) ? 'text-red-500 fill-red-500' : 'text-outline/40'}`} />
+                    <LuHeart className={`text-base ${favoriteIds.has(String(item.id)) ? 'text-red-500 fill-red-500' : 'text-outline/40'}`} />
                   </button>
                 </Link>
                 <div className="p-4 flex flex-col flex-1">

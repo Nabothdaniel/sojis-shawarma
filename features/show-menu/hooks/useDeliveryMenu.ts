@@ -27,7 +27,7 @@ export function useDeliveryMenu() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [menuProducts, setMenuProducts] = useState<MenuProduct[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -55,10 +55,7 @@ export function useDeliveryMenu() {
   }, []);
 
   useEffect(() => {
-    if (!user) {
-      setFavoriteIds(new Set());
-      return;
-    }
+
 
     let cancelled = false;
 
@@ -114,11 +111,7 @@ export function useDeliveryMenu() {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!user) {
-      addToast('Sign in to save favorites', 'info');
-      router.push('/login');
-      return;
-    }
+
 
     try {
       const response = await toggleFavoriteProduct(productId);
@@ -126,9 +119,9 @@ export function useDeliveryMenu() {
         const next = new Set(current);
 
         if (response.action === 'added') {
-          next.add(Number(productId));
+          next.add(String(productId));
         } else {
-          next.delete(Number(productId));
+          next.delete(String(productId));
         }
 
         return next;

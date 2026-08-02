@@ -14,6 +14,7 @@ import {
   type FavoriteProduct,
   type Order,
 } from '@/lib/api';
+import { auth } from '@/lib/firebase/config';
 import { getGenericProductImage } from '@/lib/menu';
 import { useAppStore } from '@/store/appStore';
 import { useCartStore } from '@/store/cartStore';
@@ -69,7 +70,11 @@ export function useProfilePage() {
   const isSignedIn = hasHydrated && Boolean(effectiveToken || user);
 
   useEffect(() => {
-    if (!effectiveToken) {
+    if (authLoading) {
+      return; 
+    }
+    
+    if (!effectiveToken || !auth.currentUser) {
       setProfile(null);
       setOrders([]);
       setFavorites([]);
@@ -85,7 +90,7 @@ export function useProfilePage() {
 
       const [profileResult, ordersResult, favoritesResult] = await Promise.allSettled([
         userService.getProfile(),
-        orderService.getAllOrders(),
+        effectiveToken ? orderService.getAllOrders('all', useAppStore.getState().user?.id) : Promise.resolve({status: 'success', data: []}),
         favoritesService.getFavorites(),
       ]);
 
@@ -171,9 +176,11 @@ export function useProfilePage() {
   }, [loading]);
 
   const displayName =
-    (profile?.name as string | undefined) ||
-    user?.name ||
-    (isSignedIn ? 'Loading profile...' : 'Guest User');
+    !hasHydrated
+      ? '...'
+      : (profile?.name as string | undefined) ||
+        user?.name ||
+        (isSignedIn ? 'Loading profile...' : 'Guest User');
   const displayPhone =
     (profile?.phone as string | undefined) ||
     user?.phone ||
@@ -340,7 +347,7 @@ export function useProfilePage() {
     }
   };
 
-  const removeFavorite = async (productId: number) => {
+  const removeFavorite = async (productId: string | number) => {
     try {
       await favoritesService.toggleFavorite(productId);
       setFavorites((current) => current.filter((favorite) => favorite.id !== productId));

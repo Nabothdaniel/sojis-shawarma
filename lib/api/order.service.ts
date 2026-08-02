@@ -48,6 +48,7 @@ export interface CreateOrderData {
   notes?: string;
   payment_status?: string;
   user_id?: string | number | null;
+  promo_code?: string;
 }
 
 export interface PaymentSettings {
@@ -58,6 +59,7 @@ export interface PaymentSettings {
   support_whatsapp: string;
   pickup_address: string;
   pickup_instructions: string;
+  delivery_fee?: number;
 }
 
 export const orderService = {
@@ -128,11 +130,16 @@ export const orderService = {
     return { status: 'success' };
   },
 
-  getAllOrders: async (status?: string): Promise<{ status: string; data: Order[] }> => {
-    let q = query(collection(db, 'orders'), orderBy('created_at', 'desc'));
+  getAllOrders: async (status?: string, userId?: string | number): Promise<{ status: string; data: Order[] }> => {
+    let constraints: any[] = [orderBy('created_at', 'desc')];
     if (status && status !== 'all') {
-      q = query(collection(db, 'orders'), where('status', '==', status), orderBy('created_at', 'desc'));
+      constraints.push(where('status', '==', status));
     }
+    if (userId) {
+      constraints.push(where('user_id', '==', String(userId)));
+    }
+    
+    let q = query(collection(db, 'orders'), ...constraints);
     const snapshot = await getDocs(q);
     const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Order));
     return { status: 'success', data };
@@ -165,5 +172,13 @@ export const orderService = {
 
   getOrderAnalytics: async () => {
     return { status: 'success', data: { total_orders: 0, pending: 0 } };
+  },
+
+  validatePromoCode: async (code: string) => {
+    const q = query(collection(db, 'promo_codes'), where('code', '==', code.toUpperCase()), where('active', '==', true));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) throw new Error("Invalid or inactive promo code.");
+    const promo = snapshot.docs[0].data();
+    return { status: 'success', data: { id: snapshot.docs[0].id, ...promo } };
   },
 };

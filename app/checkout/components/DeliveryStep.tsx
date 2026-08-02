@@ -5,7 +5,8 @@ export function DeliveryStep(props: ReturnType<typeof useCheckout>) {
   const {
     formData, setFormData, errors, setErrors,
     isGeoLoading, setIsGeoLoading, paymentSettings, addToast,
-    items, subtotal, isLoading, handlePlaceOrder
+    items, subtotal, grandTotal, deliveryFee, discountAmount, appliedPromo, promoCodeInput, setPromoCodeInput, applyPromo, isPromoLoading,
+    isLoading, handlePlaceOrder
   } = props;
 
   return (
@@ -169,6 +170,16 @@ export function DeliveryStep(props: ReturnType<typeof useCheckout>) {
 
       <section className="bg-surface-container-lowest border border-outline-variant/30 rounded-3xl p-6">
         <h3 className="font-headline font-bold text-base mb-4">Order Summary</h3>
+        
+        {!appliedPromo && (
+          <div className="flex items-center gap-2 mb-4">
+            <input value={promoCodeInput} onChange={(e) => setPromoCodeInput(e.target.value)} type="text" placeholder="Promo code" className="flex-1 bg-surface-container-highest border-none rounded-2xl py-3 px-4 text-xs font-label uppercase tracking-widest outline-none" />
+            <button type="button" onClick={applyPromo} disabled={isPromoLoading} className="bg-primary-container text-on-primary-container disabled:opacity-50 font-label font-bold text-xs uppercase tracking-widest px-4 py-3 rounded-2xl">
+              {isPromoLoading ? '..' : 'Apply'}
+            </button>
+          </div>
+        )}
+
         <div className="space-y-3">
           <div className="flex justify-between text-xs">
             <span className="text-outline">Items ({items.reduce((a, b) => a + b.quantity, 0)})</span>
@@ -176,12 +187,20 @@ export function DeliveryStep(props: ReturnType<typeof useCheckout>) {
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-outline">Delivery</span>
-            <span className="font-label font-bold text-secondary">{formData.orderType === 'pickup' ? 'Pickup' : 'Free'}</span>
+            <span className="font-label font-bold text-secondary">{formData.orderType === 'pickup' ? 'Pickup' : (deliveryFee > 0 ? `₦${deliveryFee.toLocaleString()}` : 'Free')}</span>
           </div>
+          
+          {appliedPromo && (
+            <div className="flex justify-between text-xs text-primary-container font-bold">
+              <span>Promo ({appliedPromo.code})</span>
+              <span>-₦{discountAmount.toLocaleString()}</span>
+            </div>
+          )}
+
           <div className="pt-3 border-t border-outline-variant/20 flex justify-between items-center">
             <span className="font-headline font-bold">Total</span>
             <span className="font-label font-bold text-primary-container text-lg" style={{ color: '#EAB600' }}>
-              ₦{subtotal.toLocaleString()}
+              ₦{grandTotal.toLocaleString()}
             </span>
           </div>
         </div>

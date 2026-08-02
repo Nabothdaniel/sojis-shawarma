@@ -9,7 +9,6 @@
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
     "test:frontend": "node --test tests/frontend.smoke.test.mjs",
-    "test:backend": "php backend/tests/OrderControllerTest.php",
     "test:e2e": "playwright test"
   },
   "dependencies": {
