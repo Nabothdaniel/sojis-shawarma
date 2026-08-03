@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import BottomNav from '@/components/ui/BottomNav';
-import { orderService, type Order } from '@/lib/api';
+import { orderService, type Order } from '@/lib/api/order.service';
 import { useAppStore } from '@/store/appStore';
 
 const statusTone: Record<Order['status'], string> = {
@@ -118,6 +118,24 @@ export default function OrderDetailClient({ id: propId }: { id?: string } = {}) 
 
         {order && (
           <>
+            {['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'dispatched', 'delivered'].includes(order.status) && (
+              <Link
+                href={`/track?id=${order.id}`}
+                className="w-full flex items-center justify-between bg-primary text-on-primary p-4 rounded-3xl shadow-lg active:scale-[0.98] transition-transform"
+              >
+                 <div className="flex items-center gap-3">
+                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                     <span className="material-symbols-outlined text-white">location_on</span>
+                   </div>
+                   <div>
+                     <h2 className="font-headline text-base font-bold">View Live Tracking</h2>
+                     <p className="font-body text-xs text-white/80">View map, status, and chat with us</p>
+                   </div>
+                 </div>
+                 <span className="material-symbols-outlined text-white">arrow_forward</span>
+              </Link>
+            )}
+
             <section className="rounded-[32px] bg-surface-container-low p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>

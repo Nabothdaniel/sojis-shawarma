@@ -3,13 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { catalogService, type CatalogCategory } from '@/lib/api';
+import { catalogService, type CatalogCategory } from '@/lib/api/catalog.service';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminRouteLoadingScreen } from '@/components/ui/AdminSkeletons';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { LuArrowLeft, LuTag, LuTrash2, LuFolderPlus } from 'react-icons/lu';
 
 export default function AdminCategoriesPage() {
   const router = useRouter();
@@ -92,7 +91,7 @@ export default function AdminCategoriesPage() {
               onClick={() => router.push('/admin')}
               className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low active:scale-95 transition-transform"
             >
-              <LuArrowLeft className="text-xl" />
+              <span className="material-symbols-outlined text-xl">arrow_back</span>
             </button>
             <div>
               <h1 className="font-headline font-bold text-3xl">Categories</h1>
@@ -107,7 +106,7 @@ export default function AdminCategoriesPage() {
           <div className="bg-white p-6 rounded-[32px] border border-outline-variant/10 shadow-sm h-fit space-y-6">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center">
-                <LuFolderPlus />
+                <span className="material-symbols-outlined">create_new_folder</span>
               </div>
               <h2 className="font-headline font-bold text-lg">Add New</h2>
             </div>
@@ -129,7 +128,7 @@ export default function AdminCategoriesPage() {
           {/* List of Categories */}
           <div className="bg-white p-6 rounded-[32px] border border-outline-variant/10 shadow-sm space-y-6">
             <h2 className="font-headline font-bold text-lg flex items-center gap-2">
-              <LuTag className="text-primary" /> Active Categories
+              <span className="material-symbols-outlined text-primary">sell</span> Active Categories
             </h2>
             
             <div className="space-y-3">
@@ -149,7 +148,7 @@ export default function AdminCategoriesPage() {
                     className="w-8 h-8 rounded-full bg-error/10 text-error flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity active:scale-95"
                     title="Delete category"
                   >
-                    <LuTrash2 className="text-sm" />
+                    <span className="material-symbols-outlined text-sm">delete</span>
                   </button>
                 </div>
               ))}

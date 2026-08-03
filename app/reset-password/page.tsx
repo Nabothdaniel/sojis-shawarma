@@ -7,7 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import { authService } from '@/lib/api';
+import { authService } from '@/lib/api/auth.service';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 const resetSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -91,7 +92,7 @@ function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center p-6"><span className="w-10 h-10 border-4 border-surface-container-highest border-t-on-surface rounded-full animate-spin"></span></div>}>
+    <Suspense fallback={<LoadingScreen message="loading reset form" />}>
       <ResetPasswordContent />
     </Suspense>
   );

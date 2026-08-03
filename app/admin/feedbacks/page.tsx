@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { feedbackService, type FeedbackItem } from '@/lib/api';
+import { feedbackService, type FeedbackItem } from '@/lib/api/feedback.service';
 import { useServerEvents } from '@/hooks/useServerEvents';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminSidebarPageSkeleton } from '@/components/ui/AdminSkeletons';

@@ -6,10 +6,11 @@ import { orderService, Order } from '@/lib/api/order.service';
 import MapWrapper from '@/components/track/MapWrapper';
 import Link from 'next/link';
 import { useAppStore } from '@/store/appStore';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 export default function TrackOrderPage() {
   return (
-    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center font-headline font-bold text-xl text-primary">Loading tracker...</div>}>
+    <Suspense fallback={<LoadingScreen message="loading tracker" />}>
       <TrackOrderClient />
     </Suspense>
   );
@@ -50,7 +51,7 @@ function TrackOrderClient() {
   }, [orderId, addToast, router]);
 
   if (loading || !order) {
-    return <div className="bg-surface min-h-screen flex items-center justify-center font-headline font-bold text-xl text-primary animate-pulse">Fetching order...</div>;
+    return <LoadingScreen message="fetching order details" />;
   }
 
   const s = order.status;
@@ -59,6 +60,18 @@ function TrackOrderClient() {
   const isReady = s === 'ready_for_pickup' || s === 'dispatched' || s === 'delivered';
   const isOnWay = s === 'dispatched' || s === 'delivered';
   
+  const handleWhatsApp = async () => {
+    addToast('Opening chat...', 'info');
+    try {
+      const res = await orderService.getPaymentSettings();
+      const phone = (res.data.support_whatsapp || '2348012345678').replace(/\D/g, '');
+      const text = encodeURIComponent(`Hello! I'd like an update on my Soji's Shawarma order.\n\nOrder Ref: #${order.order_ref}`);
+      window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+    } catch (err) {
+      addToast('Could not load WhatsApp details', 'error');
+    }
+  };
+
   // Custom stepper calculation
   let progressWidth = 'w-0';
   if (isOnWay) progressWidth = 'w-[100%]';
@@ -117,7 +130,7 @@ function TrackOrderClient() {
               </div>
               <div className="bg-primary-container/10 px-4 py-2 rounded-lg border border-primary-container/20">
                 <p className="font-label text-[10px] uppercase text-primary font-bold">Total</p>
-                <p className="font-headline font-bold text-lg text-primary text-center">₦{order.total_amount.toLocaleString()}</p>
+                <p className="font-headline font-bold text-lg text-primary text-center">₦{(order.total_amount || 0).toLocaleString()}</p>
               </div>
             </div>
 
@@ -190,7 +203,7 @@ function TrackOrderClient() {
                 <span className="material-symbols-outlined text-primary text-lg">call</span>
                 Call Kitchen
               </button>
-              <button onClick={() => addToast('Opening WhatsApp...', 'info')} className="flex items-center justify-center gap-2 py-3 px-4 rounded-full bg-[#25D366]/10 text-[#075E54] hover:bg-[#25D366]/20 transition-colors font-label text-xs font-bold uppercase tracking-wide">
+              <button onClick={handleWhatsApp} className="flex items-center justify-center gap-2 py-3 px-4 rounded-full bg-[#25D366]/10 text-[#075E54] hover:bg-[#25D366]/20 transition-colors font-label text-xs font-bold uppercase tracking-wide">
                 <span className="material-symbols-outlined text-lg">chat</span>
                 WhatsApp
               </button>

@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { adminService, analyticsService, orderService, type Order, type StoreSettings } from '@/lib/api';
+import { adminService, type StoreSettings } from '@/lib/api/admin.service';
+import { analyticsService } from '@/lib/api/analytics.service';
+import { orderService, type Order } from '@/lib/api/order.service';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminRouteLoadingScreen } from '@/components/ui/AdminSkeletons';
@@ -16,11 +18,8 @@ export default function AdminHomePage() {
   const [pendingPayments, setPendingPayments] = useState<Order[]>([]);
   const [pickupQueue, setPickupQueue] = useState<Order[]>([]);
   const [accessSettings, setAccessSettings] = useState<any>(null);
-  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [accessKeyInput, setAccessKeyInput] = useState('');
   const [isSavingAccess, setIsSavingAccess] = useState(false);
-  const [adminInviteLink, setAdminInviteLink] = useState('');
-  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -33,11 +32,10 @@ export default function AdminHomePage() {
 
     const fetchDashboardData = async () => {
       try {
-        const [summaryResponse, ordersResponse, accessResponse, storeResponse] = await Promise.all([
+        const [summaryResponse, ordersResponse, accessResponse] = await Promise.all([
           analyticsService.getSummary(),
           orderService.getAllOrders(),
           adminService.getAccessLinkSettings(),
-          adminService.getStoreSettings(),
         ]);
 
         if (!active) {
@@ -46,13 +44,12 @@ export default function AdminHomePage() {
 
         const orders = (ordersResponse.data || []) as Order[];
         setStats(summaryResponse.data);
-        setRecentOrders(orders.slice(0, 5));
+        setRecentOrders(orders.slice(0, 10)); // Bumped up for the list
         setPendingPayments(orders.filter((order) => order.payment_status === 'submitted').slice(0, 4));
         setPickupQueue(orders.filter((order) => order.order_type === 'pickup' && ['confirmed', 'preparing', 'ready_for_pickup'].includes(order.status)).slice(0, 4));
         setAccessSettings(accessResponse.data);
-        setStoreSettings(storeResponse.data);
         setAccessKeyInput(accessResponse.data?.access_key || '');
-      } catch {
+      } catch (error) {
         if (active) {
           addToast('Dashboard fetch failed', 'error');
         }
@@ -68,11 +65,12 @@ export default function AdminHomePage() {
     };
   }, [addToast, isAdmin]);
 
-  useWalkthrough('admin_command_center_v1', [
-    { element: '#tour-nav', popover: { title: 'Global Navigation', description: 'Switch between modules like Orders, Products, Categories, Reviews, and Analytics.', side: 'bottom' } },
-    { element: '#tour-stats', popover: { title: 'Quick Insights', description: 'Real-time overview of today\'s sales and operational metrics.' } },
-    { element: '#tour-actions', popover: { title: 'Immediate Actions', description: 'Requires your attention now: newly submitted transfer receipts or active pickups.' } },
-    { element: '#tour-security', popover: { title: 'Security Settings', description: 'Generate private timed access links to log into this Command Center safely remotely.' } }
+  useWalkthrough('admin_home_tour_v3', [
+    { element: '#tour-nav-home', popover: { title: 'Main Menu', description: 'Use these links to check your orders, update your menu, or view sales.', side: 'right' } },
+    { element: '#admin-search', popover: { title: 'Quick Search', description: 'Type a customer name or order number here to jump straight to it, anytime.' } },
+    { element: '#tour-stats', popover: { title: 'Today\'s Performance', description: 'See how many customers ordered today and your total sales.' } },
+    { element: '#tour-actions', popover: { title: 'Things to Do', description: 'Check this box for bank transfers that need your approval or orders waiting for pickup.' } },
+    { element: '#tour-security', popover: { title: 'Security Link', description: 'Keep your admin account safe by generating a new daily access link here.' } }
   ], { enabled: isAdmin && !!stats });
 
   const saveAccessSettings = async (payload: { action?: 'save' | 'regenerate'; is_enabled: boolean; access_key?: string }) => {
@@ -89,19 +87,6 @@ export default function AdminHomePage() {
     }
   };
 
-  const generateInvite = async () => {
-    try {
-      setIsGeneratingInvite(true);
-      const res = await adminService.generateAdminInvite();
-      setAdminInviteLink(`${origin}/admin/invite?token=${res.token}`);
-      addToast('Invite link generated', 'success');
-    } catch (error: any) {
-      addToast(error.message || 'Could not generate invite', 'error');
-    } finally {
-      setIsGeneratingInvite(false);
-    }
-  };
-
   const currentAccessUrl = `${origin}${accessSettings?.login_path || '/admin/login'}`;
 
   if (authLoading || (isAdmin && !stats)) {
@@ -112,262 +97,193 @@ export default function AdminHomePage() {
     return null;
   }
 
-  return (
-    <div className="bg-surface min-h-screen">
-      <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-10">
-        <header className="flex justify-between items-center">
-          <div>
-            <h1 className="font-headline font-bold text-4xl">Command Center</h1>
-            <p className="font-body text-sm text-outline mt-2">
-              Signed in as {user?.name || user?.username || 'Admin'}
-            </p>
-          </div>
-          <div id="tour-nav" className="flex flex-wrap gap-4">
-            <Link href="/admin/orders" className="text-xs font-label font-bold uppercase tracking-widest bg-on-surface text-surface px-6 py-3 rounded-full">Orders</Link>
-            <Link href="/admin/products" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Products</Link>
-            <Link href="/admin/categories" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Categories</Link>
-            <Link href="/admin/reviews" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Reviews</Link>
-            <Link href="/admin/analytics" className="text-xs font-label font-bold uppercase tracking-widest bg-surface-container-low text-on-surface px-6 py-3 rounded-full">Analytics</Link>
-            <Link href="/admin/config" className="text-xs font-label font-bold uppercase tracking-widest bg-primary-container text-on-primary-container px-6 py-3 rounded-full">Config</Link>
-          </div>
-        </header>
+  const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const pendingCount = stats.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0;
+  const activeOrdersCount = pendingPayments.length + pickupQueue.length + pendingCount; // Proxy for active orders
 
-        <div id="tour-stats" className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <DashboardStat label="Today Items" value={stats.orders_today} icon="shopping_bag" />
-          <DashboardStat label="Pending" value={stats.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0} icon="timer" color="text-secondary" />
-          <DashboardStat label="Payment Reviews" value={pendingPayments.length} icon="credit_score" color="text-secondary" />
-          <DashboardStat label="Sales Today" value={`₦${stats.revenue_today.toLocaleString()}`} icon="payments" color="text-tertiary" />
+  return (
+    <div className="p-8 max-w-7xl mx-auto space-y-12">
+      {/* Hero Section */}
+      <div id="tour-hero">
+        <h1 className="font-headline text-4xl md:text-5xl font-bold text-on-surface mb-2">Good Morning, Chef {user?.name?.split(' ')[0] || ''}.</h1>
+        <p className="font-body text-on-surface-variant text-lg">{currentDate} • Command Center</p>
+      </div>
+
+      {/* KPI Cards */}
+      <div id="tour-stats" className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-sm relative overflow-hidden border border-outline-variant/10">
+          <div className="absolute -right-4 -top-4 w-32 h-32 bg-primary-container/20 rounded-full blur-2xl"></div>
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <p className="font-body text-on-surface-variant text-sm font-medium mb-1">Today&apos;s Revenue</p>
+              <h3 className="font-headline text-4xl font-bold text-on-surface">₦{(stats.revenue_today || 0).toLocaleString()}</h3>
+            </div>
+            <span className="material-symbols-outlined text-primary p-3 bg-primary-container/20 rounded-full">payments</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-tertiary font-bold flex items-center"><span className="material-symbols-outlined text-sm">trending_up</span> Active</span>
+            <span className="text-on-surface-variant">sales processing automatically</span>
+          </div>
         </div>
 
-        <section id="tour-actions" className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-headline font-bold text-2xl">Immediate Actions</h2>
-                <p className="font-body text-sm text-outline mt-2">Use the dashboard for the items that need admin attention right now.</p>
-              </div>
-              <Link href="/admin/orders" className="rounded-full bg-on-surface px-5 py-3 text-xs font-bold uppercase tracking-widest text-surface">Open order desk</Link>
-            </div>
-
-            <div className="grid gap-4">
-              <div className="rounded-[28px] bg-surface-container-low p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-headline font-bold text-lg">Pending payment reviews</p>
-                    <p className="text-sm text-outline mt-1">Customers have uploaded payment proof and are waiting for approval.</p>
-                  </div>
-                  <span className="rounded-full bg-secondary/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-secondary">{pendingPayments.length}</span>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {pendingPayments.length === 0 && <p className="text-sm text-outline">No payment proofs are waiting right now.</p>}
-                  {pendingPayments.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                      <div>
-                        <p className="font-bold text-sm">{order.customer_name}</p>
-                        <p className="text-xs text-outline">{order.order_ref}</p>
-                      </div>
-                      <span className="text-sm font-bold">₦{order.total_amount.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[28px] bg-surface-container-low p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-headline font-bold text-lg">Pickup queue</p>
-                    <p className="text-sm text-outline mt-1">These customers are coming in person and need coordination.</p>
-                  </div>
-                  <span className="rounded-full bg-tertiary/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-tertiary">{pickupQueue.length}</span>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {pickupQueue.length === 0 && <p className="text-sm text-outline">No pickup orders are active right now.</p>}
-                  {pickupQueue.map((order) => (
-                    <div key={order.id} className="rounded-2xl bg-white px-4 py-3">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="font-bold text-sm">{order.customer_name}</p>
-                          <p className="text-xs text-outline">{order.pickup_time || 'Pickup time not set'} • {order.status.replace(/_/g, ' ')}</p>
-                        </div>
-                        <span className="text-sm font-bold">₦{order.total_amount.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
+        <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-sm relative overflow-hidden border border-outline-variant/10">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="font-headline font-bold text-2xl">Customer-Facing Store Info</h2>
-              <p className="font-body text-sm text-outline mt-2">These details appear during checkout for transfer and pickup orders.</p>
+              <p className="font-body text-on-surface-variant text-sm font-medium mb-1">Active Action Items</p>
+              <h3 className="font-headline text-4xl font-bold text-on-surface">{activeOrdersCount}</h3>
             </div>
-            <div className="rounded-3xl bg-surface-container-low p-5 space-y-3 text-sm">
-              <p><span className="font-bold">Bank:</span> {storeSettings?.payment_bank_name || 'Not set'}</p>
-              <p><span className="font-bold">Account Name:</span> {storeSettings?.payment_account_name || 'Not set'}</p>
-              <p><span className="font-bold">Account Number:</span> {storeSettings?.payment_account_number || 'Not set'}</p>
-              <p><span className="font-bold">Pickup Address:</span> {storeSettings?.pickup_address || 'Not set'}</p>
-              <p><span className="font-bold">Support WhatsApp:</span> {storeSettings?.support_whatsapp || 'Not set'}</p>
-            </div>
-            <Link href="/admin/config" className="inline-flex rounded-full bg-primary-container px-5 py-3 text-xs font-bold uppercase tracking-widest text-on-primary-container">
-              Edit store and payment settings
-            </Link>
+            <span className="material-symbols-outlined text-secondary p-3 bg-secondary/10 rounded-full">receipt_long</span>
           </div>
-        </section>
+          <div className="flex items-center gap-2 text-sm">
+            {activeOrdersCount > 5 ? (
+              <span className="text-error font-bold flex items-center"><span className="material-symbols-outlined text-sm">warning</span> High Volume</span>
+            ) : (
+              <span className="text-on-surface-variant flex items-center">Normal Queue Activity</span>
+            )}
+          </div>
+        </div>
 
-        <section id="tour-security" className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="bg-surface-container-lowest rounded-3xl p-8 shadow-sm relative overflow-hidden border border-outline-variant/10">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="font-headline font-bold text-2xl">Admin Login URL</h2>
-              <p className="font-body text-sm text-outline mt-2">
-                If private admin access is disabled, the default login stays on <span className="font-bold text-on-surface">/admin/login</span>. If enabled, a 10-character access key is required and rotates every 6 hours.
-              </p>
+              <p className="font-body text-on-surface-variant text-sm font-medium mb-1">Total Orders Today</p>
+              <h3 className="font-headline text-4xl font-bold text-on-surface">{stats.orders_today || 0}</h3>
             </div>
-            <div className={`inline-flex items-center rounded-full px-4 py-2 text-[10px] font-label font-bold uppercase tracking-widest ${accessSettings?.is_enabled ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-low text-outline'}`}>
-              {accessSettings?.is_enabled ? 'Protected link enabled' : 'Default login active'}
-            </div>
+            <span className="material-symbols-outlined text-tertiary p-3 bg-tertiary/10 rounded-full">shopping_bag</span>
           </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-on-surface-variant flex items-center">Across all statuses</span>
+          </div>
+        </div>
+      </div>
 
-          <div className="bg-surface-container-low rounded-3xl p-5 space-y-3">
-            <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Current admin URL</p>
-            <p className="font-mono text-sm break-all">{currentAccessUrl}</p>
-            {accessSettings?.expires_at && accessSettings?.is_enabled && (
-              <p className="font-body text-xs text-outline">
-                Rotates at {new Date(accessSettings.expires_at).toLocaleString()}
-              </p>
-            )}
+      {/* Main Grid Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Live Order Queue (Takes up 2 columns) */}
+        <div className="lg:col-span-2 bg-surface-container-low rounded-[40px] p-8 border border-outline-variant/10">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="font-headline text-2xl font-bold text-on-surface">Live Order Queue</h2>
+            <Link href="/admin/orders" className="text-primary font-body font-bold hover:underline">View Desk</Link>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3">
-            <input
-              type="text"
-              value={accessKeyInput}
-              onChange={(event) => setAccessKeyInput(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
-              placeholder="10-character access key"
-              className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-5 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all"
-            />
-            <button
-              type="button"
-              disabled={isSavingAccess}
-              onClick={() => saveAccessSettings({ is_enabled: true, access_key: accessKeyInput || undefined, action: 'save' })}
-              className="rounded-full bg-on-surface px-5 py-4 text-surface font-label text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-            >
-              Save URL
-            </button>
-            <button
-              type="button"
-              disabled={isSavingAccess}
-              onClick={() => saveAccessSettings({ is_enabled: true, action: 'regenerate' })}
-              className="rounded-full bg-primary-container px-5 py-4 text-on-primary-container font-label text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-            >
-              Refresh Key
-            </button>
-            <button
-              type="button"
-              disabled={isSavingAccess}
-              onClick={() => navigator.clipboard.writeText(currentAccessUrl).then(() => addToast('Admin URL copied', 'success'))}
-              className="rounded-full bg-surface-container-low px-5 py-4 text-on-surface font-label text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-            >
-              Copy URL
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={isSavingAccess}
-              onClick={() => saveAccessSettings({ is_enabled: false })}
-              className="rounded-full bg-error/10 px-5 py-3 text-error font-label text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-            >
-              Use current default URL
-            </button>
-            <Link
-              href={accessSettings?.login_path || '/admin/login'}
-              target="_blank"
-              className="rounded-full bg-surface-container-low px-5 py-3 text-on-surface font-label text-xs font-bold uppercase tracking-widest"
-            >
-              Open current login page
-            </Link>
-          </div>
-        </section>
-
-        <section id="tour-invites" className="bg-white rounded-[40px] p-8 md:p-10 border border-outline-variant/10 shadow-sm space-y-6">
-          <div>
-            <h2 className="font-headline font-bold text-2xl">Invite Admins</h2>
-            <p className="font-body text-sm text-outline mt-2">
-              Generate a one-time link to invite a new administrator. When they open it, their account will be upgraded instantly.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={generateInvite}
-              disabled={isGeneratingInvite}
-              className="rounded-full bg-primary-container px-6 py-4 text-on-primary-container font-label text-xs font-bold uppercase tracking-widest disabled:opacity-60"
-            >
-              {isGeneratingInvite ? 'Generating...' : 'Generate 1-Time Link'}
-            </button>
-            {adminInviteLink && (
-              <button
-                onClick={() => navigator.clipboard.writeText(adminInviteLink).then(() => addToast('Copied to clipboard', 'success'))}
-                className="rounded-full bg-surface-container-low px-6 py-4 text-on-surface font-label text-xs font-bold uppercase tracking-widest"
-              >
-                Copy Link
-              </button>
-            )}
-          </div>
-          {adminInviteLink && (
-            <div className="bg-primary-container/10 border border-primary-container/30 text-primary-container rounded-3xl p-5 break-all font-mono text-xs">
-              {adminInviteLink}
-            </div>
-          )}
-        </section>
-
-        <div className="bg-white rounded-[40px] p-10 border border-outline-variant/10 shadow-sm">
-          <div className="flex justify-between items-center mb-10">
-            <h2 className="font-headline font-bold text-2xl">Recent Transmissions</h2>
-            <Link href="/admin/orders" className="text-secondary font-label text-[10px] uppercase font-bold tracking-widest">View All</Link>
-          </div>
-
-          <div className="space-y-6">
-            {recentOrders.length === 0 && (
-              <div className="rounded-[28px] bg-surface-container-low p-6">
-                <p className="font-body text-sm text-outline">No recent orders yet. New checkouts will appear here automatically.</p>
-              </div>
-            )}
+          <div className="flex flex-col gap-4">
+            {recentOrders.length === 0 ? (
+              <p className="text-outline text-sm">No live orders today yet.</p>
+            ) : null}
             {recentOrders.map((order) => (
-              <div key={order.id} className="flex justify-between items-center p-6 bg-surface-container-low rounded-3xl group hover:bg-primary-container/10 transition-colors">
-                <div className="flex gap-4 items-center">
-                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-label font-bold text-xs shadow-sm">
-                    #{order.id}
+              <div key={order.id} className="bg-surface-container-lowest rounded-3xl p-5 flex flex-col md:flex-row md:items-center justify-between shadow-sm border border-outline-variant/5 gap-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-6">
+                  <div className="bg-surface-container-high rounded-full w-14 h-14 flex flex-shrink-0 items-center justify-center font-headline font-bold text-xl text-on-surface shadow-inner">
+                    #{String(order.id).slice(0, 3)}
                   </div>
                   <div>
-                    <p className="font-body font-bold text-sm">{order.customer_name}</p>
-                    <p className="font-body text-[10px] text-outline">{new Date(order.created_at).toLocaleTimeString()}</p>
+                    <h4 className="font-bold text-on-surface text-lg">{order.customer_name}</h4>
+                    <p className="text-on-surface-variant text-sm">
+                      {order.order_type === 'pickup' ? 'Pickup' : 'Delivery'} • ₦{order.total_amount.toLocaleString()} 
+                      <span className="mx-2 text-outline/40">|</span> 
+                      {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-label font-bold text-sm">₦{order.total_amount.toLocaleString()}</p>
-                  <span className="font-label text-[10px] uppercase font-bold text-secondary">{order.status}</span>
+                <div className="flex items-center gap-4">
+                  <span className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest ${
+                    ['pending'].includes(order.status) ? 'bg-secondary/10 text-secondary' :
+                    ['confirmed', 'preparing'].includes(order.status) ? 'bg-primary-container text-on-primary-container shadow-sm' :
+                    ['delivered'].includes(order.status) ? 'bg-tertiary/10 text-tertiary' : 'bg-surface-container-highest text-on-surface'
+                  }`}>
+                    {order.status.replace(/_/g, ' ')}
+                  </span>
+                  <Link href="/admin/orders" className="p-2 text-on-surface-variant hover:text-primary transition-colors bg-surface-container-low rounded-full">
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </Link>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
 
-function DashboardStat({ label, value, icon, color = 'text-on-surface' }: any) {
-  return (
-    <div className="bg-white p-8 rounded-[32px] border border-outline-variant/10 flex flex-col justify-between h-48 shadow-sm">
-      <div className={`w-12 h-12 bg-surface-container-low rounded-2xl flex items-center justify-center ${color}`}>
-        <span className="material-symbols-outlined">{icon}</span>
-      </div>
-      <div>
-        <p className="font-label text-[10px] uppercase text-outline font-bold tracking-widest">{label}</p>
-        <p className={`text-2xl font-headline font-bold mt-1 ${color}`}>{value}</p>
+        {/* Side Panel: Replaced with Actions & Config */}
+        <div id="tour-actions" className="flex flex-col gap-8">
+          
+          {/* Action Items */}
+          <div className="bg-white rounded-[40px] p-8 border border-outline-variant/10 shadow-sm relative">
+            <h3 className="font-headline text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary">assignment_late</span> Things To Do
+            </h3>
+            
+            <div className="flex justify-between items-center text-sm mb-4">
+              <span className="font-bold text-on-surface">Payment Reviews</span>
+              {pendingPayments.length > 0 ? (
+                <span className="text-secondary font-bold bg-secondary/10 px-2 py-1 rounded-full text-[10px] uppercase">{pendingPayments.length} Pending</span>
+              ) : (
+                <span className="text-outline text-xs">Clear</span>
+              )}
+            </div>
+            
+            <ul className="flex flex-col gap-2 mb-6">
+              {pendingPayments.map(order => (
+                <li key={order.id} className="flex justify-between items-center bg-surface-container-highest rounded-2xl p-4">
+                  <span className="font-bold text-on-surface text-sm truncate pr-2 flex-1">{order.customer_name}</span>
+                  <Link href="/admin/orders" className="text-primary font-bold text-[10px] uppercase tracking-widest hover:underline">Review</Link>
+                </li>
+              ))}
+              {pendingPayments.length === 0 && (
+                <li className="text-on-surface-variant text-sm italic">All set for now.</li>
+              )}
+            </ul>
+
+            <div className="flex justify-between items-center text-sm mb-4">
+              <span className="font-bold text-on-surface">Live Pickups</span>
+              {pickupQueue.length > 0 ? (
+                <span className="text-tertiary font-bold bg-tertiary/10 px-2 py-1 rounded-full text-[10px] uppercase">{pickupQueue.length} Active</span>
+              ) : (
+                <span className="text-outline text-xs">Clear</span>
+              )}
+            </div>
+            
+            <ul className="flex flex-col gap-2">
+              {pickupQueue.map(order => (
+                <li key={order.id} className="flex justify-between items-center bg-surface-container-highest rounded-2xl p-4">
+                  <span className="font-bold text-on-surface text-sm truncate pr-2 flex-1">{order.customer_name}</span>
+                  <span className="text-outline font-bold text-[10px] uppercase tracking-widest">{order.pickup_time || 'Waiting'}</span>
+                </li>
+              ))}
+              {pickupQueue.length === 0 && (
+                <li className="text-on-surface-variant text-sm italic">No pickups currently queued.</li>
+              )}
+            </ul>
+          </div>
+
+          {/* Security Features */}
+          <div id="tour-security" className="bg-surface-container-lowest rounded-[40px] p-8 border border-outline-variant/10 shadow-sm">
+            <h3 className="font-headline text-xl font-bold text-on-surface mb-4 flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">security</span> Security
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-label uppercase font-bold tracking-widest text-outline">Current Admin URL</span>
+                <div className="bg-surface-container-highest rounded-2xl p-4 flex items-center justify-between">
+                  <span className="font-mono text-[10px] truncate max-w-[150px]">{currentAccessUrl}</span>
+                  <button onClick={() => navigator.clipboard.writeText(currentAccessUrl).then(() => addToast('Copied', 'success'))} className="text-primary">
+                    <span className="material-symbols-outlined text-sm">content_copy</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  disabled={isSavingAccess}
+                  onClick={() => saveAccessSettings({ is_enabled: true, action: 'regenerate' })}
+                  className="w-full bg-primary-container text-on-primary-container font-bold rounded-full py-3 text-sm hover:brightness-105 transition-all shadow-sm"
+                >
+                  Regenerate Daily URL
+                </button>
+              </div>
+            </div>
+          </div>
+          
+        </div>
       </div>
     </div>
   );

@@ -4,8 +4,9 @@ import { useMutation } from '@tanstack/react-query';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import { useAuth } from '@/context/AuthContext';
-import { orderService, userService, type PaymentSettings } from '@/lib/api';
-import type { Order } from '@/lib/api';
+import { orderService, type Order } from '@/lib/api/order.service';
+import { userService } from '@/lib/api/user.service';
+import type { PaymentSettings } from '@/lib/api/order.service';
 import { CheckoutStep, ProfileData, CheckoutFormData } from '../types';
 
 function mergeDeliveryDetails(
@@ -122,7 +123,7 @@ export function useCheckout() {
   }, []);
 
   const subtotal = totalPrice();
-  const deliveryFee = formData.orderType === 'delivery' ? (paymentSettings?.delivery_fee || 0) : 0;
+  const deliveryFee = formData.orderType === 'delivery' ? Number(paymentSettings?.delivery_fee || 0) : 0;
   
   let discountAmount = 0;
   if (appliedPromo) {
@@ -150,14 +151,29 @@ export function useCheckout() {
     }
   };
 
+  const notifyAdminViaWhatsapp = (ref: string, settings: PaymentSettings | null) => {
+    const phone = (settings?.support_whatsapp || '2348012345678').replace(/\D/g, '');
+    const text = encodeURIComponent(`Hello! I just placed a new order on Soji's Shawarma.\n\nOrder Ref: #${ref}\nI am ready to confirm my order.`);
+    try {
+      window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+    } catch(e) {}
+  };
+
   const { mutate: placeOrder, isPending: isLoading } = useMutation({
     mutationFn: (orderData: any) => orderService.createOrder(orderData),
     onSuccess: (response: any) => {
       const result = response?.data ?? response;
       if (!result?.id || !result?.order_ref) return addToast('Order created, but response incomplete', 'error');
       setOrderId(result.id); setOrderRef(result.order_ref);
-      setCurrentStep(formData.paymentMethod === 'cash_on_pickup' ? 'success' : 'payment');
-      addToast(formData.paymentMethod === 'cash_on_pickup' ? 'Order submitted. Wait for admin.' : 'Proceed with payment.', 'success');
+      
+      const isCash = formData.paymentMethod === 'cash_on_pickup';
+      setCurrentStep(isCash ? 'success' : 'payment');
+      addToast(isCash ? 'Order submitted. Wait for admin.' : 'Proceed with payment.', 'success');
+
+      if (isCash) {
+        clearCart();
+        notifyAdminViaWhatsapp(result.order_ref, paymentSettings);
+      }
     },
     onError: (err: any) => addToast(err.message || 'Error creating order', 'error'),
   });
@@ -173,6 +189,7 @@ export function useCheckout() {
     onSuccess: () => {
       setCurrentStep('success'); clearCart();
       addToast('Payment proof submitted. Await admin confirmation.', 'success');
+      notifyAdminViaWhatsapp(orderRef, paymentSettings);
     },
     onError: (err: any) => addToast(err.message || 'Error confirming payment', 'error'),
   });

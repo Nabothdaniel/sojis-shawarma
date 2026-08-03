@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
-import { authService } from '@/lib/api';
+import { authService } from '@/lib/api/auth.service';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Username is required'),
@@ -19,7 +20,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center font-headline font-bold text-xl">Loading admin login...</div>}>
+    <Suspense fallback={<LoadingScreen message="loading admin login" />}>
       <AdminLoginPageContent />
     </Suspense>
   );
@@ -116,7 +117,7 @@ function AdminLoginPageContent() {
   };
 
   if (isCheckingAccess) {
-    return <div className="bg-surface min-h-screen flex items-center justify-center font-headline font-bold text-xl">Checking admin access...</div>;
+    return <LoadingScreen message="checking admin access" />;
   }
 
   if (accessStatus?.is_enabled && !accessStatus.is_valid) {

@@ -69,35 +69,6 @@ export function DeliveryStep(props: ReturnType<typeof useCheckout>) {
           <div className="space-y-1">
             <div className="flex justify-between items-center mb-2 px-1">
               <label className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">Delivery Address</label>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!navigator.geolocation) return alert('Geolocation not supported');
-                  setIsGeoLoading(true);
-                  navigator.geolocation.getCurrentPosition(async (pos) => {
-                    try {
-                      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, {
-                        headers: { 'User-Agent': 'SojiShawarmaSpot/1.0' }
-                      });
-                      const data = await res.json();
-                      setFormData({ ...formData, address: data.display_name });
-                      if (errors.address) setErrors({ ...errors, address: '' });
-                      addToast('Location detected!', 'success');
-                    } catch (err) {
-                      addToast('Could not fetch address details', 'error');
-                    } finally {
-                      setIsGeoLoading(false);
-                    }
-                  }, () => {
-                    setIsGeoLoading(false);
-                    addToast('Location access denied', 'error');
-                  });
-                }}
-                className="flex items-center gap-1 text-primary font-label text-[10px] font-bold uppercase active:scale-95 transition-transform"
-              >
-                <span className="material-symbols-outlined text-sm">my_location</span>
-                Detect
-              </button>
             </div>
             <textarea
               placeholder="Street, House No, Keffi"

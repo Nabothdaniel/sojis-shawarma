@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import ProductImage from '@/components/ui/ProductImage';
 import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
-import { catalogService } from '@/lib/api';
+import { catalogService } from '@/lib/api/catalog.service';
 import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
 import BottomNav from '@/components/ui/BottomNav';
 

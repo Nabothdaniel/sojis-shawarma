@@ -1,6 +1,7 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 export default function RootPage() {
   const router = useRouter();
@@ -16,9 +17,5 @@ export default function RootPage() {
     }
   }, [router]);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-surface">
-      <div className="w-12 h-12 border-4 border-surface-variant border-t-primary rounded-full animate-spin"></div>
-    </div>
-  );
+  return <LoadingScreen message="routing you to the right place" />;
 }

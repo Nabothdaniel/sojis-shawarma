@@ -17,6 +17,12 @@ export const userService = {
     return { status: 'success', data: { id: user.uid, ...docSnap.data() } };
   },
   
+  updateProfile: async (data: Partial<{ name: string; phone: string; address: string }>) => {
+    const user = requireUser();
+    await updateDoc(doc(db, 'users', user.uid), data);
+    return { status: 'success', message: 'Profile updated', data };
+  },
+  
   getBalance: async () => {
     const user = requireUser();
     const docSnap = await getDoc(doc(db, 'users', user.uid));

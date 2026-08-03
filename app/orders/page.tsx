@@ -4,7 +4,7 @@ import React, { Suspense, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/store/appStore';
-import { orderService, type Order } from '@/lib/api';
+import { orderService, type Order } from '@/lib/api/order.service';
 import BottomNav from '@/components/ui/BottomNav';
 import OrderDetailClient from './[id]/OrderDetailClient';
 
@@ -139,7 +139,7 @@ function OrdersPageInner() {
           )}
 
           {activeTab === 'active' && activeOrders.map((order) => (
-            <Link key={order.id} href={`/orders?id=${order.id}`} className="block bg-surface-container-low rounded-[32px] p-6 space-y-4 border border-outline-variant/5 shadow-sm active:scale-[0.98] transition-transform">
+            <Link key={order.id} href={`/track?id=${order.id}`} className="block bg-surface-container-low rounded-[32px] p-6 space-y-4 border border-outline-variant/5 shadow-sm active:scale-[0.98] transition-transform">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-headline font-bold text-lg">{order.order_ref}</p>

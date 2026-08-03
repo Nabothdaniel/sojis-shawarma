@@ -8,7 +8,8 @@ import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useAppStore } from '@/store/appStore';
-import { authService } from '@/lib/api';
+import { authService } from '@/lib/api/auth.service';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'Your name is required'),
@@ -22,7 +23,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<div className="bg-surface min-h-screen flex items-center justify-center p-6 font-body text-sm text-outline">Loading signup...</div>}>
+    <Suspense fallback={<LoadingScreen message="loading signup" />}>
       <SignupPageContent />
     </Suspense>
   );

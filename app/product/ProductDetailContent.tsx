@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { useProductDetail } from '@/features/products/hooks/useProductDetail';
 import ProductDetailClient from './ProductDetailClient';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 
 export default function ProductDetailContent() {
   const searchParams = useSearchParams();
@@ -29,7 +30,7 @@ export default function ProductDetailContent() {
   }, [id, isError, isFetching, isLoading, product, router]);
 
   if (isLoading || isFetching || !product) {
-    return <div className="min-h-screen bg-surface flex items-center justify-center font-headline font-bold">Loading product...</div>;
+    return <LoadingScreen />;
   }
 
   return <ProductDetailClient product={product} />;

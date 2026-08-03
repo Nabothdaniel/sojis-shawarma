@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { analyticsService, AnalyticsData } from '@/lib/api';
+import { analyticsService, AnalyticsData } from '@/lib/api/analytics.service';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell 
 } from 'recharts';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminAnalyticsSkeleton } from '@/components/ui/AdminSkeletons';
+import { AdminSection, AdminPageHeader } from '@/components/admin/ui/AdminContainers';
+import { AdminButton } from '@/components/admin/ui/AdminButton';
 
 export default function AnalyticsPage() {
   const { token, authLoading, isAdmin } = useAdminGuard();
@@ -55,16 +57,12 @@ export default function AnalyticsPage() {
 
   return (
     <div className="bg-surface min-h-screen p-6 md:p-10 space-y-10">
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="font-headline font-bold text-3xl">Business Intelligence</h1>
-          <p className="text-outline font-body text-sm mt-1">Real-time performance metrics</p>
-        </div>
-        <button className="bg-on-surface text-surface px-6 py-3 rounded-full font-label font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+      <AdminPageHeader title="Business Intelligence" subtitle="Real-time performance metrics">
+        <AdminButton variant="primary">
           <span className="material-symbols-outlined text-sm">download</span>
           Export CSV
-        </button>
-      </header>
+        </AdminButton>
+      </AdminPageHeader>
 
       {/* Summary Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -76,7 +74,7 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Top Products */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-outline-variant/10">
+        <AdminSection>
           <h3 className="font-headline font-bold text-lg mb-8">Top 5 Products</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -89,10 +87,10 @@ export default function AnalyticsPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </AdminSection>
 
         {/* Status Breakdown */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-outline-variant/10">
+        <AdminSection>
           <h3 className="font-headline font-bold text-lg mb-8">Order Status Distribution</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -115,7 +113,7 @@ export default function AnalyticsPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </AdminSection>
       </div>
     </div>
   );

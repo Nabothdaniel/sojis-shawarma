@@ -4,11 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAddCartItem } from '@/store/cartStore.selectors';
 import { useAddToast, useAppUser } from '@/store/appStore.selectors';
-import { favoritesService } from '@/lib/api';
+import { favoritesService } from '@/lib/api/favorites.service';
 import { useServerEvents } from '@/hooks/useServerEvents';
 import type { Product } from '@/lib/products';
 import type { MenuProduct } from '@/lib/menu';
-import type { ProductRatingUpdate } from '@/lib/api';
+import type { ProductRatingUpdate } from '@/lib/api/review.service';
 import ProductImage from '@/components/ui/ProductImage';
 
 type ProductDetail = Product | MenuProduct;

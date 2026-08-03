@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { adminService, type StoreSettings, type AdminSettings } from '@/lib/api';
+import { adminService, type StoreSettings, type AdminSettings } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminRouteLoadingScreen } from '@/components/ui/AdminSkeletons';
@@ -173,14 +173,10 @@ export default function AdminConfigPage() {
           
           <form onSubmit={handleAdminSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
             <div className="space-y-2">
-              <label className="font-label text-xs uppercase tracking-widest font-bold">USD to NGN Rate</label>
-              <input required type="number" step="0.01" name="usd_to_ngn_rate" value={adminSettings.usd_to_ngn_rate} onChange={handleAdminChange} className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-5 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all" placeholder="e.g. 1500" />
-            </div>
-            <div className="space-y-2">
               <label className="font-label text-xs uppercase tracking-widest font-bold">Price Markup Multiplier</label>
               <input required type="number" step="0.01" name="price_markup_multiplier" value={adminSettings.price_markup_multiplier} onChange={handleAdminChange} className="w-full bg-surface-container-highest border-none rounded-2xl py-4 px-5 font-body text-sm outline-none focus:ring-2 focus:ring-primary-container transition-all" placeholder="e.g. 1.05" />
             </div>
-            <div className="md:col-span-2 flex justify-end pt-4">
+            <div className="flex justify-start md:justify-end">
               <button disabled={savingAdmin} type="submit" className="rounded-full bg-on-surface px-8 py-4 text-surface font-label text-xs font-bold uppercase tracking-widest disabled:opacity-60 hover:opacity-90 transition-opacity">
                 {savingAdmin ? 'Saving...' : 'Save Variables'}
               </button>

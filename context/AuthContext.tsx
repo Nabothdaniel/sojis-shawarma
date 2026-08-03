@@ -27,9 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         if (firebaseUser) {
           const idToken = await firebaseUser.getIdToken();
-          
+
           let userData: any = {};
-          
+
           try {
             const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
             if (userDoc.exists()) {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error("Could not fetch user document on reload, proceeding with basic auth payload:", firestoreError);
             // We do NOT throw here because we still have the authenticated firebaseUser
           }
-          
+
           const role = userData.role || 'user';
 
           const mappedUser: User = {
@@ -68,7 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Separate effect for admin logout on unauthorized access
   useEffect(() => {
-    if (pathname.startsWith('/admin') && token === null && !isLoading) {
+    const isPublicAdminRoute = pathname === '/admin/login' || pathname.startsWith('/admin/setup');
+    if (pathname.startsWith('/admin') && !isPublicAdminRoute && token === null && !isLoading) {
       router.push('/admin/login');
     }
   }, [isLoading, pathname, router, token]);

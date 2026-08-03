@@ -7,6 +7,7 @@ import {
   authService,
   biometricService,
   favoritesService,
+  catalogService,
   feedbackService,
   orderService,
   reviewService,
@@ -63,6 +64,7 @@ export function useProfilePage() {
     message: '',
   });
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isSettingUpBiometrics, setIsSettingUpBiometrics] = useState(false);
   const [loadTimeout, setLoadTimeout] = useState(false);
 
@@ -88,10 +90,11 @@ export function useProfilePage() {
       setLoading(true);
       setLoadTimeout(false);
 
-      const [profileResult, ordersResult, favoritesResult] = await Promise.allSettled([
+      const [profileResult, ordersResult, favoritesResult, catalogResult] = await Promise.allSettled([
         userService.getProfile(),
         effectiveToken ? orderService.getAllOrders('all', useAppStore.getState().user?.id) : Promise.resolve({status: 'success', data: []}),
         favoritesService.getFavorites(),
+        catalogService.getProducts()
       ]);
 
       if (cancelled) {
@@ -145,10 +148,13 @@ export function useProfilePage() {
         );
       }
 
-      if (favoritesResult.status === 'fulfilled') {
-        setFavorites(
-          Array.isArray(favoritesResult.value.data) ? favoritesResult.value.data : []
-        );
+      if (favoritesResult.status === 'fulfilled' && catalogResult.status === 'fulfilled') {
+        const favIds = (favoritesResult.value.data || []).map((f: any) => String(f.id));
+        const allProducts = catalogResult.value;
+        const populatedFavorites = favIds
+          .map(id => allProducts.find(p => String(p.id) === id))
+          .filter(Boolean) as FavoriteProduct[];
+        setFavorites(populatedFavorites);
       } else {
         setFavorites([]);
       }
@@ -376,6 +382,22 @@ export function useProfilePage() {
     }
   };
 
+  const updateProfileDetails = async (data: { phone: string; address: string; name: string }) => {
+    setIsUpdatingProfile(true);
+    try {
+      await userService.updateProfile(data);
+      setProfile((current) => (current ? { ...current, ...data } : current) as ProfileData);
+      if (user) setUser({ ...user, ...data });
+      addToast('Profile updated successfully!', 'success');
+      return true;
+    } catch (error: any) {
+      addToast(error.message || 'Could not update profile', 'error');
+      return false;
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
   return {
     activeOrders,
     activeTab,
@@ -408,6 +430,8 @@ export function useProfilePage() {
     submitFeedback,
     submitReview,
     submittingReviewKey,
+    updateProfileDetails,
+    isUpdatingProfile,
     user,
   };
 }

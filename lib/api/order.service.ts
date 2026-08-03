@@ -121,12 +121,17 @@ export const orderService = {
   },
 
   reviewPayment: async (id: string | number, payload: { action: 'confirm' | 'reject'; admin_note?: string }) => {
-    await updateDoc(doc(db, 'orders', id.toString()), {
+    const updatePayload: any = {
       payment_status: payload.action === 'confirm' ? 'confirmed' : 'rejected',
       admin_note: payload.admin_note || null,
       payment_reviewed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    });
+    };
+    if (payload.action === 'confirm') {
+      updatePayload.status = 'confirmed';
+    }
+    
+    await updateDoc(doc(db, 'orders', id.toString()), updatePayload);
     return { status: 'success' };
   },
 
@@ -165,7 +170,8 @@ export const orderService = {
       status: 'success',
       data: {
         payment_account_name: '', payment_account_number: '', payment_bank_name: '',
-        payment_note: '', support_whatsapp: '', pickup_address: '', pickup_instructions: ''
+        payment_note: '', support_whatsapp: '', pickup_address: '', pickup_instructions: '',
+        delivery_fee: 0
       }
     };
   },

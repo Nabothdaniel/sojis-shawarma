@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { reviewService, type ProductReview } from '@/lib/api';
+import { reviewService, type ProductReview } from '@/lib/api/review.service';
 import { useServerEvents } from '@/hooks/useServerEvents';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';

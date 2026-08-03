@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useProfilePage } from '@/features/profile/hooks/useProfilePage';
 import ProductImage from '@/components/ui/ProductImage';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import { buildProductHref, getGenericProductImage } from '@/lib/menu';
 
 export default function SavedPage() {
@@ -24,6 +25,7 @@ export default function SavedPage() {
       </header>
 
       <main className="px-6 py-6 space-y-6 max-w-md mx-auto w-full">
+        {loading && <LoadingScreen />}
         {!loading && favorites.length === 0 && (
           <div className="bg-surface-container-low rounded-3xl p-6 text-center space-y-2">
             <p className="font-headline font-bold text-lg">No favorites yet</p>

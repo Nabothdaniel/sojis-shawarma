@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#F5C518',
+  themeColor: '#EAB600',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -56,6 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         '--font-label-family': '"Space Grotesk", sans-serif',
       } as React.CSSProperties}
     >
+      <head>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossOrigin="" />
+      </head>
       <body className="antialiased selection:bg-primary-container selection:text-on-primary-container bg-surface-variant flex flex-col items-center min-h-screen">
         <ReactQueryProvider>
           <AuthProvider>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { adminService, type PromoCode } from '@/lib/api';
+import { adminService, type PromoCode } from '@/lib/api/admin.service';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminRouteLoadingScreen, SkeletonBlock } from '@/components/ui/AdminSkeletons';

@@ -2,21 +2,22 @@
 'use client';
 
 // @ts-nocheck
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 // Fix Leaflet's default icon path issues with Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+if (typeof window !== 'undefined') {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  });
+}
 
-// Custom Markers
-const kitchenIcon = new L.DivIcon({
+// Custom Markers (wrapped to only create on client)
+const getKitchenIcon = () => typeof window !== 'undefined' ? new L.DivIcon({
   html: `
     <div class="relative flex items-center justify-center w-8 h-8">
       <div class="bg-surface-container-lowest p-2 rounded-full shadow-lg border-2 border-primary-container z-10 flex items-center bg-white justify-center">
@@ -27,22 +28,11 @@ const kitchenIcon = new L.DivIcon({
   className: 'bg-transparent',
   iconSize: [32, 32],
   iconAnchor: [16, 16],
-});
+}) : null;
 
-const customerIcon = new L.DivIcon({
-  html: `
-    <div class="relative flex items-center justify-center w-8 h-8">
-      <div class="bg-primary p-2 rounded-full shadow-lg border-2 border-surface z-10 flex items-center justify-center">
-        <span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">person_pin_circle</span>
-      </div>
-    </div>
-  `,
-  className: 'bg-transparent',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
 
-const courierIcon = new L.DivIcon({
+
+const getCourierIcon = () => typeof window !== 'undefined' ? new L.DivIcon({
   html: `
     <div class="relative flex items-center justify-center w-8 h-8">
       <div class="absolute inset-0 bg-[#FD712F] rounded-full opacity-40 animate-ping"></div>
@@ -54,7 +44,7 @@ const courierIcon = new L.DivIcon({
   className: 'bg-transparent',
   iconSize: [32, 32],
   iconAnchor: [16, 16],
-});
+}) : null;
 
 function MapController({ bounds, route }: { bounds: L.LatLngBounds | null; route: [number, number][] }) {
   const map = useMap();
@@ -76,6 +66,7 @@ export default function LiveMap({ orderStatus, deliveryAddress }: LiveMapProps) 
   const [customerPos, setCustomerPos] = useState<[number, number] | null>(null);
   const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
+  const [destinationWeather, setDestinationWeather] = useState<string>('');
 
   const isDispatched = orderStatus === 'dispatched';
   const isDelivered = orderStatus === 'delivered';
@@ -94,6 +85,18 @@ export default function LiveMap({ orderStatus, deliveryAddress }: LiveMapProps) 
         if (geoData && geoData.length > 0) {
           destination = [parseFloat(geoData[0].lat), parseFloat(geoData[0].lon)];
           setCustomerPos(destination);
+          
+          try {
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${destination[0]}&longitude=${destination[1]}&current_weather=true`);
+            const weatherData = await weatherRes.json();
+            if (weatherData?.current_weather) {
+              const temp = weatherData.current_weather.temperature;
+              if (temp >= 25) setDestinationWeather('☀️');
+              else if (temp > 15) setDestinationWeather('⛅');
+              else setDestinationWeather('🌧️');
+            }
+          } catch(e) {}
+          
         } else {
           // Fallback if not found: offset from kitchen slightly just to show something local
           destination = [kitchenPos[0] - 0.005, kitchenPos[1] - 0.005];
@@ -129,7 +132,7 @@ export default function LiveMap({ orderStatus, deliveryAddress }: LiveMapProps) 
     }
   }, [deliveryAddress, kitchenPos]);
 
-  // Determine Courier position based on status
+  // Determing Courier position based on status
   // If active delivery, place it midway. If delivered, place it at destination. Otherwise at kitchen.
   let courierPos: [number, number] = kitchenPos;
   if (isDelivered && customerPos) {
@@ -139,6 +142,26 @@ export default function LiveMap({ orderStatus, deliveryAddress }: LiveMapProps) 
     const midIndex = Math.floor(routeCoords.length / 2);
     courierPos = routeCoords[midIndex];
   }
+
+  const destinationIcon = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return L.divIcon({
+      html: `
+        <div class="relative flex items-center justify-center w-8 h-8">
+          ${destinationWeather ? `<div class="absolute -top-3 -right-3 bg-white shadow-sm border border-outline-variant/20 rounded-full w-6 h-6 flex items-center justify-center text-xs z-20">${destinationWeather}</div>` : ''}
+          <div class="bg-primary p-2 rounded-full shadow-lg border-2 border-surface z-10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">person_pin_circle</span>
+          </div>
+        </div>
+      `,
+      className: 'bg-transparent',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  }, [destinationWeather]);
+
+  const kitchenIcon = useMemo(() => getKitchenIcon(), []);
+  const courierIcon = useMemo(() => getCourierIcon(), []);
 
   return (
     <MapContainer
@@ -160,11 +183,11 @@ export default function LiveMap({ orderStatus, deliveryAddress }: LiveMapProps) 
       )}
 
       {/* Markers */}
-      <Marker position={kitchenPos} icon={kitchenIcon} />
-      {customerPos && <Marker position={customerPos} icon={customerIcon} />}
+      {kitchenIcon && <Marker position={kitchenPos} icon={kitchenIcon} />}
+      {customerPos && destinationIcon && <Marker position={destinationIcon ? customerPos : kitchenPos} icon={destinationIcon} />}
 
       {/* Animated Courier Marker */}
-      {(isDispatched || isDelivered) && customerPos && (
+      {(isDispatched || isDelivered) && customerPos && courierIcon && (
         <Marker position={courierPos} icon={courierIcon} />
       )}
     </MapContainer>

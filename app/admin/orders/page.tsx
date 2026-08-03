@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { orderService, Order, OrderItem } from '@/lib/api';
+import { orderService, Order, OrderItem } from '@/lib/api/order.service';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { useAppStore } from '@/store/appStore';
 import { AdminSplitViewSkeleton } from '@/components/ui/AdminSkeletons';
-
+import { AdminSection, AdminPageHeader } from '@/components/admin/ui/AdminContainers';
+import { AdminTextarea } from '@/components/admin/ui/AdminForms';
+import { AdminButton } from '@/components/admin/ui/AdminButton';
+import { useWalkthrough } from '@/hooks/useWalkthrough';
 const statusOptions = ['all', 'pending', 'confirmed', 'preparing', 'ready_for_pickup', 'dispatched', 'delivered', 'cancelled'] as const;
 
 export default function AdminOrders() {
@@ -57,6 +60,33 @@ export default function AdminOrders() {
     }
   }, [selectedOrder]);
 
+  useWalkthrough('admin_orders_tour_v1', [
+    { element: '#tour-order-filters', popover: { title: 'Order Filters', description: 'Click these buttons to easily show only the orders that are pending, ready, or out for delivery.' } },
+    { element: '#tour-order-list', popover: { title: 'Customer Orders', description: 'This is where all your orders appear. Click on any order to see full details or review payments.', side: 'right' } },
+    { element: '#tour-order-details', popover: { title: 'Review & Action', description: 'Here you can view the items, process bank transfers, and move the order step-by-step until it is delivered.', side: 'left' } }
+  ], { enabled: isAdmin && !loading });
+
+  const selectedStatusActions = useMemo(() => {
+    if (!selectedOrder) return [];
+    const type = selectedOrder.order_type;
+    const current = selectedOrder.status;
+
+    if (current === 'cancelled' || current === 'delivered') return [];
+
+    let nextSteps: string[] = [];
+    if (current === 'pending') {
+      nextSteps = ['confirmed'];
+    } else if (current === 'confirmed') {
+      nextSteps = ['preparing'];
+    } else if (current === 'preparing') {
+      nextSteps = type === 'pickup' ? ['ready_for_pickup'] : ['dispatched'];
+    } else if (current === 'ready_for_pickup' || current === 'dispatched') {
+      nextSteps = ['delivered'];
+    }
+
+    return [...nextSteps, 'cancelled'];
+  }, [selectedOrder]);
+
   if (authLoading || (isAdmin && loading && orders.length === 0)) {
     return <AdminSplitViewSkeleton />;
   }
@@ -69,8 +99,24 @@ export default function AdminOrders() {
     try {
       setActionLoading(true);
       await orderService.updateOrderStatus(id, status);
+      
+      setOrders(prev => {
+        const mapped = prev.map(o => o.id === id ? { ...o, status: status as Order['status'] } : o);
+        if (filter !== 'all' && filter !== status) {
+           return mapped.filter(o => o.id !== id);
+        }
+        return mapped;
+      });
+
+      if (selectedOrder?.id === id) {
+        if (filter !== 'all' && filter !== status) {
+           setSelectedOrder(null);
+        } else {
+           setSelectedOrder(prev => prev ? { ...prev, status: status as Order['status'] } : null);
+        }
+      }
+
       addToast(`Order moved to ${status.replace(/_/g, ' ')}`, 'success');
-      await fetchOrders();
     } catch (error: any) {
       addToast(error.message || 'Could not update order status', 'error');
     } finally {
@@ -86,8 +132,36 @@ export default function AdminOrders() {
     try {
       setActionLoading(true);
       await orderService.reviewPayment(selectedOrder.id, { action, admin_note: adminNote.trim() || undefined });
+      
+      const newPaymentStatus = action === 'confirm' ? 'confirmed' : 'rejected';
+      const newStatus = action === 'confirm' ? 'confirmed' : selectedOrder.status;
+
+      setOrders(prev => {
+        const mapped = prev.map(o => o.id === selectedOrder.id ? { 
+          ...o, 
+          payment_status: newPaymentStatus as Order['payment_status'], 
+          status: newStatus as Order['status'], 
+          admin_note: adminNote.trim() || undefined 
+        } : o);
+        
+        if (filter !== 'all' && filter !== newStatus) {
+           return mapped.filter(o => o.id !== selectedOrder.id);
+        }
+        return mapped;
+      });
+
+      if (filter !== 'all' && filter !== newStatus) {
+         setSelectedOrder(null);
+      } else {
+         setSelectedOrder(prev => prev ? { 
+           ...prev, 
+           payment_status: newPaymentStatus as Order['payment_status'], 
+           status: newStatus as Order['status'], 
+           admin_note: adminNote.trim() || undefined 
+         } : null);
+      }
+
       addToast(action === 'confirm' ? 'Payment confirmed' : 'Payment rejected', 'success');
-      await fetchOrders();
     } catch (error: any) {
       addToast(error.message || 'Could not review payment', 'error');
     } finally {
@@ -95,28 +169,16 @@ export default function AdminOrders() {
     }
   };
 
-  const selectedStatusActions = selectedOrder
-    ? selectedOrder.order_type === 'pickup'
-      ? ['confirmed', 'preparing', 'ready_for_pickup', 'delivered', 'cancelled']
-      : ['confirmed', 'preparing', 'dispatched', 'delivered', 'cancelled']
-    : [];
 
   return (
     <div className="bg-surface min-h-screen p-6 md:p-10">
-      <header className="mb-8 space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="font-label text-[10px] font-bold uppercase tracking-[0.35em] text-outline">Operations</p>
-            <h1 className="font-headline font-bold text-3xl">Order Desk</h1>
-            <p className="mt-2 text-sm text-outline">Review payments, move orders through delivery or pickup, and keep customers informed.</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <QueueCard label="Pending payment review" value={queueStats.paymentReview} tone="secondary" />
-            <QueueCard label="Pickup queue" value={queueStats.pickupQueue} tone="tertiary" />
-            <QueueCard label="Delivery queue" value={queueStats.deliveryQueue} tone="primary" />
-          </div>
-        </div>
+      <AdminPageHeader label="Operations" title="Order Desk" subtitle="Review payments, move orders through delivery or pickup, and keep customers informed.">
+        <QueueCard label="Pending payment review" value={queueStats.paymentReview} tone="secondary" />
+        <QueueCard label="Pickup queue" value={queueStats.pickupQueue} tone="tertiary" />
+        <QueueCard label="Delivery queue" value={queueStats.deliveryQueue} tone="primary" />
+      </AdminPageHeader>
 
+      <div className="mb-8" id="tour-order-filters">
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {statusOptions.map((status) => (
             <button
@@ -129,10 +191,10 @@ export default function AdminOrders() {
             </button>
           ))}
         </div>
-      </header>
+      </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+        <div className="space-y-4 lg:col-span-2" id="tour-order-list">
           {!loading && orders.length === 0 && (
             <div className="rounded-[28px] border border-dashed border-outline-variant/40 bg-white p-8 text-sm text-outline">
               No orders match this filter yet.
@@ -176,7 +238,7 @@ export default function AdminOrders() {
           ))}
         </div>
 
-        <aside className="sticky top-8 h-fit rounded-[32px] border border-outline-variant/10 bg-white p-6 shadow-sm">
+        <AdminSection id="tour-order-details" className="sticky top-8 h-fit lg:col-span-1 border-outline-variant/10 shadow-sm flex-col p-6">
           {!selectedOrder ? (
             <div className="space-y-3">
               <h2 className="font-headline text-xl font-bold">Select an order</h2>
@@ -216,12 +278,11 @@ export default function AdminOrders() {
               </div>
 
               <div>
-                <label className="font-label text-[10px] font-bold uppercase tracking-widest text-outline">Admin note</label>
-                <textarea
+                <AdminTextarea
+                  label="Admin note"
                   value={adminNote}
                   onChange={(event) => setAdminNote(event.target.value)}
                   rows={4}
-                  className="mt-2 w-full resize-none rounded-2xl border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-container/40"
                   placeholder="Write a note for this payment or order review"
                 />
               </div>
@@ -230,22 +291,22 @@ export default function AdminOrders() {
                 <div className="space-y-3">
                   <p className="font-label text-[10px] font-bold uppercase tracking-widest text-outline">Payment review</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <button
+                    <AdminButton
                       type="button"
                       disabled={actionLoading}
                       onClick={() => reviewPayment('confirm')}
-                      className="rounded-full bg-tertiary px-4 py-3 text-xs font-bold uppercase tracking-widest text-white disabled:opacity-60"
+                      variant="tertiary"
                     >
                       Confirm
-                    </button>
-                    <button
+                    </AdminButton>
+                    <AdminButton
                       type="button"
                       disabled={actionLoading}
                       onClick={() => reviewPayment('reject')}
-                      className="rounded-full bg-error/10 px-4 py-3 text-xs font-bold uppercase tracking-widest text-error disabled:opacity-60"
+                      variant="danger"
                     >
                       Reject
-                    </button>
+                    </AdminButton>
                   </div>
                 </div>
               )}
@@ -279,7 +340,7 @@ export default function AdminOrders() {
               )}
             </div>
           )}
-        </aside>
+        </AdminSection>
       </div>
     </div>
   );

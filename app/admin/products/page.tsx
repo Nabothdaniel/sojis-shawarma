@@ -2,11 +2,15 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { adminService, catalogService, type CatalogCategory, type CatalogProduct, type StoreSettings } from '@/lib/api';
+import { adminService, type StoreSettings } from '@/lib/api/admin.service';
+import { catalogService, type CatalogCategory, type CatalogProduct } from '@/lib/api/catalog.service';
 import { useAppStore } from '@/store/appStore';
 import useAdminGuard from '@/hooks/useAdminGuard';
 import { AdminRouteLoadingScreen, SkeletonBlock } from '@/components/ui/AdminSkeletons';
-
+import { AdminSection, AdminPageHeader } from '@/components/admin/ui/AdminContainers';
+import { AdminInput, AdminTextarea, AdminSelect, AdminCheckbox } from '@/components/admin/ui/AdminForms';
+import { AdminButton } from '@/components/admin/ui/AdminButton';
+import { useWalkthrough } from '@/hooks/useWalkthrough';
 const defaultStoreSettings: StoreSettings = {
   payment_account_name: '',
   payment_account_number: '',
@@ -76,6 +80,12 @@ export default function AdminProductsPage() {
 
     loadAdminCatalog();
   }, [isAdmin, loadAdminCatalog, token]);
+
+  useWalkthrough('admin_products_tour_v1', [
+    { element: '#tour-product-form', popover: { title: 'Add Menu Items', description: 'Fill out this form to add a new shawarma or drink to your storefront.' } },
+    { element: '#tour-store-settings', popover: { title: 'Payment Details', description: 'Enter your bank details here so customers know where to transfer their payments.', side: 'left' } },
+    { element: '#tour-product-list', popover: { title: 'Current Menu', description: 'All your active items are listed here. You can easily edit or delete them anytime.', side: 'top' } }
+  ], { enabled: isAdmin && !loading });
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -212,54 +222,49 @@ export default function AdminProductsPage() {
   return (
     <div className="min-h-screen bg-surface p-6 md:p-10 w-full">
       <div className="mx-auto max-w-7xl space-y-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-label text-[10px] uppercase tracking-[0.3em] text-outline font-bold">Admin</p>
-            <h1 className="font-headline text-3xl font-bold">Catalog and Payments</h1>
-            <p className="mt-2 text-sm text-outline">Manage product categories, menu items, and the payment details customers see during checkout.</p>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/admin/orders" className="rounded-full bg-on-surface px-5 py-3 text-xs font-label font-bold uppercase tracking-widest text-surface">Orders</Link>
-            <Link href="/admin/promos" className="rounded-full bg-surface-container-low px-5 py-3 text-xs font-label font-bold uppercase tracking-widest">Promos</Link>
-          </div>
-        </header>
+        <AdminPageHeader label="Admin" title="Catalog and Payments" subtitle="Manage product categories, menu items, and the payment details customers see during checkout.">
+          <Link href="/admin/orders" className="rounded-full bg-on-surface px-5 py-3 text-xs font-label font-bold uppercase tracking-widest text-surface">Orders</Link>
+          <Link href="/admin/promos" className="rounded-full bg-surface-container-low px-5 py-3 text-xs font-label font-bold uppercase tracking-widest">Promos</Link>
+        </AdminPageHeader>
 
         <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-8">
-            <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10 relative">
-              {editingProductId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingProductId(null);
-                    setForm({ category_id: categories[0]?.id as string, name: '', description: '', specifications: '', price: '', available: true });
-                  }}
-                  className="absolute top-6 right-6 text-xs text-error font-bold font-label uppercase tracking-widest"
-                >
-                  Cancel Edit
-                </button>
-              )}
-              <h2 className="mb-4 font-headline text-xl font-bold">{editingProductId ? 'Edit menu item' : 'Add a menu item'}</h2>
+            <AdminSection id="tour-product-form" className="relative">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-headline text-xl font-bold">{editingProductId ? 'Edit menu item' : 'Add a menu item'}</h2>
+                {editingProductId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingProductId(null);
+                      setForm({ category_id: categories[0]?.id as string, name: '', description: '', specifications: '', price: '', available: true });
+                    }}
+                    className="text-xs text-error font-bold font-label uppercase tracking-widest"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <select
+                <AdminSelect
                   value={form.category_id}
                   onChange={(event) => setForm((current) => ({ ...current, category_id: event.target.value }))}
-                  className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30"
                 >
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
-                </select>
-                <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Product name" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={3} placeholder="Description" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                <textarea value={form.specifications} onChange={(event) => setForm((current) => ({ ...current, specifications: event.target.value }))} rows={2} placeholder="Specifications (e.g. Size Variations, Ingredients)" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                </AdminSelect>
+                <AdminInput value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Product name" />
+                <AdminTextarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} rows={3} placeholder="Description" />
+                <AdminTextarea value={form.specifications} onChange={(event) => setForm((current) => ({ ...current, specifications: event.target.value }))} rows={2} placeholder="Specifications (e.g. Size Variations, Ingredients)" />
                 
-                <input value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} type="number" min="0" placeholder="Price" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                <AdminInput value={form.price} onChange={(event) => setForm((current) => ({ ...current, price: event.target.value }))} type="number" min="0" placeholder="Price" />
                 
-                <label className="flex items-center justify-between rounded-2xl bg-surface-container-highest px-4 py-4 text-sm">
-                  <span>Available for ordering</span>
-                  <input type="checkbox" checked={form.available} onChange={(event) => setForm((current) => ({ ...current, available: event.target.checked }))} />
-                </label>
+                <AdminCheckbox 
+                  label="Available for ordering" 
+                  checked={form.available} 
+                  onChange={(checked) => setForm((current) => ({ ...current, available: checked }))} 
+                />
                 
                 <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-outline-variant/40 bg-surface-container-low px-6 py-8 text-center">
                   <input type="file" accept="image/*" className="hidden" onChange={(event) => setImageFile(event.target.files?.[0] || null)} />
@@ -268,33 +273,34 @@ export default function AdminProductsPage() {
                   <p className="font-body text-xs text-outline mt-1">JPG, PNG, or WEBP up to 5MB</p>
                 </label>
                 
-                <button disabled={saving} className={`w-full rounded-full py-4 text-xs font-label font-bold uppercase tracking-widest disabled:opacity-60 ${editingProductId ? 'bg-primary-container text-on-primary-container' : 'bg-on-surface text-surface'}`}>
+                <AdminButton type="submit" disabled={saving} variant={editingProductId ? 'tertiary' : 'primary'} fullWidth>
                   {saving ? 'Saving...' : (editingProductId ? 'Update product' : 'Upload product')}
-                </button>
+                </AdminButton>
               </form>
-            </section>
+            </AdminSection>
 
-            <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10">
+            <AdminSection>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-headline text-xl font-bold">Categories</h2>
                 <span className="text-xs font-label font-bold uppercase tracking-widest text-outline">{categories.length} active</span>
               </div>
               <form onSubmit={handleCategorySubmit} className="grid gap-4 md:grid-cols-[1fr_auto]">
                 <div className="space-y-4">
-                  <input value={categoryForm.name} onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))} placeholder="Category name" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                  <label className="flex cursor-pointer items-center justify-between rounded-2xl bg-surface-container-highest px-4 py-4 text-sm">
-                    <span>{categoryImageFile?.name || 'Optional category image'}</span>
+                  <AdminInput value={categoryForm.name} onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))} placeholder="Category name" />
+                  <label className="flex cursor-pointer items-center justify-between rounded-2xl bg-surface-container-highest px-4 py-4 text-sm gap-2">
+                    <span className="truncate flex-1">{categoryImageFile?.name || 'Optional category image'}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={(event) => setCategoryImageFile(event.target.files?.[0] || null)} />
-                    <span className="text-xs font-bold uppercase tracking-widest text-outline">Upload</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-outline shrink-0">Upload</span>
                   </label>
-                  <label className="flex items-center justify-between rounded-2xl bg-surface-container-highest px-4 py-4 text-sm">
-                    <span>Visible to customers</span>
-                    <input type="checkbox" checked={categoryForm.active} onChange={(event) => setCategoryForm((current) => ({ ...current, active: event.target.checked }))} />
-                  </label>
+                  <AdminCheckbox 
+                    label="Visible to customers" 
+                    checked={categoryForm.active} 
+                    onChange={(checked) => setCategoryForm((current) => ({ ...current, active: checked }))} 
+                  />
                 </div>
-                <button disabled={categorySaving} className="rounded-full bg-primary-container px-6 py-4 text-xs font-label font-bold uppercase tracking-widest text-on-primary-container disabled:opacity-60">
+                <AdminButton type="submit" disabled={categorySaving} variant="tertiary" className="md:self-start">
                   {categorySaving ? 'Saving...' : 'Add category'}
-                </button>
+                </AdminButton>
               </form>
               <div className="mt-5 flex flex-wrap gap-3">
                 {categories.map((category) => (
@@ -303,42 +309,41 @@ export default function AdminProductsPage() {
                   </span>
                 ))}
               </div>
-            </section>
+            </AdminSection>
           </div>
 
           <div className="space-y-8">
-            <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10">
+            <AdminSection id="tour-store-settings">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-headline text-xl font-bold">Store Settings</h2>
                 <span className="text-xs font-label font-bold uppercase tracking-widest text-outline">Payments & delivery</span>
               </div>
               <form onSubmit={saveStoreSettings} className="space-y-4">
-                <div className="flex gap-4">
-                  <input value={storeSettings.payment_bank_name} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_bank_name: event.target.value }))} placeholder="Bank name" className="flex-1 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                  <input value={storeSettings.payment_account_number} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_account_number: event.target.value }))} placeholder="Account number" className="flex-1 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                <div className="flex flex-col md:flex-row gap-4">
+                  <AdminInput value={storeSettings.payment_bank_name} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_bank_name: event.target.value }))} placeholder="Bank name" />
+                  <AdminInput value={storeSettings.payment_account_number} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_account_number: event.target.value }))} placeholder="Account number" />
                 </div>
-                <input value={storeSettings.payment_account_name} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_account_name: event.target.value }))} placeholder="Account name" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                <AdminInput value={storeSettings.payment_account_name} onChange={(event) => setStoreSettings((current) => ({ ...current, payment_account_name: event.target.value }))} placeholder="Account name" />
                 
                 <h3 className="text-xs font-label font-bold uppercase tracking-widest text-outline pt-2">Delivery & Contact</h3>
                 <div className="flex items-center gap-3">
                   <span className="text-sm">₦</span>
-                  <input 
+                  <AdminInput 
                     value={storeSettings.delivery_fee || 0} 
                     onChange={(event) => setStoreSettings((current) => ({ ...current, delivery_fee: Number(event.target.value) }))} 
                     type="number" min="0" placeholder="Delivery Fee (0 = Free)" 
-                    className="flex-1 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" 
                   />
                 </div>
-                <input value={storeSettings.support_whatsapp} onChange={(event) => setStoreSettings((current) => ({ ...current, support_whatsapp: event.target.value }))} placeholder="Support WhatsApp e.g. 2348012345678" className="w-full rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
-                <textarea value={storeSettings.pickup_address} onChange={(event) => setStoreSettings((current) => ({ ...current, pickup_address: event.target.value }))} rows={2} placeholder="Pickup address" className="w-full resize-none rounded-2xl bg-surface-container-highest px-4 py-4 text-sm outline-none focus:ring-2 focus:ring-primary-container/30" />
+                <AdminInput value={storeSettings.support_whatsapp} onChange={(event) => setStoreSettings((current) => ({ ...current, support_whatsapp: event.target.value }))} placeholder="Support WhatsApp e.g. 2348012345678" />
+                <AdminTextarea value={storeSettings.pickup_address} onChange={(event) => setStoreSettings((current) => ({ ...current, pickup_address: event.target.value }))} rows={2} placeholder="Pickup address" />
                 
-                <button disabled={settingsSaving} className="w-full rounded-full bg-tertiary py-4 text-xs font-label font-bold uppercase tracking-widest text-white disabled:opacity-60">
+                <AdminButton type="submit" disabled={settingsSaving} variant="tertiary" fullWidth>
                   {settingsSaving ? 'Saving...' : 'Save settings'}
-                </button>
+                </AdminButton>
               </form>
-            </section>
+            </AdminSection>
 
-            <section className="rounded-[32px] bg-white p-6 shadow-sm border border-outline-variant/10">
+            <AdminSection id="tour-product-list">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-headline text-xl font-bold">Current menu</h2>
                 <span className="text-xs font-label font-bold uppercase tracking-widest text-outline">{products.length} items</span>
@@ -381,8 +386,8 @@ export default function AdminProductsPage() {
                         </span>
                         <span className="text-outline">{product.review_count || 0} reviews</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleDeleteProduct(product.id)} className="text-error bg-error/10 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest hidden group-hover:block transition-all">
+                      <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+                        <button onClick={() => handleDeleteProduct(product.id)} className="text-error bg-error/10 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest md:opacity-0 md:group-hover:opacity-100 transition-opacity opacity-100">
                           Delete
                         </button>
                         <button onClick={() => handleEditProduct(product)} className="text-on-surface bg-surface-container-highest rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest">
@@ -393,7 +398,7 @@ export default function AdminProductsPage() {
                   </article>
                 ))}
               </div>
-            </section>
+            </AdminSection>
           </div>
         </div>
       </div>

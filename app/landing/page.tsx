@@ -8,10 +8,11 @@ export default function DetailedLanding() {
   const addToast = useAddToast();
 
   const handleInstall = async () => {
+    if (!installAvailable) {
+      addToast('Direct install is not supported by your browser. Please tap the Share icon or browser menu, then "Add to Home Screen".', 'info');
+      return;
+    }
     await install({
-      onUnsupported: () => {
-        addToast('Use your browser menu and tap Add to Home Screen to install the app.', 'info');
-      },
       onAccepted: () => addToast('App installation started.', 'success'),
       onDismissed: () => addToast('Install prompt dismissed.', 'info'),
     });

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/ui/BottomNav';
@@ -35,6 +35,8 @@ export default function ProfilePage() {
     isSignedIn,
     loadTimeout,
     profile,
+    updateProfileDetails,
+    isUpdatingProfile,
   } = useProfilePage();
 
   const menuLinks = [
@@ -43,6 +45,24 @@ export default function ProfilePage() {
     { label: 'Saved Items', icon: <LuHeart className="text-2xl" />, href: '/saved', color: 'text-red-500' },
     { label: 'Give Feedback', icon: <LuMessageSquare className="text-2xl" />, href: '/feedback', color: 'text-tertiary' },
   ];
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({ name: '', phone: '', address: '' });
+
+  useEffect(() => {
+    if (hasHydrated && !isEditing) {
+      setEditData({
+        name: displayName !== '...' && displayName !== 'Loading profile...' && displayName !== 'Guest User' ? displayName : '',
+        phone: displayPhone !== 'Add a phone number when you place an order' ? displayPhone : '',
+        address: displayAddress !== 'No saved delivery address yet' ? displayAddress : ''
+      });
+    }
+  }, [hasHydrated, displayName, displayPhone, displayAddress, isEditing]);
+
+  const handleSaveProfile = async () => {
+    const success = await updateProfileDetails(editData);
+    if (success) setIsEditing(false);
+  };
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-32">
@@ -158,25 +178,64 @@ export default function ProfilePage() {
         {/* User Details */}
         <section className="space-y-3 pt-6">
           <div className="bg-surface-container-low rounded-3xl p-6 space-y-4 shadow-sm border border-outline-variant/10">
-            <div className="flex items-start gap-4">
-              <LuPhone className="text-primary-container text-xl" />
-              <div>
-                <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">
-                  Phone
-                </p>
-                <p className="font-body font-medium">{displayPhone}</p>
-              </div>
+            
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-headline font-bold text-sm">Delivery Details</h3>
+              {isSignedIn && (
+                <button 
+                  onClick={() => setIsEditing(!isEditing)} 
+                  className="font-label text-[10px] uppercase font-bold text-primary active:scale-95 transition-transform"
+                >
+                  {isEditing ? 'Cancel' : 'Edit'}
+                </button>
+              )}
             </div>
-            <div className="h-px bg-outline-variant/20"></div>
-            <div className="flex items-start gap-4">
-              <LuMapPin className="text-primary-container text-xl" />
-              <div>
-                <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">
-                  Saved Address
-                </p>
-                <p className="font-body font-medium">{displayAddress}</p>
+
+            {isEditing ? (
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1">
+                  <label className="font-label text-[10px] uppercase font-bold text-outline tracking-widest pl-2">Full Name</label>
+                  <input type="text" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} className="w-full bg-surface-container-highest border-none rounded-2xl py-3 px-4 text-sm font-body outline-none focus:ring-2 focus:ring-primary-container" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-label text-[10px] uppercase font-bold text-outline tracking-widest pl-2">Phone</label>
+                  <input type="tel" value={editData.phone} onChange={e => setEditData({...editData, phone: e.target.value})} className="w-full bg-surface-container-highest border-none rounded-2xl py-3 px-4 text-sm font-body outline-none focus:ring-2 focus:ring-primary-container" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-label text-[10px] uppercase font-bold text-outline tracking-widest pl-2">Address</label>
+                  <textarea rows={2} value={editData.address} onChange={e => setEditData({...editData, address: e.target.value})} className="w-full bg-surface-container-highest border-none rounded-2xl py-3 px-4 text-sm font-body outline-none focus:ring-2 focus:ring-primary-container resize-none" />
+                </div>
+                <button 
+                  disabled={isUpdatingProfile} 
+                  onClick={handleSaveProfile} 
+                  className="w-full py-4 mt-2 rounded-2xl bg-primary-container text-on-primary-container font-label font-bold text-xs uppercase tracking-widest disabled:opacity-50"
+                >
+                  {isUpdatingProfile ? 'Saving...' : 'Save Details'}
+                </button>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-start gap-4">
+                  <LuPhone className="text-primary-container text-xl" />
+                  <div>
+                    <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">
+                      Phone
+                    </p>
+                    <p className="font-body font-medium">{displayPhone}</p>
+                  </div>
+                </div>
+                <div className="h-px bg-outline-variant/20"></div>
+                <div className="flex items-start gap-4">
+                  <LuMapPin className="text-primary-container text-xl" />
+                  <div>
+                    <p className="font-label text-[10px] uppercase tracking-widest text-outline font-bold">
+                      Saved Address
+                    </p>
+                    <p className="font-body font-medium">{displayAddress}</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {isSignedIn && (

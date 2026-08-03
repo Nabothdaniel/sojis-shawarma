@@ -7,7 +7,9 @@ import { useCartStore } from '@/store/cartStore';
 import { useAppStore } from '@/store/appStore';
 import ProductImage from '@/components/ui/ProductImage';
 import BottomNav from '@/components/ui/BottomNav';
-import { catalogService, favoritesService } from '@/lib/api';
+import { catalogService } from '@/lib/api/catalog.service';
+import { favoritesService } from '@/lib/api/favorites.service';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import { buildProductHref, getFallbackMenuProducts, normalizeCatalogProduct, type MenuProduct } from '@/lib/menu';
 import { 
   LuUtensils, 
@@ -210,9 +212,7 @@ export default function DeliveryMenu() {
         )}
 
         {loadingProducts ? (
-          <div className="col-span-2 flex justify-center py-20">
-            <div className="w-12 h-12 border-4 border-surface-variant border-t-primary rounded-full animate-spin"></div>
-          </div>
+          <div className="col-span-2 flex justify-center py-20"><LoadingScreen message="loading menu" fullScreen={false} /></div>
         ) : (
           <section className="grid grid-cols-2 gap-4">
             {filteredProducts.map((item) => (

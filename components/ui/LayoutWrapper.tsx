@@ -1,11 +1,24 @@
 'use client';
 
-import React from 'react';
-import { usePathname } from 'next/navigation';
+import React, { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isAdminRoute = pathname?.startsWith('/admin');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && pathname?.startsWith('/show')) {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in window.navigator && (window.navigator as any).standalone === true);
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      // If user is on /show but not in the installed app (and not in dev), bounce them to landing
+      if (!isStandalone && !isDevelopment) {
+        router.replace('/landing');
+      }
+    }
+  }, [pathname, router]);
 
   if (isAdminRoute) {
     return (
